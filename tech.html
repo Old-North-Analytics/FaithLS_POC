@@ -210,7 +210,7 @@ function jobCard(j) {
   const sub = j.sub?.account_name ? ` / ${j.sub.account_name}` : '';
   const comp = j.job_completions?.[0];
   const submitted = !!comp;
-  const isLead = !j.lead_tech_id || j.lead_tech_id === currentUser.id;
+  const isLead = true; // POC: shared login - all techs can complete any assigned job
 
   const fixedBanner = j.is_fixed_price
     ? `<div class="fixed-banner">FIXED PRICE | Quoted: $${Number(j.quote_amount||0).toFixed(2)} | Do not exceed scope without calling Rich.</div>` : '';
