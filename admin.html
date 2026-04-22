@@ -68,6 +68,7 @@ select[multiple] { height: 90px; }
     <button onclick="showSection('export')">Export</button>
     <button onclick="showSection('reference')">Reference</button>
     <button onclick="showSection('newcustomers')">New Customers</button>
+    <button onclick="showSection('calendar')">Calendar</button>
     <a href="accounts.html" style="text-decoration:none"><button>Accounts</button></a>
   </nav>
   <button class="logout" onclick="logout()">Sign Out</button>
@@ -280,6 +281,24 @@ select[multiple] { height: 90px; }
   </div>
 </div>
 
+<!-- ============================================================ -->
+<!-- CALENDAR SECTION -->
+<!-- ============================================================ -->
+<div id="section-calendar" style="display:none">
+  <div class="card">
+    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-bottom:0.8rem">
+      <button class="btn btn-secondary" onclick="calPrevWeek()">Prev Week</button>
+      <strong id="cal-week-label" style="min-width:180px;text-align:center"></strong>
+      <button class="btn btn-secondary" onclick="calNextWeek()">Next Week</button>
+      <div style="margin-left:1rem">
+        <label style="font-size:0.82rem;font-weight:bold">Tech</label>
+        <select id="cal-tech" onchange="renderCalendar()" style="padding:0.35rem;border:1px solid #ccc;margin-left:0.4rem"></select>
+      </div>
+    </div>
+    <div id="calendar-grid"></div>
+  </div>
+</div>
+
 </div><!-- end container -->
 
 <!-- ============================================================ -->
@@ -349,6 +368,16 @@ async function loadRefData() {
   const cats = [...new Set(allJobTypes.map(j => j.category).filter(Boolean))];
   popSelect('s-category', cats.map(c => ({id:c,name:c})), 'id', 'name', '-- All --');
 
+  // Populate assign expected labor dropdown
+  popSelect('a-labortype', allLaborTypes, 'id', 'labor_type_name', 'Select type...');
+
+  // Populate calendar tech dropdown
+  const calTech = document.getElementById('cal-tech');
+  if (calTech) {
+    calTech.innerHTML = '<option value="">All Techs</option>' +
+      allTechs.map(t=>`<option value="${t.id}">${t.tech_name}</option>`).join('');
+  }
+
   // Reference tables
   renderPartsRef();
   renderJobTypesRef();
@@ -409,11 +438,20 @@ async function assignJob() {
   const { data, error } = await db.from('jobs').insert(payload).select().single();
   if (error) { msg.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
   lastJob = payload;
+
+  // Insert expected line items if any
+  const expItems = [
+    ...assignParts.map(p=>({job_id:data.id,item_type:'Part',item_id:p.id,quantity:p.qty,unit_cost:allParts.find(x=>x.id===p.id)?.unit_cost||0})),
+    ...assignLabor.map(l=>({job_id:data.id,item_type:'Labor',item_id:l.id,quantity:l.hours,unit_cost:allLaborTypes.find(x=>x.id===l.id)?.hourly_rate||0}))
+  ];
+  if (expItems.length) await db.from('job_line_items').insert(expItems);
+
   msg.innerHTML = '<div class="msg success">Job assigned successfully.</div>';
-  // Clear form
   ['a-scope','a-sitenotes'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('a-fixedprice').checked = false;
   document.getElementById('a-quotewrap').style.display = 'none';
+  assignParts=[]; assignLabor=[];
+  renderAssignParts(); renderAssignLabor();
 }
 
 async function duplicateLast() {
@@ -1045,16 +1083,231 @@ async function dismissCustomer(id) {
   loadNewCustomers();
 }
 
+// ---- ASSIGN EXPECTED PARTS/LABOR ----
+let assignParts = [], assignLabor = [];
+
+function searchAssignParts() {
+  const q = document.getElementById('a-partsearch').value.toLowerCase().trim();
+  const res = document.getElementById('a-parts-results');
+  if (!q) { res.style.display='none'; return; }
+  const matches = allParts.filter(p=>p.part_name.toLowerCase().includes(q)).slice(0,10);
+  if (!matches.length) { res.style.display='none'; return; }
+  res.style.display='';
+  res.innerHTML = matches.map(p=>`<div onclick="addAssignPart('${p.id}',${JSON.stringify(p.part_name)})">${p.part_name}${p.unit?' ('+p.unit+')':''}${p.category?' - '+p.category:''}</div>`).join('');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.parts-search-wrap')) document.querySelectorAll('.parts-results').forEach(el=>el.style.display='none');
+});
+
+function addAssignPart(id, name) {
+  const qty = prompt(`Quantity for: ${name}`, '1');
+  if (!qty||isNaN(qty)||Number(qty)<=0) return;
+  const ex = assignParts.find(p=>p.id===id);
+  if (ex) ex.qty=Number(qty); else assignParts.push({id,name,qty:Number(qty)});
+  renderAssignParts();
+  document.getElementById('a-parts-results').style.display='none';
+  document.getElementById('a-partsearch').value='';
+}
+function removeAssignPart(idx) { assignParts.splice(idx,1); renderAssignParts(); }
+function renderAssignParts() {
+  document.querySelector('#a-parts-table tbody').innerHTML = assignParts.map((p,i)=>
+    `<tr><td>${p.name}</td><td>${p.qty}</td><td><button onclick="removeAssignPart(${i})" style="border:none;background:none;cursor:pointer;color:red">X</button></td></tr>`
+  ).join('')||'<tr><td colspan="3" style="color:#aaa;font-style:italic">None</td></tr>';
+}
+
+function addAssignLabor() {
+  const id = document.getElementById('a-labortype').value;
+  const hours = parseFloat(document.getElementById('a-laborhours').value);
+  if (!id||isNaN(hours)||hours<=0) return;
+  const lt = allLaborTypes.find(l=>l.id===id);
+  const ex = assignLabor.find(l=>l.id===id);
+  if (ex) ex.hours=hours; else assignLabor.push({id,name:lt.labor_type_name,hours});
+  renderAssignLabor();
+  document.getElementById('a-laborhours').value='';
+}
+function removeAssignLabor(idx) { assignLabor.splice(idx,1); renderAssignLabor(); }
+function renderAssignLabor() {
+  document.querySelector('#a-labor-table tbody').innerHTML = assignLabor.map((l,i)=>
+    `<tr><td>${l.name}</td><td>${l.hours} hr</td><td><button onclick="removeAssignLabor(${i})" style="border:none;background:none;cursor:pointer;color:red">X</button></td></tr>`
+  ).join('')||'<tr><td colspan="3" style="color:#aaa;font-style:italic">None</td></tr>';
+}
+
+// ---- CALENDAR ----
+let calWeekOffset = 0;
+let calJobs = [];
+
+function calWeekDates(offset) {
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay()+6)%7) + offset*7);
+  const days = [];
+  for (let i=0;i<7;i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate()+i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  return days;
+}
+
+function calPrevWeek() { calWeekOffset--; loadCalendar(); }
+function calNextWeek() { calWeekOffset++; loadCalendar(); }
+
+async function loadCalendar() {
+  const days = calWeekDates(calWeekOffset);
+  const from = days[0], to = days[6];
+  document.getElementById('cal-week-label').textContent =
+    `${new Date(from+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})} - ${new Date(to+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
+
+  const {data} = await db.from('jobs')
+    .select(`id,job_date,status,is_fixed_price,assigned_tech_ids,lead_tech_id,
+             accounts!jobs_account_id_fkey(account_name),
+             job_types(job_type_name)`)
+    .gte('job_date',from).lte('job_date',to)
+    .not('status','eq','Cancelled');
+
+  calJobs = data||[];
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const techId = document.getElementById('cal-tech').value;
+  const days = calWeekDates(calWeekOffset);
+  const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  const grid = document.getElementById('calendar-grid');
+  grid.innerHTML = `<table style="table-layout:fixed">
+    <thead><tr>${days.map((d,i)=>{
+      const label = new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      const isToday = d===new Date().toISOString().split('T')[0];
+      return `<th style="width:14.28%;font-size:0.82rem;${isToday?'background:#1a1a1a;color:white;':''}">${dayNames[i]}<br>${label}</th>`;
+    }).join('')}</tr></thead>
+    <tbody><tr>${days.map(d=>{
+      let jobs = calJobs.filter(j=>j.job_date===d);
+      if (techId) {
+        jobs = jobs.filter(j=>j.assigned_tech_ids&&j.assigned_tech_ids.includes(techId));
+      }
+      const cells = jobs.map(j=>{
+        const isLead = j.lead_tech_id===techId;
+        const leadNote = j.assigned_tech_ids&&j.assigned_tech_ids.length>1
+          ? (isLead?'<span style="font-size:0.72rem;background:#1a1a1a;color:white;padding:0 3px">Lead</span> ':'<span style="font-size:0.72rem;color:#666">+others</span> '):'';
+        const statusColor = {
+          'Scheduled':'#e0e8ff','Quoted':'#fff0cc','Awaiting Parts':'#ffe8cc',
+          'Pending Review':'#ffd','Flagged':'#ffe0e0','Approved':'#e0ffe0'
+        }[j.status]||'#eee';
+        return `<div style="background:${statusColor};border:1px solid #ccc;padding:0.3rem;margin-bottom:0.3rem;font-size:0.78rem;border-radius:2px">
+          ${leadNote}<strong>${j.accounts?.account_name||''}</strong><br>
+          ${j.job_types?.job_type_name||''}<br>
+          <span style="color:#666">${j.status}</span>
+          ${j.is_fixed_price?'<br><span style="color:#900;font-size:0.72rem">Fixed Price</span>':''}
+        </div>`;
+      }).join('');
+      return `<td style="vertical-align:top;padding:0.3rem;border:1px solid #eee;min-height:80px">${cells||'<span style="color:#ccc;font-size:0.78rem">-</span>'}</td>`;
+    }).join('')}</tr></tbody>
+  </table>`;
+}
+
+// ---- REFERENCE INLINE EDIT ----
+function renderPartsRef() {
+  const tbody = document.getElementById('parts-ref-body');
+  tbody.innerHTML = allParts.map(p=>`<tr id="prow-${p.id}">
+    <td><input value="${p.part_name}" style="width:100%;padding:0.2rem;border:1px solid #ddd" id="pn-${p.id}"></td>
+    <td><input value="${p.category||''}" style="width:100%;padding:0.2rem;border:1px solid #ddd" id="pc-${p.id}"></td>
+    <td><input value="${p.unit||''}" style="width:60px;padding:0.2rem;border:1px solid #ddd" id="pu-${p.id}"></td>
+    <td><input type="number" value="${p.unit_cost}" style="width:80px;padding:0.2rem;border:1px solid #ddd" id="pp-${p.id}"></td>
+    <td>${p.active?'Yes':'No'}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-primary" onclick="savePart('${p.id}')">Save</button>
+      <button class="btn btn-red" onclick="toggleActive('parts','${p.id}',${p.active})">${p.active?'Deactivate':'Activate'}</button>
+    </td>
+  </tr>`).join('');
+}
+
+async function savePart(id) {
+  const {error} = await db.from('parts').update({
+    part_name: document.getElementById(`pn-${id}`).value.trim(),
+    category: document.getElementById(`pc-${id}`).value||null,
+    unit: document.getElementById(`pu-${id}`).value||null,
+    unit_cost: parseFloat(document.getElementById(`pp-${id}`).value)||0
+  }).eq('id',id);
+  if (error) alert(error.message);
+  else { await loadRefData(); renderPartsRef(); }
+}
+
+function renderJobTypesRef() {
+  const tbody = document.getElementById('jobtypes-ref-body');
+  tbody.innerHTML = allJobTypes.map(j=>`<tr>
+    <td><input value="${j.job_type_name}" style="width:100%;padding:0.2rem;border:1px solid #ddd" id="jtn-${j.id}"></td>
+    <td><input value="${j.category||''}" style="width:100%;padding:0.2rem;border:1px solid #ddd" id="jtc-${j.id}"></td>
+    <td><input type="number" value="${j.flat_rate||''}" placeholder="none" style="width:80px;padding:0.2rem;border:1px solid #ddd" id="jtr-${j.id}"></td>
+    <td>${j.active?'Yes':'No'}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-primary" onclick="saveJobType('${j.id}')">Save</button>
+      <button class="btn btn-red" onclick="toggleActive('job_types','${j.id}',${j.active})">${j.active?'Deactivate':'Activate'}</button>
+    </td>
+  </tr>`).join('');
+}
+
+async function saveJobType(id) {
+  const {error} = await db.from('job_types').update({
+    job_type_name: document.getElementById(`jtn-${id}`).value.trim(),
+    category: document.getElementById(`jtc-${id}`).value||null,
+    flat_rate: parseFloat(document.getElementById(`jtr-${id}`).value)||null
+  }).eq('id',id);
+  if (error) alert(error.message);
+  else { await loadRefData(); renderJobTypesRef(); }
+}
+
+function renderLaborTypesRef() {
+  const tbody = document.getElementById('labortypes-ref-body');
+  tbody.innerHTML = allLaborTypes.map(l=>`<tr>
+    <td><input value="${l.labor_type_name}" style="width:100%;padding:0.2rem;border:1px solid #ddd" id="ltn-${l.id}"></td>
+    <td><input type="number" value="${l.hourly_rate}" style="width:90px;padding:0.2rem;border:1px solid #ddd" id="ltr-${l.id}"></td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-primary" onclick="saveLaborType('${l.id}')">Save</button>
+      <button class="btn btn-red" onclick="deleteLaborType('${l.id}')">Delete</button>
+    </td>
+  </tr>`).join('');
+}
+
+async function saveLaborType(id) {
+  const {error} = await db.from('labor_types').update({
+    labor_type_name: document.getElementById(`ltn-${id}`).value.trim(),
+    hourly_rate: parseFloat(document.getElementById(`ltr-${id}`).value)||0
+  }).eq('id',id);
+  if (error) alert(error.message);
+  else { await loadRefData(); renderLaborTypesRef(); }
+}
+
+function renderTechsRef() {
+  const tbody = document.getElementById('techs-ref-body');
+  tbody.innerHTML = allTechs.map(t=>`<tr>
+    <td><input value="${t.tech_name}" style="width:100%;padding:0.2rem;border:1px solid #ddd" id="tn-${t.id}"></td>
+    <td>${t.active?'Yes':'No'}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-primary" onclick="saveTech('${t.id}')">Save</button>
+      <button class="btn btn-red" onclick="toggleActive('techs','${t.id}',${t.active})">${t.active?'Deactivate':'Activate'}</button>
+    </td>
+  </tr>`).join('');
+}
+
+async function saveTech(id) {
+  const {error} = await db.from('techs').update({tech_name:document.getElementById(`tn-${id}`).value.trim()}).eq('id',id);
+  if (error) alert(error.message);
+  else { await loadRefData(); renderTechsRef(); }
+}
+
 // ---- SECTION NAVIGATION ----
 function showSection(name) {
-  ['assign','review','search','export','reference','newcustomers'].forEach(s => {
+  ['assign','review','search','export','reference','newcustomers','calendar'].forEach(s => {
     document.getElementById(`section-${s}`).style.display = s === name ? '' : 'none';
   });
   document.querySelectorAll('nav button').forEach((b,i) => {
-    b.classList.toggle('active', ['assign','review','search','export','reference','newcustomers'][i] === name);
+    b.classList.toggle('active', ['assign','review','search','export','reference','newcustomers','calendar'][i] === name);
   });
   if (name === 'review') loadReview();
   if (name === 'newcustomers') loadNewCustomers();
+  if (name === 'calendar') loadCalendar();
 }
 
 async function logout() {
