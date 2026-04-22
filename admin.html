@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Faith Lock -- Admin</title>
+<title>Faith Lock Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 * { box-sizing: border-box; }
@@ -60,7 +60,7 @@ select[multiple] { height: 90px; }
 </head>
 <body>
 <header>
-  <h1>Faith Lock &amp; Safe -- Admin</h1>
+  <h1>Faith Lock &amp; Safe | Admin</h1>
   <nav>
     <button class="active" onclick="showSection('assign')">Assign</button>
     <button onclick="showSection('review')">Review</button>
@@ -68,6 +68,7 @@ select[multiple] { height: 90px; }
     <button onclick="showSection('export')">Export</button>
     <button onclick="showSection('reference')">Reference</button>
     <button onclick="showSection('newcustomers')">New Customers</button>
+    <a href="accounts.html" style="text-decoration:none"><button>Accounts</button></a>
   </nav>
   <button class="logout" onclick="logout()">Sign Out</button>
 </header>
@@ -525,7 +526,7 @@ function reviewCard(j) {
   }).join('');
 
   const fixedBanner = j.is_fixed_price
-    ? `<div class="fixed-banner">FIXED PRICE -- Quoted: $${Number(j.quote_amount||0).toFixed(2)}</div>` : '';
+    ? `<div class="fixed-banner">FIXED PRICE | Quoted: $${Number(j.quote_amount||0).toFixed(2)}</div>` : '';
 
   return `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.3rem">

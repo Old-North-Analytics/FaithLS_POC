@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Faith Lock -- Tech View</title>
+<title>Faith Lock | Field View</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 * { box-sizing: border-box; }
@@ -47,7 +47,7 @@ input[type=checkbox] { width: auto; }
 </head>
 <body>
 <header>
-  <h1>Faith Lock &amp; Safe -- Field View</h1>
+  <h1>Faith Lock &amp; Safe | Field View</h1>
   <button class="logout" onclick="logout()">Sign Out</button>
 </header>
 <div class="container">
@@ -248,7 +248,7 @@ function jobCard(j) {
   const submitted = j.job_completions?.length > 0;
   const isLead = j.lead_tech_id === currentUser.id || !j.lead_tech_id;
   const fixedBanner = j.is_fixed_price
-    ? `<div class="fixed-banner">FIXED PRICE JOB -- Quoted: $${Number(j.quote_amount||0).toFixed(2)} -- Do not exceed scope without calling Rich.</div>` : '';
+    ? `<div class="fixed-banner">FIXED PRICE JOB | Quoted: $${Number(j.quote_amount||0).toFixed(2)} | Do not exceed scope without calling Rich.</div>` : '';
 
   return `<div class="card">
     <h3>${account}${sub}</h3>
@@ -290,7 +290,7 @@ async function openCompletion(jobId) {
     .eq('id', jobId).single();
 
   const fixedBanner = job.is_fixed_price
-    ? `<div class="fixed-banner">FIXED PRICE -- Quoted: $${Number(job.quote_amount||0).toFixed(2)} -- Do not exceed scope without calling Rich.</div>` : '';
+    ? `<div class="fixed-banner">FIXED PRICE | Quoted: $${Number(job.quote_amount||0).toFixed(2)} | Do not exceed scope without calling Rich.</div>` : '';
 
   const laborOpts = allLaborTypes.map(l => `<option value="${l.id}">${l.labor_type_name} ($${l.hourly_rate}/hr)</option>`).join('');
 
