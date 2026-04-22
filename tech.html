@@ -51,7 +51,6 @@ input[type=checkbox] { width: auto; }
 <header>
   <h1>Faith Lock &amp; Safe | Field View</h1>
   <button class="logout" onclick="logout()">Sign Out</button>
-  <a href="guide_tech.html" target="_blank" style="text-decoration:none"><button style="background:none;border:1px solid #aaa;color:#aaa;padding:0.3rem 0.7rem;cursor:pointer">Guide</button></a>
 </header>
 <div class="container">
   <div class="tabs">
@@ -199,7 +198,9 @@ async function loadJobs() {
   const { data, error } = await query.order('job_date', { ascending: false });
   const list = document.getElementById('jobs-list');
   if (error) { list.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
-  const myJobs = (data || []).filter(j => !j.assigned_tech_ids?.length || j.assigned_tech_ids.includes(currentUser.id));
+  // POC: one shared tech login - show all assigned jobs. In production each tech gets their own auth account
+  // and assigned_tech_ids would store auth UUIDs matched per user.
+  const myJobs = data || [];
   if (!myJobs.length) { list.innerHTML = '<p>No jobs found for this period.</p>'; return; }
   list.innerHTML = myJobs.map(j => jobCard(j)).join('');
 }

@@ -70,7 +70,6 @@ select[multiple] { height: 90px; }
     <button onclick="showSection('newcustomers')">New Customers</button>
     <button onclick="showSection('calendar')">Calendar</button>
     <a href="accounts.html" style="text-decoration:none"><button>Accounts</button></a>
-    <a href="guide_admin.html" target="_blank" style="text-decoration:none"><button>Guide</button></a>
   </nav>
   <button class="logout" onclick="logout()">Sign Out</button>
 </header>
@@ -115,7 +114,22 @@ select[multiple] { height: 90px; }
         <input type="number" id="a-quoteamount" style="width:100px;padding:0.35rem;border:1px solid #ccc">
       </div>
     </div>
-    <div id="a-msg"></div>
+    <div class="section-title" style="margin-top:0.8rem">Expected Parts <span style="font-weight:normal;font-size:0.82rem;color:#666">(optional - tech can adjust on completion)</span></div>
+    <div class="parts-search-wrap" style="margin-bottom:0.4rem">
+      <input type="text" id="a-partsearch" placeholder="Search parts to pre-load..." oninput="searchAssignParts()" autocomplete="off" style="width:100%;padding:0.4rem;border:1px solid #ccc">
+      <div class="parts-results" id="a-parts-results"></div>
+    </div>
+    <table id="a-parts-table"><thead><tr><th>Part</th><th>Qty</th><th></th></tr></thead><tbody><tr><td colspan="3" style="color:#aaa;font-style:italic">None</td></tr></tbody></table>
+
+    <div class="section-title" style="margin-top:0.8rem">Expected Labor <span style="font-weight:normal;font-size:0.82rem;color:#666">(optional)</span></div>
+    <div style="display:flex;gap:0.4rem;margin-bottom:0.4rem;flex-wrap:wrap">
+      <select id="a-labortype" style="flex:2;padding:0.35rem;border:1px solid #ccc"><option value="">Select type...</option></select>
+      <input type="number" id="a-laborhours" placeholder="Hrs" style="width:70px;padding:0.35rem;border:1px solid #ccc">
+      <button class="btn btn-secondary" onclick="addAssignLabor()">Add</button>
+    </div>
+    <table id="a-labor-table"><thead><tr><th>Type</th><th>Hours</th><th></th></tr></thead><tbody><tr><td colspan="3" style="color:#aaa;font-style:italic">None</td></tr></tbody></table>
+
+    <div id="a-msg" style="margin-top:0.6rem"></div>
     <button class="btn btn-primary" onclick="assignJob()">Assign Job</button>
     <button class="btn btn-secondary" onclick="duplicateLast()">Duplicate Last Job</button>
   </div>
