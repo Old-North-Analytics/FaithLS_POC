@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faith Lock -- Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; }
+body { font-family: sans-serif; margin: 0; background: #f0f0f0; font-size: 0.9rem; }
+header { background: #1a1a1a; color: white; padding: 0.7rem 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+header h1 { margin: 0; font-size: 1rem; }
+nav { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+nav button { background: none; border: 1px solid #aaa; color: #aaa; padding: 0.3rem 0.8rem; cursor: pointer; font-size: 0.85rem; }
+nav button.active { border-color: white; color: white; }
+button.logout { background: none; border: 1px solid #f66; color: #f66; padding: 0.3rem 0.7rem; cursor: pointer; }
+.container { max-width: 900px; margin: 1rem auto; padding: 0 1rem; }
+.card { background: white; border: 1px solid #ccc; margin-bottom: 0.8rem; padding: 1rem; }
+.card h3 { margin: 0 0 0.3rem; font-size: 1rem; }
+.meta { color: #555; font-size: 0.82rem; margin-bottom: 0.4rem; }
+.filters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: flex-end; }
+.filters label { font-size: 0.82rem; font-weight: bold; display: block; margin-bottom: 0.2rem; }
+.filters input, .filters select { padding: 0.35rem; border: 1px solid #ccc; font-size: 0.85rem; }
+.btn { padding: 0.35rem 0.8rem; border: none; cursor: pointer; font-size: 0.85rem; margin-right: 0.3rem; margin-top: 0.2rem; }
+.btn-primary { background: #1a1a1a; color: white; }
+.btn-green { background: #2a7a2a; color: white; }
+.btn-yellow { background: #b8860b; color: white; }
+.btn-red { background: #a00; color: white; }
+.btn-secondary { background: #ddd; color: #333; }
+.btn-blue { background: #1a4a8a; color: white; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th { background: #eee; text-align: left; padding: 0.4rem 0.5rem; white-space: nowrap; }
+td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #eee; vertical-align: top; }
+tr:hover td { background: #fafafa; }
+.status-badge { display: inline-block; padding: 0.15rem 0.5rem; font-size: 0.78rem; font-weight: bold; }
+.status-Scheduled { background: #e0e8ff; color: #224; }
+.status-Quoted { background: #fff0cc; color: #640; }
+.status-Awaiting-Parts { background: #ffe8cc; color: #640; }
+.status-Pending-Review { background: #ffd; color: #660; }
+.status-Flagged { background: #ffe0e0; color: #900; }
+.status-Approved { background: #e0ffe0; color: #060; }
+.fixed-banner { background: #ffe0e0; border: 1px solid #f99; color: #900; padding: 0.3rem 0.6rem; margin: 0.4rem 0; font-weight: bold; font-size: 0.82rem; }
+.form-row { margin-bottom: 0.5rem; }
+.form-row label { display: block; font-weight: bold; font-size: 0.82rem; margin-bottom: 0.2rem; }
+.form-row input, .form-row select, .form-row textarea { width: 100%; padding: 0.4rem; border: 1px solid #ccc; font-size: 0.9rem; }
+.form-row textarea { height: 60px; resize: vertical; }
+.msg { padding: 0.4rem 0.6rem; margin: 0.4rem 0; font-size: 0.85rem; }
+.msg.success { background: #e0ffe0; border: 1px solid #9d9; }
+.msg.error { background: #ffe0e0; border: 1px solid #f99; }
+.section-title { font-weight: bold; margin: 0.8rem 0 0.4rem; font-size: 0.9rem; border-bottom: 1px solid #eee; padding-bottom: 0.2rem; }
+.expandable { display: none; border-top: 1px solid #eee; margin-top: 0.6rem; padding-top: 0.6rem; }
+input[type=checkbox] { width: auto; }
+.tag { display: inline-block; background: #eee; padding: 0.1rem 0.4rem; font-size: 0.78rem; margin-right: 0.2rem; }
+select[multiple] { height: 90px; }
+.parts-search-wrap { position: relative; }
+.parts-results { border: 1px solid #ccc; background: white; max-height: 130px; overflow-y: auto; display: none; position: absolute; z-index: 10; width: 100%; }
+.parts-results div { padding: 0.35rem 0.5rem; cursor: pointer; border-bottom: 1px solid #eee; font-size: 0.85rem; }
+.parts-results div:hover { background: #f0f0f0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Faith Lock &amp; Safe -- Admin</h1>
+  <nav>
+    <button class="active" onclick="showSection('assign')">Assign</button>
+    <button onclick="showSection('review')">Review</button>
+    <button onclick="showSection('search')">Search</button>
+    <button onclick="showSection('export')">Export</button>
+    <button onclick="showSection('reference')">Reference</button>
+    <button onclick="showSection('newcustomers')">New Customers</button>
+  </nav>
+  <button class="logout" onclick="logout()">Sign Out</button>
+</header>
+
+<div class="container">
+
+<!-- ============================================================ -->
+<!-- ASSIGN SECTION -->
+<!-- ============================================================ -->
+<div id="section-assign">
+  <div class="card">
+    <h3>Assign Job</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem">
+      <div class="form-row"><label>Date</label><input type="date" id="a-date"></div>
+      <div class="form-row"><label>Status</label>
+        <select id="a-status">
+          <option>Scheduled</option><option>Quoted</option><option>Awaiting Parts</option>
+        </select>
+      </div>
+      <div class="form-row"><label>Account</label>
+        <select id="a-account" onchange="loadSubs('a')"><option value="">-- Select --</option></select>
+      </div>
+      <div class="form-row"><label>Sub-Account</label>
+        <select id="a-subaccount"><option value="">-- None --</option></select>
+      </div>
+      <div class="form-row"><label>Job Type</label>
+        <select id="a-jobtype"><option value="">-- Select --</option></select>
+      </div>
+      <div class="form-row"><label>Lead Tech</label>
+        <select id="a-leadtech"><option value="">-- Select --</option></select>
+      </div>
+    </div>
+    <div class="form-row"><label>Assign Techs (hold Ctrl/Cmd for multiple)</label>
+      <select id="a-techs" multiple></select>
+    </div>
+    <div class="form-row"><label>Scope of Work</label><textarea id="a-scope"></textarea></div>
+    <div class="form-row"><label>Site Notes (gate codes, contacts, parking)</label><textarea id="a-sitenotes"></textarea></div>
+    <div style="display:flex;gap:1rem;align-items:center;margin-bottom:0.6rem">
+      <label><input type="checkbox" id="a-fixedprice" onchange="toggleFixed()"> Fixed Price Job</label>
+      <div id="a-quotewrap" style="display:none">
+        <label>Quote Amount $</label>
+        <input type="number" id="a-quoteamount" style="width:100px;padding:0.35rem;border:1px solid #ccc">
+      </div>
+    </div>
+    <div id="a-msg"></div>
+    <button class="btn btn-primary" onclick="assignJob()">Assign Job</button>
+    <button class="btn btn-secondary" onclick="duplicateLast()">Duplicate Last Job</button>
+  </div>
+
+  <div class="card">
+    <h3>Schedule Viewer</h3>
+    <div class="filters">
+      <div><label>From</label><input type="date" id="sv-from"></div>
+      <div><label>To</label><input type="date" id="sv-to"></div>
+      <div style="align-self:flex-end"><button class="btn btn-primary" onclick="loadSchedule()">Load</button></div>
+    </div>
+    <div id="schedule-list">Enter a date range and click Load.</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- REVIEW SECTION -->
+<!-- ============================================================ -->
+<div id="section-review" style="display:none">
+  <div class="filters">
+    <div>
+      <label>Status Filter</label>
+      <select id="rv-status" onchange="loadReview()">
+        <option value="">All</option>
+        <option value="Pending Review" selected>Pending Review</option>
+        <option value="Flagged">Flagged</option>
+        <option value="Approved">Approved</option>
+      </select>
+    </div>
+    <div style="align-self:flex-end">
+      <button class="btn btn-primary" onclick="loadReview()">Refresh</button>
+      <button class="btn btn-green" id="bulk-approve-btn" style="display:none" onclick="bulkApprove()">Bulk Approve All Pending</button>
+    </div>
+  </div>
+  <div id="review-list">Click Refresh to load.</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SEARCH SECTION -->
+<!-- ============================================================ -->
+<div id="section-search" style="display:none">
+  <div class="card">
+    <h3>Search Jobs</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem">
+      <div class="form-row"><label>From Date</label><input type="date" id="s-from"></div>
+      <div class="form-row"><label>To Date</label><input type="date" id="s-to"></div>
+      <div class="form-row"><label>Account</label>
+        <select id="s-account"><option value="">-- All --</option></select>
+      </div>
+      <div class="form-row"><label>Tech</label>
+        <select id="s-tech"><option value="">-- All --</option></select>
+      </div>
+      <div class="form-row"><label>Status</label>
+        <select id="s-status">
+          <option value="">-- All --</option>
+          <option>Scheduled</option><option>Quoted</option><option>Awaiting Parts</option>
+          <option>Pending Review</option><option>Flagged</option><option>Approved</option><option>Cancelled</option>
+        </select>
+      </div>
+      <div class="form-row"><label>Category</label>
+        <select id="s-category"><option value="">-- All --</option></select>
+      </div>
+    </div>
+    <div class="form-row"><label>Address (partial match)</label><input type="text" id="s-address" placeholder="Search by address..."></div>
+    <button class="btn btn-primary" onclick="runSearch()">Search</button>
+  </div>
+  <div id="search-results"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- EXPORT SECTION -->
+<!-- ============================================================ -->
+<div id="section-export" style="display:none">
+  <div class="card">
+    <h3>Export to CSV (QuickBooks Desktop)</h3>
+    <div class="filters">
+      <div><label>From Date</label><input type="date" id="ex-from"></div>
+      <div><label>To Date</label><input type="date" id="ex-to"></div>
+      <div class="form-row"><label>Status</label>
+        <select id="ex-status">
+          <option value="Approved">Approved Only (default)</option>
+          <option value="">All Statuses</option>
+        </select>
+      </div>
+      <div style="align-self:flex-end"><button class="btn btn-primary" onclick="runExport()">Generate CSV</button></div>
+    </div>
+    <div id="export-msg"></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- REFERENCE DATA SECTION -->
+<!-- ============================================================ -->
+<div id="section-reference" style="display:none">
+  <div class="card">
+    <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="showRefTab('parts')">Parts</button>
+      <button class="btn btn-primary" onclick="showRefTab('jobtypes')">Job Types</button>
+      <button class="btn btn-primary" onclick="showRefTab('labortypes')">Labor Types</button>
+      <button class="btn btn-primary" onclick="showRefTab('techs')">Techs</button>
+    </div>
+
+    <!-- Parts -->
+    <div id="ref-parts">
+      <h3>Parts Catalog</h3>
+      <div style="display:flex;gap:0.4rem;margin-bottom:0.6rem;flex-wrap:wrap">
+        <input type="text" id="rp-name" placeholder="Part name" style="padding:0.35rem;border:1px solid #ccc;flex:2">
+        <input type="text" id="rp-category" placeholder="Category" style="padding:0.35rem;border:1px solid #ccc;flex:1">
+        <input type="text" id="rp-unit" placeholder="Unit" style="padding:0.35rem;border:1px solid #ccc;width:80px">
+        <input type="number" id="rp-cost" placeholder="Unit cost" style="padding:0.35rem;border:1px solid #ccc;width:100px">
+        <button class="btn btn-green" onclick="addPart()">Add</button>
+      </div>
+      <div id="parts-ref-msg"></div>
+      <table><thead><tr><th>Name</th><th>Category</th><th>Unit</th><th>Cost</th><th>Active</th><th></th></tr></thead>
+      <tbody id="parts-ref-body"></tbody></table>
+    </div>
+
+    <!-- Job Types -->
+    <div id="ref-jobtypes" style="display:none">
+      <h3>Job Types</h3>
+      <div style="display:flex;gap:0.4rem;margin-bottom:0.6rem;flex-wrap:wrap">
+        <input type="text" id="rjt-name" placeholder="Job type name" style="padding:0.35rem;border:1px solid #ccc;flex:2">
+        <input type="text" id="rjt-category" placeholder="Category" style="padding:0.35rem;border:1px solid #ccc;flex:1">
+        <input type="number" id="rjt-rate" placeholder="Flat rate" style="padding:0.35rem;border:1px solid #ccc;width:100px">
+        <button class="btn btn-green" onclick="addJobType()">Add</button>
+      </div>
+      <table><thead><tr><th>Name</th><th>Category</th><th>Flat Rate</th><th>Active</th><th></th></tr></thead>
+      <tbody id="jobtypes-ref-body"></tbody></table>
+    </div>
+
+    <!-- Labor Types -->
+    <div id="ref-labortypes" style="display:none">
+      <h3>Labor Types</h3>
+      <div style="display:flex;gap:0.4rem;margin-bottom:0.6rem">
+        <input type="text" id="rlt-name" placeholder="Labor type name" style="padding:0.35rem;border:1px solid #ccc;flex:2">
+        <input type="number" id="rlt-rate" placeholder="Hourly rate" style="padding:0.35rem;border:1px solid #ccc;width:120px">
+        <button class="btn btn-green" onclick="addLaborType()">Add</button>
+      </div>
+      <table><thead><tr><th>Name</th><th>Hourly Rate</th><th></th></tr></thead>
+      <tbody id="labortypes-ref-body"></tbody></table>
+    </div>
+
+    <!-- Techs -->
+    <div id="ref-techs" style="display:none">
+      <h3>Techs</h3>
+      <div style="display:flex;gap:0.4rem;margin-bottom:0.6rem">
+        <input type="text" id="rt-name" placeholder="Tech name" style="padding:0.35rem;border:1px solid #ccc;flex:1">
+        <button class="btn btn-green" onclick="addTech()">Add</button>
+      </div>
+      <table><thead><tr><th>Name</th><th>Active</th><th></th></tr></thead>
+      <tbody id="techs-ref-body"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- NEW CUSTOMERS SECTION -->
+<!-- ============================================================ -->
+<div id="section-newcustomers" style="display:none">
+  <div class="card">
+    <h3>Pending New Customer Submissions</h3>
+    <p class="meta">Review and migrate to Accounts table.</p>
+    <div id="newcustomers-list">Loading...</div>
+  </div>
+</div>
+
+</div><!-- end container -->
+
+<!-- ============================================================ -->
+<!-- REOPEN/EDIT MODAL -->
+<!-- ============================================================ -->
+<div id="reopen-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:100;overflow-y:auto">
+  <div style="background:white;max-width:650px;margin:1.5rem auto;padding:1.5rem;position:relative">
+    <button onclick="closeReopenModal()" style="position:absolute;top:0.5rem;right:0.5rem;background:none;border:none;font-size:1.2rem;cursor:pointer">X</button>
+    <div id="reopen-content"></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://jmsrlhqbzstuczxilxua.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc3JsaHFienN0dWN6eGlseHVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzA5NDcsImV4cCI6MjA5MjQwNjk0N30.jpHtuhezvfRXJ2uVhwglqS_rImZl8JqqBX85WUv2Z5g';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let allAccounts = [], allTechs = [], allJobTypes = [], allParts = [], allLaborTypes = [];
+let lastJob = null;
+let reopenParts = [], reopenLabor = [];
+
+// ---- INIT ----
+async function init() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+  currentUser = session.user;
+
+  const { data: profile } = await db.from('user_profiles').select('role').eq('id', currentUser.id).single();
+  if (!profile || profile.role !== 'admin') { window.location.href = 'index.html'; return; }
+
+  await loadRefData();
+  setDateDefaults();
+}
+
+function setDateDefaults() {
+  const t = today();
+  const ids = ['a-date','sv-from','sv-to','ex-from','ex-to'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = t; });
+}
+
+function today() { return new Date().toISOString().split('T')[0]; }
+
+async function loadRefData() {
+  const [a, tc, jt, p, lt] = await Promise.all([
+    db.from('accounts').select('id,account_name,parent_account_id,address').eq('active', true).order('account_name'),
+    db.from('techs').select('*').eq('active', true).order('tech_name'),
+    db.from('job_types').select('*').eq('active', true).order('job_type_name'),
+    db.from('parts').select('*').eq('active', true).order('part_name'),
+    db.from('labor_types').select('*').order('labor_type_name')
+  ]);
+  allAccounts = a.data || [];
+  allTechs = tc.data || [];
+  allJobTypes = jt.data || [];
+  allParts = p.data || [];
+  allLaborTypes = lt.data || [];
+
+  // Populate assign form
+  popSelect('a-account', allAccounts.filter(x => !x.parent_account_id), 'id', 'account_name', '-- Select Account --');
+  popSelect('a-leadtech', allTechs, 'id', 'tech_name', '-- Select Lead --');
+  popMultiSelect('a-techs', allTechs, 'id', 'tech_name');
+  popSelect('a-jobtype', allJobTypes, 'id', 'job_type_name', '-- Select --');
+
+  // Search filters
+  popSelect('s-account', allAccounts.filter(x => !x.parent_account_id), 'id', 'account_name', '-- All --');
+  popSelect('s-tech', allTechs, 'id', 'tech_name', '-- All --');
+  const cats = [...new Set(allJobTypes.map(j => j.category).filter(Boolean))];
+  popSelect('s-category', cats.map(c => ({id:c,name:c})), 'id', 'name', '-- All --');
+
+  // Reference tables
+  renderPartsRef();
+  renderJobTypesRef();
+  renderLaborTypesRef();
+  renderTechsRef();
+}
+
+function popSelect(id, items, val, label, placeholder) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = `<option value="">${placeholder}</option>` +
+    items.map(i => `<option value="${i[val]}">${i[label]}</option>`).join('');
+}
+
+function popMultiSelect(id, items, val, label) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = items.map(i => `<option value="${i[val]}">${i[label]}</option>`).join('');
+}
+
+function loadSubs(prefix) {
+  const parentId = document.getElementById(`${prefix}-account`).value;
+  const subs = allAccounts.filter(a => a.parent_account_id === parentId);
+  popSelect(`${prefix}-subaccount`, subs, 'id', 'account_name', '-- None --');
+}
+
+function toggleFixed() {
+  document.getElementById('a-quotewrap').style.display =
+    document.getElementById('a-fixedprice').checked ? '' : 'none';
+}
+
+// ---- ASSIGN ----
+async function assignJob() {
+  const msg = document.getElementById('a-msg');
+  msg.innerHTML = '';
+  const date = document.getElementById('a-date').value;
+  const accountId = document.getElementById('a-account').value;
+  if (!date || !accountId) { msg.innerHTML = '<div class="msg error">Date and account are required.</div>'; return; }
+
+  const techEls = document.getElementById('a-techs').selectedOptions;
+  const techIds = Array.from(techEls).map(o => o.value);
+
+  const payload = {
+    job_date: date,
+    account_id: accountId || null,
+    sub_account_id: document.getElementById('a-subaccount').value || null,
+    job_type_id: document.getElementById('a-jobtype').value || null,
+    assigned_tech_ids: techIds,
+    lead_tech_id: document.getElementById('a-leadtech').value || null,
+    status: document.getElementById('a-status').value,
+    scope: document.getElementById('a-scope').value || null,
+    site_notes: document.getElementById('a-sitenotes').value || null,
+    is_fixed_price: document.getElementById('a-fixedprice').checked,
+    quote_amount: document.getElementById('a-fixedprice').checked ? parseFloat(document.getElementById('a-quoteamount').value) || null : null,
+    created_by: currentUser.id
+  };
+
+  const { data, error } = await db.from('jobs').insert(payload).select().single();
+  if (error) { msg.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
+  lastJob = payload;
+  msg.innerHTML = '<div class="msg success">Job assigned successfully.</div>';
+  // Clear form
+  ['a-scope','a-sitenotes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('a-fixedprice').checked = false;
+  document.getElementById('a-quotewrap').style.display = 'none';
+}
+
+async function duplicateLast() {
+  if (!lastJob) { alert('No job assigned this session to duplicate.'); return; }
+  document.getElementById('a-account').value = lastJob.account_id || '';
+  loadSubs('a');
+  document.getElementById('a-jobtype').value = lastJob.job_type_id || '';
+  document.getElementById('a-leadtech').value = lastJob.lead_tech_id || '';
+  document.getElementById('a-date').value = today();
+  document.getElementById('a-msg').innerHTML = '<div class="msg success">Last job duplicated. Review and assign.</div>';
+}
+
+// ---- SCHEDULE VIEWER ----
+async function loadSchedule() {
+  const from = document.getElementById('sv-from').value;
+  const to = document.getElementById('sv-to').value;
+  const { data, error } = await db.from('jobs')
+    .select(`id, job_date, status, scope, is_fixed_price,
+             accounts!jobs_account_id_fkey(account_name),
+             job_types(job_type_name)`)
+    .gte('job_date', from).lte('job_date', to)
+    .not('status', 'eq', 'Cancelled')
+    .order('job_date');
+
+  const el = document.getElementById('schedule-list');
+  if (error || !data?.length) { el.innerHTML = '<p>No jobs found.</p>'; return; }
+
+  el.innerHTML = `<table>
+    <thead><tr><th>Date</th><th>Account</th><th>Type</th><th>Status</th><th>Scope</th><th></th></tr></thead>
+    <tbody>${data.map(j => `<tr>
+      <td>${j.job_date}</td>
+      <td>${j.accounts?.account_name || ''}</td>
+      <td>${j.job_types?.job_type_name || ''}</td>
+      <td><span class="status-badge status-${j.status.replace(' ','-')}">${j.status}</span></td>
+      <td style="max-width:200px;font-size:0.82rem">${j.scope || ''}</td>
+      <td>${!['Approved','Pending Review'].includes(j.status) ? `<button class="btn btn-red" onclick="deleteJob('${j.id}')">Delete</button>` : ''}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+async function deleteJob(id) {
+  if (!confirm('Delete this job?')) return;
+  await db.from('jobs').delete().eq('id', id);
+  loadSchedule();
+}
+
+// ---- REVIEW ----
+async function loadReview() {
+  const status = document.getElementById('rv-status').value;
+  let query = db.from('jobs')
+    .select(`id, job_date, status, scope, site_notes, is_fixed_price, quote_amount,
+             accounts!jobs_account_id_fkey(account_name),
+             sub:accounts!jobs_sub_account_id_fkey(account_name),
+             job_types(job_type_name),
+             job_completions(id,time_in,time_out,payment_type,payment_detail,follow_up_flag,tech_notes,submitted_at),
+             job_line_items(id,item_type,item_id,quantity,unit_cost,override_cost,override_reason),
+             admin_reviews(review_status,review_notes,reviewed_at)`)
+    .order('job_date', { ascending: false });
+
+  if (status) query = query.eq('status', status);
+
+  const { data, error } = await query;
+  const el = document.getElementById('review-list');
+  if (error) { el.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
+  if (!data?.length) { el.innerHTML = '<p>No jobs found.</p>'; return; }
+
+  const pending = data.filter(j => j.status === 'Pending Review');
+  document.getElementById('bulk-approve-btn').style.display = pending.length > 1 ? '' : 'none';
+
+  el.innerHTML = data.map(j => reviewCard(j)).join('');
+}
+
+function reviewCard(j) {
+  const account = j.accounts?.account_name || '';
+  const sub = j.sub?.account_name ? ` / ${j.sub.account_name}` : '';
+  const comp = j.job_completions?.[0] || {};
+  const items = j.job_line_items || [];
+
+  const partItems = items.filter(i => i.item_type === 'Part');
+  const laborItems = items.filter(i => i.item_type === 'Labor');
+
+  const partRows = partItems.map(i => {
+    const part = allParts.find(p => p.id === i.item_id);
+    const cost = i.override_cost ?? i.unit_cost;
+    const ext = cost * i.quantity;
+    return `<tr>
+      <td>Part</td><td>${part?.part_name || i.item_id}</td><td>${i.quantity}</td>
+      <td>$${Number(i.unit_cost).toFixed(2)}</td>
+      <td><input type="number" step="0.01" placeholder="${i.unit_cost}" value="${i.override_cost||''}"
+        style="width:80px;padding:0.2rem;border:1px solid #ccc" onchange="setOverride('${i.id}',this.value,'reason-${i.id}')"></td>
+      <td><input type="text" id="reason-${i.id}" placeholder="Reason" value="${i.override_reason||''}"
+        style="width:120px;padding:0.2rem;border:1px solid #ccc"></td>
+      <td>$${ext.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+
+  const laborRows = laborItems.map(i => {
+    const lt = allLaborTypes.find(l => l.id === i.item_id);
+    const cost = i.override_cost ?? i.unit_cost;
+    const ext = cost * i.quantity;
+    return `<tr>
+      <td>Labor</td><td>${lt?.labor_type_name || i.item_id}</td><td>${i.quantity} hrs</td>
+      <td>$${Number(i.unit_cost).toFixed(2)}</td>
+      <td><input type="number" step="0.01" placeholder="${i.unit_cost}" value="${i.override_cost||''}"
+        style="width:80px;padding:0.2rem;border:1px solid #ccc" onchange="setOverride('${i.id}',this.value,'reason-${i.id}')"></td>
+      <td><input type="text" id="reason-${i.id}" placeholder="Reason" value="${i.override_reason||''}"
+        style="width:120px;padding:0.2rem;border:1px solid #ccc"></td>
+      <td>$${ext.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+
+  const fixedBanner = j.is_fixed_price
+    ? `<div class="fixed-banner">FIXED PRICE -- Quoted: $${Number(j.quote_amount||0).toFixed(2)}</div>` : '';
+
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.3rem">
+      <div>
+        <h3>${account}${sub}</h3>
+        <div class="meta">${j.job_date} | ${j.job_types?.job_type_name || ''}</div>
+      </div>
+      <span class="status-badge status-${j.status.replace(/ /g,'-')}">${j.status}</span>
+    </div>
+    ${fixedBanner}
+    <button class="btn btn-secondary" onclick="toggleExpand('exp-${j.id}')">Expand / Collapse</button>
+    <button class="btn btn-green" onclick="reviewAction('${j.id}','Approved')">Approve</button>
+    <button class="btn btn-yellow" onclick="reviewAction('${j.id}','Flagged')">Flag</button>
+    <button class="btn btn-secondary" onclick="reviewAction('${j.id}','Reset')">Reset</button>
+    <button class="btn btn-blue" onclick="openReopen('${j.id}')">Reopen / Edit</button>
+
+    <div id="exp-${j.id}" class="expandable">
+      ${j.scope ? `<div class="section-title">Scope</div><p style="font-size:0.85rem">${j.scope}</p>` : ''}
+      ${j.site_notes ? `<div class="section-title">Site Notes</div><p style="font-size:0.85rem">${j.site_notes}</p>` : ''}
+
+      <div class="section-title">Completion</div>
+      <table><tbody>
+        <tr><td><strong>Time In</strong></td><td>${comp.time_in ? new Date(comp.time_in).toLocaleString() : '--'}</td>
+            <td><strong>Time Out</strong></td><td>${comp.time_out ? new Date(comp.time_out).toLocaleString() : '--'}</td></tr>
+        <tr><td><strong>Payment</strong></td><td>${comp.payment_type || '--'}</td>
+            <td><strong>Detail</strong></td><td>${comp.payment_detail || '--'}</td></tr>
+        <tr><td><strong>Follow-up</strong></td><td>${comp.follow_up_flag ? 'YES' : 'No'}</td>
+            <td><strong>Submitted</strong></td><td>${comp.submitted_at ? new Date(comp.submitted_at).toLocaleString() : '--'}</td></tr>
+      </tbody></table>
+      ${comp.tech_notes ? `<div style="margin-top:0.5rem"><strong>Tech Notes:</strong> <span style="font-size:0.85rem">${comp.tech_notes}</span></div>` : ''}
+
+      ${items.length ? `
+        <div class="section-title">Line Items</div>
+        <table>
+          <thead><tr><th>Type</th><th>Item</th><th>Qty</th><th>Unit Cost</th><th>Override</th><th>Override Reason</th><th>Extended</th></tr></thead>
+          <tbody>${partRows}${laborRows}</tbody>
+        </table>
+        <button class="btn btn-primary" style="margin-top:0.4rem" onclick="saveOverrides('${j.id}')">Save Overrides</button>
+      ` : '<p class="meta">No line items.</p>'}
+
+      <div class="section-title">Admin Review Note</div>
+      <div style="display:flex;gap:0.4rem;margin-top:0.3rem">
+        <input type="text" id="rnote-${j.id}" placeholder="Add review note..." style="flex:1;padding:0.35rem;border:1px solid #ccc">
+        <button class="btn btn-primary" onclick="saveReviewNote('${j.id}')">Save Note</button>
+      </div>
+      ${j.admin_reviews?.length ? `<div style="font-size:0.82rem;margin-top:0.4rem;color:#444">Last: ${j.admin_reviews[j.admin_reviews.length-1].review_notes || ''} (${j.admin_reviews[j.admin_reviews.length-1].review_status})</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function toggleExpand(id) {
+  const el = document.getElementById(id);
+  el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+
+async function reviewAction(jobId, action) {
+  const statusMap = { Approved: 'Approved', Flagged: 'Flagged', Reset: 'Pending Review' };
+  await db.from('jobs').update({ status: statusMap[action], updated_at: new Date().toISOString() }).eq('id', jobId);
+  await db.from('admin_reviews').insert({ job_id: jobId, review_status: action, reviewed_by: currentUser.id });
+  loadReview();
+}
+
+async function saveReviewNote(jobId) {
+  const note = document.getElementById(`rnote-${jobId}`).value;
+  if (!note) return;
+  await db.from('admin_reviews').insert({ job_id: jobId, review_status: 'Flagged', review_notes: note, reviewed_by: currentUser.id });
+  alert('Note saved.');
+}
+
+async function bulkApprove() {
+  if (!confirm('Approve all Pending Review jobs?')) return;
+  const { data } = await db.from('jobs').select('id').eq('status', 'Pending Review');
+  if (!data?.length) return;
+  await db.from('jobs').update({ status: 'Approved', updated_at: new Date().toISOString() }).eq('status', 'Pending Review');
+  const reviews = data.map(j => ({ job_id: j.id, review_status: 'Approved', reviewed_by: currentUser.id }));
+  await db.from('admin_reviews').insert(reviews);
+  loadReview();
+}
+
+async function setOverride(lineItemId, val, reasonFieldId) {
+  const reason = document.getElementById(reasonFieldId)?.value || '';
+  await db.from('job_line_items').update({
+    override_cost: val ? parseFloat(val) : null,
+    override_reason: reason || null
+  }).eq('id', lineItemId);
+}
+
+async function saveOverrides(jobId) {
+  const { data: items } = await db.from('job_line_items').select('id').eq('job_id', jobId);
+  // Overrides are saved inline via setOverride on change; this is a confirmation trigger
+  alert('Overrides saved.');
+}
+
+// ---- REOPEN / EDIT MODAL ----
+async function openReopen(jobId) {
+  reopenParts = []; reopenLabor = [];
+  const { data: job } = await db.from('jobs')
+    .select(`*, accounts!jobs_account_id_fkey(account_name), job_types(job_type_name),
+             job_completions(*), job_line_items(*)`)
+    .eq('id', jobId).single();
+
+  const comp = job.job_completions?.[0] || {};
+  const laborOpts = allLaborTypes.map(l => `<option value="${l.id}">${l.labor_type_name}</option>`).join('');
+  const statusOpts = ['Scheduled','Quoted','Awaiting Parts','Pending Review','Flagged','Approved','Cancelled']
+    .map(s => `<option value="${s}" ${s===job.status?'selected':''}>${s}</option>`).join('');
+
+  // Pre-populate existing line items
+  (job.job_line_items || []).forEach(i => {
+    if (i.item_type === 'Part') {
+      const p = allParts.find(x => x.id === i.item_id);
+      if (p) reopenParts.push({ id: p.id, name: p.part_name, qty: i.quantity, lineItemId: i.id });
+    } else {
+      const l = allLaborTypes.find(x => x.id === i.item_id);
+      if (l) reopenLabor.push({ id: l.id, name: l.labor_type_name, hours: i.quantity, lineItemId: i.id });
+    }
+  });
+
+  document.getElementById('reopen-content').innerHTML = `
+    <h3>Reopen / Edit Job: ${job.accounts?.account_name || ''}</h3>
+    <div class="meta">${job.job_date} | ${job.job_types?.job_type_name || ''}</div>
+
+    <div class="form-row"><label>Status</label><select id="ro-status">${statusOpts}</select></div>
+    <div class="form-row"><label>Scope</label><textarea id="ro-scope">${job.scope||''}</textarea></div>
+    <div class="form-row"><label>Site Notes</label><textarea id="ro-sitenotes">${job.site_notes||''}</textarea></div>
+
+    <div class="section-title">Completion Details</div>
+    <div class="form-row"><label>Time In</label>
+      <input type="datetime-local" id="ro-timein" value="${comp.time_in ? comp.time_in.slice(0,16) : ''}"></div>
+    <div class="form-row"><label>Time Out</label>
+      <input type="datetime-local" id="ro-timeout" value="${comp.time_out ? comp.time_out.slice(0,16) : ''}"></div>
+    <div class="form-row"><label>Payment Type</label>
+      <select id="ro-paytype">
+        <option value="">-- Select --</option>
+        ${['Cash','Check','Card','Invoice'].map(p => `<option ${p===comp.payment_type?'selected':''}>${p}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-row"><label>Payment Detail</label>
+      <input type="text" id="ro-paydetail" value="${comp.payment_detail||''}"></div>
+    <div class="form-row"><label>Tech Notes</label>
+      <textarea id="ro-technotes">${comp.tech_notes||''}</textarea></div>
+    <div class="form-row"><label><input type="checkbox" id="ro-followup" ${comp.follow_up_flag?'checked':''}> Follow-up Flag</label></div>
+
+    <div class="section-title">Parts</div>
+    <div class="parts-search-wrap">
+      <input type="text" id="ro-partsearch" placeholder="Search parts..." oninput="searchReopenParts()" style="width:100%;padding:0.35rem;border:1px solid #ccc">
+      <div class="parts-results" id="ro-parts-results"></div>
+    </div>
+    <table id="ro-parts-table"><thead><tr><th>Part</th><th>Qty</th><th></th></tr></thead><tbody></tbody></table>
+
+    <div class="section-title">Labor</div>
+    <div style="display:flex;gap:0.4rem;margin-bottom:0.4rem">
+      <select id="ro-labortype" style="flex:2;padding:0.35rem;border:1px solid #ccc">
+        <option value="">-- Type --</option>${laborOpts}
+      </select>
+      <input type="number" id="ro-laborhours" placeholder="Hours" style="flex:1;padding:0.35rem;border:1px solid #ccc">
+      <button class="btn btn-secondary" onclick="addReopenLabor()">Add</button>
+    </div>
+    <table id="ro-labor-table"><thead><tr><th>Type</th><th>Hours</th><th></th></tr></thead><tbody></tbody></table>
+
+    <div id="ro-msg" style="margin-top:0.5rem"></div>
+    <button class="btn btn-primary" style="margin-top:0.8rem" onclick="saveReopen('${jobId}','${comp.id||''}')">Save Changes</button>
+  `;
+
+  renderReopenParts(); renderReopenLabor();
+  document.getElementById('reopen-modal').style.display = '';
+}
+
+function closeReopenModal() { document.getElementById('reopen-modal').style.display = 'none'; }
+
+function searchReopenParts() {
+  const q = document.getElementById('ro-partsearch').value.toLowerCase();
+  const res = document.getElementById('ro-parts-results');
+  if (q.length < 2) { res.style.display = 'none'; return; }
+  const matches = allParts.filter(p => p.part_name.toLowerCase().includes(q)).slice(0,8);
+  if (!matches.length) { res.style.display = 'none'; return; }
+  res.style.display = '';
+  res.innerHTML = matches.map(p =>
+    `<div onclick="addReopenPart('${p.id}','${p.part_name.replace(/'/g,"\\'")}')">
+      ${p.part_name} ${p.category ? '-- '+p.category : ''}</div>`
+  ).join('');
+}
+
+function addReopenPart(id, name) {
+  const qty = prompt(`Quantity for ${name}?`, '1');
+  if (!qty || isNaN(qty) || Number(qty) <= 0) return;
+  reopenParts.push({ id, name, qty: Number(qty) });
+  renderReopenParts();
+  document.getElementById('ro-parts-results').style.display = 'none';
+  document.getElementById('ro-partsearch').value = '';
+}
+
+function removeReopenPart(idx) { reopenParts.splice(idx, 1); renderReopenParts(); }
+function renderReopenParts() {
+  document.querySelector('#ro-parts-table tbody').innerHTML = reopenParts.map((p,i) =>
+    `<tr><td>${p.name}</td><td>${p.qty}</td>
+     <td><button onclick="removeReopenPart(${i})" style="border:none;background:none;cursor:pointer;color:red">X</button></td></tr>`
+  ).join('');
+}
+
+function addReopenLabor() {
+  const id = document.getElementById('ro-labortype').value;
+  const hours = parseFloat(document.getElementById('ro-laborhours').value);
+  if (!id || isNaN(hours)) return;
+  const lt = allLaborTypes.find(l => l.id === id);
+  reopenLabor.push({ id, name: lt.labor_type_name, hours });
+  renderReopenLabor();
+  document.getElementById('ro-laborhours').value = '';
+}
+
+function removeReopenLabor(idx) { reopenLabor.splice(idx, 1); renderReopenLabor(); }
+function renderReopenLabor() {
+  document.querySelector('#ro-labor-table tbody').innerHTML = reopenLabor.map((l,i) =>
+    `<tr><td>${l.name}</td><td>${l.hours}</td>
+     <td><button onclick="removeReopenLabor(${i})" style="border:none;background:none;cursor:pointer;color:red">X</button></td></tr>`
+  ).join('');
+}
+
+async function saveReopen(jobId, compId) {
+  const msg = document.getElementById('ro-msg');
+  msg.innerHTML = '';
+
+  await db.from('jobs').update({
+    status: document.getElementById('ro-status').value,
+    scope: document.getElementById('ro-scope').value || null,
+    site_notes: document.getElementById('ro-sitenotes').value || null,
+    updated_at: new Date().toISOString()
+  }).eq('id', jobId);
+
+  const compPayload = {
+    job_id: jobId,
+    time_in: document.getElementById('ro-timein').value || null,
+    time_out: document.getElementById('ro-timeout').value || null,
+    payment_type: document.getElementById('ro-paytype').value || null,
+    payment_detail: document.getElementById('ro-paydetail').value || null,
+    tech_notes: document.getElementById('ro-technotes').value || null,
+    follow_up_flag: document.getElementById('ro-followup').checked,
+    last_edited_by: currentUser.id,
+    last_edited_at: new Date().toISOString()
+  };
+
+  if (compId) {
+    await db.from('job_completions').update(compPayload).eq('id', compId);
+  } else {
+    compPayload.submitted_by = currentUser.id;
+    await db.from('job_completions').insert(compPayload);
+  }
+
+  // Replace line items
+  await db.from('job_line_items').delete().eq('job_id', jobId);
+  const lineItems = [
+    ...reopenParts.map(p => ({ job_id: jobId, item_type: 'Part', item_id: p.id, quantity: p.qty, unit_cost: allParts.find(x=>x.id===p.id)?.unit_cost || 0 })),
+    ...reopenLabor.map(l => ({ job_id: jobId, item_type: 'Labor', item_id: l.id, quantity: l.hours, unit_cost: allLaborTypes.find(x=>x.id===l.id)?.hourly_rate || 0 }))
+  ];
+  if (lineItems.length) await db.from('job_line_items').insert(lineItems);
+
+  msg.innerHTML = '<div class="msg success">Job updated.</div>';
+  setTimeout(() => { closeReopenModal(); loadReview(); }, 1000);
+}
+
+// ---- SEARCH ----
+async function runSearch() {
+  const from = document.getElementById('s-from').value;
+  const to = document.getElementById('s-to').value;
+  const account = document.getElementById('s-account').value;
+  const tech = document.getElementById('s-tech').value;
+  const status = document.getElementById('s-status').value;
+  const category = document.getElementById('s-category').value;
+  const address = document.getElementById('s-address').value.trim().toLowerCase();
+
+  let query = db.from('jobs')
+    .select(`id, job_date, status, scope, is_fixed_price, quote_amount,
+             accounts!jobs_account_id_fkey(account_name, address),
+             sub:accounts!jobs_sub_account_id_fkey(account_name),
+             job_types(job_type_name, category),
+             job_line_items(unit_cost, override_cost, quantity)`)
+    .order('job_date', { ascending: false });
+
+  if (from) query = query.gte('job_date', from);
+  if (to) query = query.lte('job_date', to);
+  if (account) query = query.eq('account_id', account);
+  if (status) query = query.eq('status', status);
+  if (category) query = query.eq('job_types.category', category);
+  if (tech) query = query.contains('assigned_tech_ids', [tech]);
+
+  const { data, error } = await query;
+  const el = document.getElementById('search-results');
+  if (error) { el.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
+
+  let results = data || [];
+  if (address) results = results.filter(j => (j.accounts?.address || '').toLowerCase().includes(address));
+
+  if (!results.length) { el.innerHTML = '<p>No results.</p>'; return; }
+
+  const totalRevenue = results.reduce((sum, j) => {
+    const jobTotal = (j.job_line_items || []).reduce((s, i) => {
+      const cost = i.override_cost ?? i.unit_cost;
+      return s + cost * i.quantity;
+    }, 0);
+    return sum + jobTotal;
+  }, 0);
+
+  el.innerHTML = `
+    <div class="card" style="font-weight:bold">
+      ${results.length} jobs found | Total: $${totalRevenue.toFixed(2)}
+    </div>
+    <table>
+      <thead><tr><th>Date</th><th>Account</th><th>Type</th><th>Status</th><th>Address</th><th>Total</th></tr></thead>
+      <tbody>${results.map(j => {
+        const total = (j.job_line_items || []).reduce((s,i) => s + ((i.override_cost??i.unit_cost)*i.quantity), 0);
+        return `<tr>
+          <td>${j.job_date}</td>
+          <td>${j.accounts?.account_name || ''}${j.sub?.account_name ? ' / '+j.sub.account_name : ''}</td>
+          <td>${j.job_types?.job_type_name || ''}</td>
+          <td><span class="status-badge status-${j.status.replace(/ /g,'-')}">${j.status}</span></td>
+          <td style="font-size:0.82rem">${j.accounts?.address || ''}</td>
+          <td>$${total.toFixed(2)}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+// ---- EXPORT ----
+async function runExport() {
+  const from = document.getElementById('ex-from').value;
+  const to = document.getElementById('ex-to').value;
+  const status = document.getElementById('ex-status').value;
+  const msg = document.getElementById('export-msg');
+  msg.innerHTML = '';
+
+  let query = db.from('jobs')
+    .select(`id, job_date, status, is_fixed_price, quote_amount,
+             accounts!jobs_account_id_fkey(account_name),
+             sub:accounts!jobs_sub_account_id_fkey(account_name),
+             job_types(job_type_name),
+             job_completions(time_in,time_out,payment_type,payment_detail,tech_notes),
+             job_line_items(item_type,item_id,quantity,unit_cost,override_cost,override_reason)`)
+    .order('job_date');
+
+  if (from) query = query.gte('job_date', from);
+  if (to) query = query.lte('job_date', to);
+  if (status) query = query.eq('status', status);
+
+  const { data, error } = await query;
+  if (error || !data?.length) { msg.innerHTML = '<div class="msg error">No data found.</div>'; return; }
+
+  // Build QuickBooks-compatible CSV rows
+  const rows = [['Date','Customer','Sub-Customer','Job Type','Item Type','Item','Qty','Unit Cost','Override Cost','Extended','Payment Type','Payment Detail','Tech Notes','Status']];
+
+  data.forEach(j => {
+    const comp = j.job_completions?.[0] || {};
+    const items = j.job_line_items || [];
+    const base = [
+      j.job_date,
+      j.accounts?.account_name || '',
+      j.sub?.account_name || '',
+      j.job_types?.job_type_name || '',
+    ];
+    if (items.length) {
+      items.forEach(i => {
+        const itemName = i.item_type === 'Part'
+          ? (allParts.find(p => p.id === i.item_id)?.part_name || i.item_id)
+          : (allLaborTypes.find(l => l.id === i.item_id)?.labor_type_name || i.item_id);
+        const cost = i.override_cost ?? i.unit_cost;
+        rows.push([...base, i.item_type, itemName, i.quantity, i.unit_cost, i.override_cost||'', (cost*i.quantity).toFixed(2),
+          comp.payment_type||'', comp.payment_detail||'', comp.tech_notes||'', j.status]);
+      });
+    } else {
+      rows.push([...base, '', '', '', '', '', '', comp.payment_type||'', comp.payment_detail||'', comp.tech_notes||'', j.status]);
+    }
+  });
+
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `faithlock_export_${from}_${to}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  msg.innerHTML = `<div class="msg success">${data.length} jobs exported.</div>`;
+}
+
+// ---- REFERENCE DATA ----
+function showRefTab(tab) {
+  ['parts','jobtypes','labortypes','techs'].forEach(t => {
+    document.getElementById(`ref-${t}`).style.display = t === tab ? '' : 'none';
+  });
+}
+
+async function renderPartsRef() {
+  const tbody = document.getElementById('parts-ref-body');
+  tbody.innerHTML = allParts.map(p => `<tr>
+    <td>${p.part_name}</td><td>${p.category||''}</td><td>${p.unit||''}</td>
+    <td>$${Number(p.unit_cost).toFixed(2)}</td>
+    <td>${p.active ? 'Yes' : 'No'}</td>
+    <td><button class="btn btn-red" onclick="toggleActive('parts','${p.id}',${p.active})">
+      ${p.active ? 'Deactivate' : 'Activate'}</button></td>
+  </tr>`).join('');
+}
+
+async function addPart() {
+  const name = document.getElementById('rp-name').value.trim();
+  if (!name) return;
+  const { error } = await db.from('parts').insert({
+    part_name: name,
+    category: document.getElementById('rp-category').value || null,
+    unit: document.getElementById('rp-unit').value || null,
+    unit_cost: parseFloat(document.getElementById('rp-cost').value) || 0
+  });
+  if (error) { document.getElementById('parts-ref-msg').innerHTML = `<div class="msg error">${error.message}</div>`; return; }
+  ['rp-name','rp-category','rp-unit','rp-cost'].forEach(id => document.getElementById(id).value = '');
+  await loadRefData(); renderPartsRef();
+}
+
+async function renderJobTypesRef() {
+  const tbody = document.getElementById('jobtypes-ref-body');
+  tbody.innerHTML = allJobTypes.map(j => `<tr>
+    <td>${j.job_type_name}</td><td>${j.category||''}</td>
+    <td>${j.flat_rate ? '$'+Number(j.flat_rate).toFixed(2) : '--'}</td>
+    <td>${j.active ? 'Yes' : 'No'}</td>
+    <td><button class="btn btn-red" onclick="toggleActive('job_types','${j.id}',${j.active})">
+      ${j.active ? 'Deactivate' : 'Activate'}</button></td>
+  </tr>`).join('');
+}
+
+async function addJobType() {
+  const name = document.getElementById('rjt-name').value.trim();
+  if (!name) return;
+  await db.from('job_types').insert({
+    job_type_name: name,
+    category: document.getElementById('rjt-category').value || null,
+    flat_rate: parseFloat(document.getElementById('rjt-rate').value) || null
+  });
+  ['rjt-name','rjt-category','rjt-rate'].forEach(id => document.getElementById(id).value = '');
+  await loadRefData(); renderJobTypesRef();
+}
+
+async function renderLaborTypesRef() {
+  const tbody = document.getElementById('labortypes-ref-body');
+  tbody.innerHTML = allLaborTypes.map(l => `<tr>
+    <td>${l.labor_type_name}</td><td>$${Number(l.hourly_rate).toFixed(2)}/hr</td>
+    <td><button class="btn btn-red" onclick="deleteLaborType('${l.id}')">Delete</button></td>
+  </tr>`).join('');
+}
+
+async function addLaborType() {
+  const name = document.getElementById('rlt-name').value.trim();
+  if (!name) return;
+  await db.from('labor_types').insert({
+    labor_type_name: name,
+    hourly_rate: parseFloat(document.getElementById('rlt-rate').value) || 0
+  });
+  ['rlt-name','rlt-rate'].forEach(id => document.getElementById(id).value = '');
+  await loadRefData(); renderLaborTypesRef();
+}
+
+async function deleteLaborType(id) {
+  if (!confirm('Delete this labor type?')) return;
+  await db.from('labor_types').delete().eq('id', id);
+  await loadRefData(); renderLaborTypesRef();
+}
+
+async function renderTechsRef() {
+  const tbody = document.getElementById('techs-ref-body');
+  tbody.innerHTML = allTechs.map(t => `<tr>
+    <td>${t.tech_name}</td><td>${t.active ? 'Yes' : 'No'}</td>
+    <td><button class="btn btn-red" onclick="toggleActive('techs','${t.id}',${t.active})">
+      ${t.active ? 'Deactivate' : 'Activate'}</button></td>
+  </tr>`).join('');
+}
+
+async function addTech() {
+  const name = document.getElementById('rt-name').value.trim();
+  if (!name) return;
+  await db.from('techs').insert({ tech_name: name });
+  document.getElementById('rt-name').value = '';
+  await loadRefData(); renderTechsRef();
+}
+
+async function toggleActive(table, id, current) {
+  await db.from(table).update({ active: !current }).eq('id', id);
+  await loadRefData();
+  if (table === 'parts') renderPartsRef();
+  if (table === 'job_types') renderJobTypesRef();
+  if (table === 'techs') renderTechsRef();
+}
+
+// ---- NEW CUSTOMERS ----
+async function loadNewCustomers() {
+  const { data } = await db.from('new_customers').select('*').eq('migrated', false).order('submitted_at', { ascending: false });
+  const el = document.getElementById('newcustomers-list');
+  if (!data?.length) { el.innerHTML = '<p>No pending submissions.</p>'; return; }
+  el.innerHTML = `<table>
+    <thead><tr><th>Submitted</th><th>Name</th><th>Address</th><th>Phone</th><th>Notes</th><th></th></tr></thead>
+    <tbody>${data.map(c => `<tr>
+      <td style="font-size:0.82rem">${new Date(c.submitted_at).toLocaleDateString()}</td>
+      <td>${c.name}</td><td>${c.address||''}</td><td>${c.phone||''}</td>
+      <td style="font-size:0.82rem">${c.notes||''}</td>
+      <td>
+        <button class="btn btn-green" onclick="migrateCustomer('${c.id}','${c.name.replace(/'/g,"\\'")}','${(c.address||'').replace(/'/g,"\\'")}','${c.phone||''}')">Add to Accounts</button>
+        <button class="btn btn-red" onclick="dismissCustomer('${c.id}')">Dismiss</button>
+      </td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+async function migrateCustomer(id, name, address, phone) {
+  const { error } = await db.from('accounts').insert({ account_name: name, address, phone });
+  if (error) { alert(error.message); return; }
+  await db.from('new_customers').update({ migrated: true }).eq('id', id);
+  loadNewCustomers();
+}
+
+async function dismissCustomer(id) {
+  await db.from('new_customers').update({ migrated: true }).eq('id', id);
+  loadNewCustomers();
+}
+
+// ---- SECTION NAVIGATION ----
+function showSection(name) {
+  ['assign','review','search','export','reference','newcustomers'].forEach(s => {
+    document.getElementById(`section-${s}`).style.display = s === name ? '' : 'none';
+  });
+  document.querySelectorAll('nav button').forEach((b,i) => {
+    b.classList.toggle('active', ['assign','review','search','export','reference','newcustomers'][i] === name);
+  });
+  if (name === 'review') loadReview();
+  if (name === 'newcustomers') loadNewCustomers();
+}
+
+async function logout() {
+  await db.auth.signOut();
+  window.location.href = 'index.html';
+}
+
+init();
+</script>
+</body>
+</html>

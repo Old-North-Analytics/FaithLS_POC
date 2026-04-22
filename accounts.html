@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faith Lock -- Accounts</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { box-sizing: border-box; }
+body { font-family: sans-serif; margin: 0; background: #f0f0f0; font-size: 0.9rem; }
+header { background: #1a1a1a; color: white; padding: 0.7rem 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+header h1 { margin: 0; font-size: 1rem; }
+nav button { background: none; border: 1px solid #aaa; color: #aaa; padding: 0.3rem 0.8rem; cursor: pointer; font-size: 0.85rem; margin-left: 0.3rem; }
+nav button.active { border-color: white; color: white; }
+button.logout { background: none; border: 1px solid #f66; color: #f66; padding: 0.3rem 0.7rem; cursor: pointer; }
+.container { max-width: 1000px; margin: 1rem auto; padding: 0 1rem; }
+.card { background: white; border: 1px solid #ccc; margin-bottom: 0.8rem; padding: 1rem; }
+.card h3 { margin: 0 0 0.4rem; font-size: 1rem; }
+.meta { color: #555; font-size: 0.82rem; margin-bottom: 0.4rem; }
+.filters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: flex-end; }
+.filters label { font-size: 0.82rem; font-weight: bold; display: block; margin-bottom: 0.2rem; }
+.filters input, .filters select { padding: 0.35rem; border: 1px solid #ccc; font-size: 0.85rem; }
+.btn { padding: 0.35rem 0.8rem; border: none; cursor: pointer; font-size: 0.85rem; margin-right: 0.3rem; margin-top: 0.2rem; }
+.btn-primary { background: #1a1a1a; color: white; }
+.btn-green { background: #2a7a2a; color: white; }
+.btn-red { background: #a00; color: white; }
+.btn-secondary { background: #ddd; color: #333; }
+.btn-blue { background: #1a4a8a; color: white; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th { background: #eee; text-align: left; padding: 0.4rem 0.5rem; white-space: nowrap; cursor: pointer; user-select: none; }
+th:hover { background: #e0e0e0; }
+th.sorted-asc::after { content: ' ^'; }
+th.sorted-desc::after { content: ' v'; }
+td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #eee; vertical-align: top; }
+tr:hover td { background: #fafafa; }
+.form-row { margin-bottom: 0.5rem; }
+.form-row label { display: block; font-weight: bold; font-size: 0.82rem; margin-bottom: 0.2rem; }
+.form-row input, .form-row select, .form-row textarea { width: 100%; padding: 0.4rem; border: 1px solid #ccc; font-size: 0.9rem; }
+.form-row textarea { height: 60px; resize: vertical; }
+.msg { padding: 0.4rem 0.6rem; margin: 0.4rem 0; font-size: 0.85rem; }
+.msg.success { background: #e0ffe0; border: 1px solid #9d9; }
+.msg.error { background: #ffe0e0; border: 1px solid #f99; }
+.section-title { font-weight: bold; margin: 0.8rem 0 0.4rem; font-size: 0.9rem; border-bottom: 1px solid #eee; padding-bottom: 0.2rem; }
+.status-badge { display: inline-block; padding: 0.15rem 0.5rem; font-size: 0.78rem; font-weight: bold; }
+.status-Approved { background: #e0ffe0; color: #060; }
+.status-Pending-Review { background: #ffd; color: #660; }
+.status-Flagged { background: #ffe0e0; color: #900; }
+.status-Scheduled { background: #e0e8ff; color: #224; }
+.status-Quoted { background: #fff0cc; color: #640; }
+.status-Awaiting-Parts { background: #ffe8cc; color: #640; }
+.status-Cancelled { background: #eee; color: #666; }
+.inactive-row td { color: #aaa; }
+.detail-panel { display: none; }
+.photo-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+.photo-thumb { width: 100px; height: 80px; object-fit: cover; border: 1px solid #ccc; cursor: pointer; }
+.stat-box { display: inline-block; background: #f5f5f5; border: 1px solid #ddd; padding: 0.4rem 0.8rem; margin-right: 0.5rem; margin-bottom: 0.5rem; text-align: center; }
+.stat-box .val { font-size: 1.3rem; font-weight: bold; }
+.stat-box .lbl { font-size: 0.78rem; color: #555; }
+input[type=checkbox] { width: auto; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Faith Lock &amp; Safe -- Accounts</h1>
+  <nav>
+    <button class="active" onclick="showSection('list')">Account List</button>
+    <button onclick="showSection('add')">+ Add Account</button>
+    <a href="admin.html" style="text-decoration:none"><button>Admin</button></a>
+  </nav>
+  <button class="logout" onclick="logout()">Sign Out</button>
+</header>
+
+<div class="container">
+
+<!-- ============================================================ -->
+<!-- ACCOUNT LIST -->
+<!-- ============================================================ -->
+<div id="section-list">
+  <div class="card">
+    <div class="filters">
+      <div><label>Search</label><input type="text" id="f-search" placeholder="Name, address, phone..." oninput="filterAccounts()"></div>
+      <div><label>Type</label>
+        <select id="f-type" onchange="filterAccounts()">
+          <option value="">All</option>
+          <option value="master">Master Accounts</option>
+          <option value="sub">Sub-Accounts</option>
+        </select>
+      </div>
+      <div><label>Status</label>
+        <select id="f-active" onchange="filterAccounts()">
+          <option value="true">Active</option>
+          <option value="false">Inactive</option>
+          <option value="">All</option>
+        </select>
+      </div>
+      <div style="align-self:flex-end"><button class="btn btn-primary" onclick="loadAccounts()">Refresh</button></div>
+    </div>
+
+    <div id="accounts-summary" style="margin-bottom:0.6rem"></div>
+
+    <table id="accounts-table">
+      <thead>
+        <tr>
+          <th onclick="sortTable('account_name')">Name</th>
+          <th onclick="sortTable('type')">Type</th>
+          <th onclick="sortTable('address')">Address</th>
+          <th>Phone</th>
+          <th>Billing Notes</th>
+          <th onclick="sortTable('job_count')">Jobs</th>
+          <th onclick="sortTable('last_service')">Last Service</th>
+          <th>Active</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="accounts-tbody">
+        <tr><td colspan="9">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- ADD / EDIT ACCOUNT FORM -->
+<!-- ============================================================ -->
+<div id="section-add" style="display:none">
+  <div class="card">
+    <h3 id="form-title">Add Account</h3>
+    <input type="hidden" id="edit-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem">
+      <div class="form-row"><label>Account Name *</label><input type="text" id="f-name"></div>
+      <div class="form-row"><label>Parent Account (if sub-account)</label>
+        <select id="f-parent"><option value="">-- Master Account --</option></select>
+      </div>
+      <div class="form-row"><label>Address</label><input type="text" id="f-address"></div>
+      <div class="form-row"><label>Phone</label><input type="text" id="f-phone"></div>
+    </div>
+    <div class="form-row"><label>Billing Notes</label><textarea id="f-billing"></textarea></div>
+    <div class="form-row"><label><input type="checkbox" id="f-active" checked> Active</label></div>
+    <div id="form-msg"></div>
+    <button class="btn btn-primary" onclick="saveAccount()">Save</button>
+    <button class="btn btn-secondary" onclick="cancelEdit()">Cancel</button>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- ACCOUNT DETAIL PANEL -->
+<!-- ============================================================ -->
+<div id="section-detail" class="detail-panel">
+  <div class="card">
+    <button class="btn btn-secondary" onclick="showSection('list')" style="margin-bottom:0.8rem">Back to List</button>
+    <div id="detail-header"></div>
+    <div id="detail-stats" style="margin:0.8rem 0"></div>
+
+    <!-- Sub-accounts -->
+    <div id="detail-subs"></div>
+
+    <!-- Job History -->
+    <div class="section-title">Job History</div>
+    <div class="filters" style="margin-top:0.4rem">
+      <div><label>Status</label>
+        <select id="dj-status" onchange="loadAccountJobs()">
+          <option value="">All</option>
+          <option>Scheduled</option><option>Quoted</option><option>Awaiting Parts</option>
+          <option>Pending Review</option><option>Flagged</option><option>Approved</option><option>Cancelled</option>
+        </select>
+      </div>
+      <div><label>From</label><input type="date" id="dj-from" onchange="loadAccountJobs()"></div>
+      <div><label>To</label><input type="date" id="dj-to" onchange="loadAccountJobs()"></div>
+      <div style="align-self:flex-end"><button class="btn btn-primary" onclick="loadAccountJobs()">Filter</button></div>
+    </div>
+    <div id="detail-jobs">Loading jobs...</div>
+
+    <!-- Quote Forms -->
+    <div class="section-title" style="margin-top:1rem">Quote Forms</div>
+    <div id="detail-quotes">Loading...</div>
+
+    <!-- Photos -->
+    <div class="section-title" style="margin-top:1rem">Photos (R-44a)</div>
+    <div id="detail-photos">Loading...</div>
+  </div>
+</div>
+
+</div><!-- end container -->
+
+<!-- ============================================================ -->
+<!-- EDIT MODAL (inline in page, triggered from list) -->
+<!-- ============================================================ -->
+
+<script>
+const SUPABASE_URL = 'https://jmsrlhqbzstuczxilxua.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc3JsaHFienN0dWN6eGlseHVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzA5NDcsImV4cCI6MjA5MjQwNjk0N30.jpHtuhezvfRXJ2uVhwglqS_rImZl8JqqBX85WUv2Z5g';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser = null;
+let allAccounts = [];
+let filteredAccounts = [];
+let allJobsByAccount = {}; // accountId -> {count, lastDate, totalRevenue}
+let sortKey = 'account_name';
+let sortDir = 1;
+let currentDetailAccountId = null;
+let allParts = [], allLaborTypes = [];
+
+// ---- INIT ----
+async function init() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { window.location.href = 'index.html'; return; }
+  currentUser = session.user;
+
+  const { data: profile } = await db.from('user_profiles').select('role').eq('id', currentUser.id).single();
+  if (!profile || profile.role !== 'admin') { window.location.href = 'index.html'; return; }
+
+  const [p, l] = await Promise.all([
+    db.from('parts').select('id,part_name').eq('active', true),
+    db.from('labor_types').select('id,labor_type_name')
+  ]);
+  allParts = p.data || [];
+  allLaborTypes = l.data || [];
+
+  await loadAccounts();
+}
+
+// ---- LOAD ACCOUNTS ----
+async function loadAccounts() {
+  const { data: accounts, error } = await db.from('accounts')
+    .select('id,account_name,parent_account_id,address,phone,billing_notes,active')
+    .order('account_name');
+
+  if (error) { document.getElementById('accounts-tbody').innerHTML = `<tr><td colspan="9">${error.message}</td></tr>`; return; }
+  allAccounts = accounts || [];
+
+  // Load job stats per account
+  const { data: jobStats } = await db.from('jobs')
+    .select('id,account_id,job_date,status,job_line_items(unit_cost,override_cost,quantity)');
+
+  allJobsByAccount = {};
+  (jobStats || []).forEach(j => {
+    if (!j.account_id) return;
+    if (!allJobsByAccount[j.account_id]) allJobsByAccount[j.account_id] = { count: 0, lastDate: null, totalRevenue: 0, approvedRevenue: 0 };
+    const s = allJobsByAccount[j.account_id];
+    s.count++;
+    if (!s.lastDate || j.job_date > s.lastDate) s.lastDate = j.job_date;
+    const rev = (j.job_line_items || []).reduce((sum, i) => sum + ((i.override_cost ?? i.unit_cost) * i.quantity), 0);
+    s.totalRevenue += rev;
+    if (j.status === 'Approved') s.approvedRevenue += rev;
+  });
+
+  // Populate parent select in add form
+  const masters = allAccounts.filter(a => !a.parent_account_id);
+  const parentSel = document.getElementById('f-parent');
+  parentSel.innerHTML = '<option value="">-- Master Account --</option>' +
+    masters.map(a => `<option value="${a.id}">${a.account_name}</option>`).join('');
+
+  filterAccounts();
+}
+
+// ---- FILTER & RENDER ----
+function filterAccounts() {
+  const q = document.getElementById('f-search').value.toLowerCase();
+  const type = document.getElementById('f-type').value;
+  const activeVal = document.getElementById('f-active').value;
+
+  filteredAccounts = allAccounts.filter(a => {
+    if (q && !`${a.account_name} ${a.address||''} ${a.phone||''}`.toLowerCase().includes(q)) return false;
+    if (type === 'master' && a.parent_account_id) return false;
+    if (type === 'sub' && !a.parent_account_id) return false;
+    if (activeVal === 'true' && !a.active) return false;
+    if (activeVal === 'false' && a.active) return false;
+    return true;
+  });
+
+  sortAndRender();
+}
+
+function sortTable(key) {
+  if (sortKey === key) sortDir *= -1;
+  else { sortKey = key; sortDir = 1; }
+  document.querySelectorAll('th').forEach(th => { th.classList.remove('sorted-asc','sorted-desc'); });
+  const ths = document.querySelectorAll('#accounts-table th');
+  const keyMap = ['account_name','type','address','phone','billing_notes','job_count','last_service','active'];
+  const idx = keyMap.indexOf(key);
+  if (idx >= 0) ths[idx].classList.add(sortDir === 1 ? 'sorted-asc' : 'sorted-desc');
+  sortAndRender();
+}
+
+function sortAndRender() {
+  const sorted = [...filteredAccounts].sort((a, b) => {
+    let av, bv;
+    if (sortKey === 'account_name') { av = a.account_name; bv = b.account_name; }
+    else if (sortKey === 'address') { av = a.address||''; bv = b.address||''; }
+    else if (sortKey === 'type') { av = a.parent_account_id ? 1 : 0; bv = b.parent_account_id ? 1 : 0; }
+    else if (sortKey === 'job_count') { av = allJobsByAccount[a.id]?.count || 0; bv = allJobsByAccount[b.id]?.count || 0; }
+    else if (sortKey === 'last_service') { av = allJobsByAccount[a.id]?.lastDate || ''; bv = allJobsByAccount[b.id]?.lastDate || ''; }
+    else { av = a[sortKey]||''; bv = b[sortKey]||''; }
+    if (av < bv) return -1 * sortDir;
+    if (av > bv) return 1 * sortDir;
+    return 0;
+  });
+
+  const totalActive = allAccounts.filter(a => a.active).length;
+  const totalMaster = allAccounts.filter(a => !a.parent_account_id && a.active).length;
+  document.getElementById('accounts-summary').innerHTML =
+    `<span style="font-size:0.85rem;color:#555">${filteredAccounts.length} of ${allAccounts.length} accounts shown | ${totalMaster} master accounts | ${totalActive} active</span>`;
+
+  const tbody = document.getElementById('accounts-tbody');
+  if (!sorted.length) { tbody.innerHTML = '<tr><td colspan="9">No accounts found.</td></tr>'; return; }
+
+  tbody.innerHTML = sorted.map(a => {
+    const stats = allJobsByAccount[a.id] || {};
+    const parent = a.parent_account_id ? allAccounts.find(x => x.id === a.parent_account_id) : null;
+    return `<tr class="${a.active ? '' : 'inactive-row'}">
+      <td><strong>${a.account_name}</strong>${parent ? `<br><span style="font-size:0.78rem;color:#666">under: ${parent.account_name}</span>` : ''}</td>
+      <td>${a.parent_account_id ? 'Sub' : 'Master'}</td>
+      <td style="font-size:0.82rem">${a.address||''}</td>
+      <td style="font-size:0.82rem">${a.phone||''}</td>
+      <td style="font-size:0.82rem;max-width:150px">${a.billing_notes||''}</td>
+      <td style="text-align:center">${stats.count||0}</td>
+      <td style="font-size:0.82rem">${stats.lastDate||'--'}</td>
+      <td style="text-align:center">${a.active ? 'Yes' : 'No'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-blue" onclick="openDetail('${a.id}')">View</button>
+        <button class="btn btn-secondary" onclick="openEdit('${a.id}')">Edit</button>
+        <button class="btn btn-red" onclick="toggleAccountActive('${a.id}',${a.active})">${a.active ? 'Deactivate' : 'Activate'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ---- ADD / EDIT ACCOUNT ----
+function showSection(name) {
+  ['list','add','detail'].forEach(s => {
+    const el = document.getElementById(`section-${s}`);
+    el.style.display = s === name ? '' : 'none';
+    if (el.classList) el.classList.toggle('detail-panel', false);
+  });
+  document.querySelectorAll('nav button').forEach((b,i) => {
+    b.classList.toggle('active', ['list','add'][i] === name);
+  });
+}
+
+function openEdit(id) {
+  const a = allAccounts.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('form-title').textContent = 'Edit Account';
+  document.getElementById('edit-id').value = a.id;
+  document.getElementById('f-name').value = a.account_name;
+  document.getElementById('f-parent').value = a.parent_account_id || '';
+  document.getElementById('f-address').value = a.address || '';
+  document.getElementById('f-phone').value = a.phone || '';
+  document.getElementById('f-billing').value = a.billing_notes || '';
+  document.getElementById('f-active').checked = a.active;
+  showSection('add');
+}
+
+function cancelEdit() {
+  document.getElementById('edit-id').value = '';
+  document.getElementById('form-title').textContent = 'Add Account';
+  ['f-name','f-address','f-phone','f-billing'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-parent').value = '';
+  document.getElementById('f-active').checked = true;
+  showSection('list');
+}
+
+async function saveAccount() {
+  const name = document.getElementById('f-name').value.trim();
+  const msg = document.getElementById('form-msg');
+  msg.innerHTML = '';
+  if (!name) { msg.innerHTML = '<div class="msg error">Account name is required.</div>'; return; }
+
+  const payload = {
+    account_name: name,
+    parent_account_id: document.getElementById('f-parent').value || null,
+    address: document.getElementById('f-address').value || null,
+    phone: document.getElementById('f-phone').value || null,
+    billing_notes: document.getElementById('f-billing').value || null,
+    active: document.getElementById('f-active').checked
+  };
+
+  const editId = document.getElementById('edit-id').value;
+  let error;
+  if (editId) {
+    ({ error } = await db.from('accounts').update(payload).eq('id', editId));
+  } else {
+    ({ error } = await db.from('accounts').insert(payload));
+  }
+
+  if (error) { msg.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
+  msg.innerHTML = '<div class="msg success">Saved.</div>';
+  await loadAccounts();
+  setTimeout(() => cancelEdit(), 800);
+}
+
+async function toggleAccountActive(id, current) {
+  await db.from('accounts').update({ active: !current }).eq('id', id);
+  await loadAccounts();
+}
+
+// ---- ACCOUNT DETAIL ----
+async function openDetail(accountId) {
+  currentDetailAccountId = accountId;
+  const a = allAccounts.find(x => x.id === accountId);
+  if (!a) return;
+
+  showSection('detail');
+  document.getElementById('section-detail').style.display = '';
+
+  // Header
+  const stats = allJobsByAccount[accountId] || {};
+  document.getElementById('detail-header').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem">
+      <div>
+        <h3 style="margin:0 0 0.2rem">${a.account_name}</h3>
+        <div class="meta">${a.parent_account_id ? 'Sub-Account' : 'Master Account'} | ${a.active ? 'Active' : 'Inactive'}</div>
+        ${a.address ? `<div class="meta">Address: ${a.address}</div>` : ''}
+        ${a.phone ? `<div class="meta">Phone: ${a.phone}</div>` : ''}
+        ${a.billing_notes ? `<div style="margin-top:0.4rem;padding:0.4rem;background:#fff8e0;border:1px solid #e0c060;font-size:0.82rem"><strong>Billing Note:</strong> ${a.billing_notes}</div>` : ''}
+      </div>
+      <div>
+        <button class="btn btn-secondary" onclick="openEdit('${accountId}')">Edit Account</button>
+      </div>
+    </div>`;
+
+  // Stats
+  document.getElementById('detail-stats').innerHTML = `
+    <div class="stat-box"><div class="val">${stats.count||0}</div><div class="lbl">Total Jobs</div></div>
+    <div class="stat-box"><div class="val">$${(stats.totalRevenue||0).toFixed(2)}</div><div class="lbl">Total Revenue</div></div>
+    <div class="stat-box"><div class="val">$${(stats.approvedRevenue||0).toFixed(2)}</div><div class="lbl">Approved Revenue</div></div>
+    <div class="stat-box"><div class="val">${stats.lastDate||'--'}</div><div class="lbl">Last Service</div></div>`;
+
+  // Sub-accounts
+  const subs = allAccounts.filter(x => x.parent_account_id === accountId);
+  if (subs.length) {
+    document.getElementById('detail-subs').innerHTML = `
+      <div class="section-title">Sub-Accounts (${subs.length})</div>
+      <table><thead><tr><th>Name</th><th>Address</th><th>Phone</th><th>Jobs</th><th></th></tr></thead>
+      <tbody>${subs.map(s => {
+        const ss = allJobsByAccount[s.id] || {};
+        return `<tr>
+          <td>${s.account_name}</td>
+          <td style="font-size:0.82rem">${s.address||''}</td>
+          <td style="font-size:0.82rem">${s.phone||''}</td>
+          <td>${ss.count||0}</td>
+          <td><button class="btn btn-blue" onclick="openDetail('${s.id}')">View</button></td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+  } else {
+    document.getElementById('detail-subs').innerHTML = '';
+  }
+
+  // Set date defaults
+  const now = new Date();
+  const oneYearAgo = new Date(now); oneYearAgo.setFullYear(now.getFullYear() - 1);
+  document.getElementById('dj-from').value = oneYearAgo.toISOString().split('T')[0];
+  document.getElementById('dj-to').value = now.toISOString().split('T')[0];
+  document.getElementById('dj-status').value = '';
+
+  await Promise.all([loadAccountJobs(), loadAccountQuotes(), loadAccountPhotos()]);
+}
+
+// ---- ACCOUNT JOBS ----
+async function loadAccountJobs() {
+  const status = document.getElementById('dj-status').value;
+  const from = document.getElementById('dj-from').value;
+  const to = document.getElementById('dj-to').value;
+  const el = document.getElementById('detail-jobs');
+  el.innerHTML = 'Loading...';
+
+  let query = db.from('jobs')
+    .select(`id, job_date, status, scope, is_fixed_price, quote_amount,
+             sub:accounts!jobs_sub_account_id_fkey(account_name),
+             job_types(job_type_name),
+             job_completions(time_in,time_out,payment_type,tech_notes,follow_up_flag),
+             job_line_items(unit_cost,override_cost,quantity,item_type,item_id)`)
+    .eq('account_id', currentDetailAccountId)
+    .order('job_date', { ascending: false });
+
+  if (status) query = query.eq('status', status);
+  if (from) query = query.gte('job_date', from);
+  if (to) query = query.lte('job_date', to);
+
+  const { data, error } = await query;
+  if (error) { el.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
+  if (!data?.length) { el.innerHTML = '<p class="meta">No jobs found for this period.</p>'; return; }
+
+  const totalRev = data.reduce((sum, j) => {
+    return sum + (j.job_line_items||[]).reduce((s,i) => s + ((i.override_cost??i.unit_cost)*i.quantity), 0);
+  }, 0);
+
+  el.innerHTML = `
+    <div style="font-size:0.85rem;color:#555;margin-bottom:0.5rem">${data.length} jobs | Total: $${totalRev.toFixed(2)}</div>
+    <table>
+      <thead><tr><th>Date</th><th>Sub-Account</th><th>Type</th><th>Status</th><th>Payment</th><th>Total</th><th>Follow-up</th><th>Notes</th></tr></thead>
+      <tbody>${data.map(j => {
+        const comp = j.job_completions?.[0] || {};
+        const total = (j.job_line_items||[]).reduce((s,i) => s + ((i.override_cost??i.unit_cost)*i.quantity), 0);
+        const fixedNote = j.is_fixed_price ? ` <span style="color:#900;font-size:0.78rem">[Fixed $${Number(j.quote_amount||0).toFixed(2)}]</span>` : '';
+        return `<tr>
+          <td>${j.job_date}</td>
+          <td style="font-size:0.82rem">${j.sub?.account_name||''}</td>
+          <td style="font-size:0.82rem">${j.job_types?.job_type_name||''}${fixedNote}</td>
+          <td><span class="status-badge status-${(j.status||'').replace(/ /g,'-')}">${j.status}</span></td>
+          <td style="font-size:0.82rem">${comp.payment_type||'--'}</td>
+          <td>$${total.toFixed(2)}</td>
+          <td style="text-align:center">${comp.follow_up_flag ? 'YES' : ''}</td>
+          <td style="font-size:0.82rem;max-width:180px">${comp.tech_notes||''}</td>
+        </tr>
+        ${j.scope ? `<tr><td colspan="8" style="font-size:0.8rem;color:#555;padding-left:1rem">Scope: ${j.scope}</td></tr>` : ''}`;
+      }).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ---- ACCOUNT QUOTE FORMS ----
+async function loadAccountQuotes() {
+  const el = document.getElementById('detail-quotes');
+
+  const { data: jobs } = await db.from('jobs').select('id').eq('account_id', currentDetailAccountId);
+  if (!jobs?.length) { el.innerHTML = '<p class="meta">No quote forms.</p>'; return; }
+
+  const jobIds = jobs.map(j => j.id);
+  const { data: quotes } = await db.from('quote_forms')
+    .select('*')
+    .in('job_id', jobIds)
+    .order('created_at', { ascending: false });
+
+  if (!quotes?.length) { el.innerHTML = '<p class="meta">No quote forms on record.</p>'; return; }
+
+  el.innerHTML = `<table>
+    <thead><tr><th>Job ID (short)</th><th>Created</th><th>Scope Observed</th><th>Materials</th><th>Locked</th><th>Admin Notes</th></tr></thead>
+    <tbody>${quotes.map(q => `<tr>
+      <td style="font-size:0.78rem">${q.job_id.slice(0,8)}...</td>
+      <td style="font-size:0.82rem">${new Date(q.created_at).toLocaleDateString()}</td>
+      <td style="font-size:0.82rem;max-width:200px">${q.scope_observed||''}</td>
+      <td style="font-size:0.82rem">${q.materials_json ? JSON.stringify(q.materials_json) : '--'}</td>
+      <td style="font-size:0.82rem">${q.locked_at ? 'Yes - '+new Date(q.locked_at).toLocaleDateString() : 'No'}</td>
+      <td style="font-size:0.82rem">${q.admin_notes||''}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+// ---- ACCOUNT PHOTOS ----
+async function loadAccountPhotos() {
+  const el = document.getElementById('detail-photos');
+  const { data: photos, error } = await db.from('job_photos')
+    .select('id,storage_path,file_name,uploaded_at,job_id')
+    .eq('account_id', currentDetailAccountId)
+    .order('uploaded_at', { ascending: false });
+
+  if (error || !photos?.length) { el.innerHTML = '<p class="meta">No photos on file.</p>'; return; }
+
+  // Generate signed URLs for all photos
+  const signedUrls = await Promise.all(photos.map(async p => {
+    const { data } = await db.storage.from('job-photos').createSignedUrl(p.storage_path, 3600);
+    return { ...p, url: data?.signedUrl || null };
+  }));
+
+  el.innerHTML = `<p style="font-size:0.82rem;color:#555">${photos.length} photo(s) across all jobs for this account.</p>
+    <div class="photo-grid">
+      ${signedUrls.map(p => p.url
+        ? `<div style="text-align:center">
+            <img src="${p.url}" class="photo-thumb" onclick="window.open('${p.url}','_blank')" title="${p.file_name||''}">
+            <div style="font-size:0.72rem;color:#666;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.file_name||''}</div>
+            <div style="font-size:0.72rem;color:#888">${new Date(p.uploaded_at).toLocaleDateString()}</div>
+           </div>`
+        : `<div style="font-size:0.78rem;color:#aaa">${p.file_name||'No URL'}</div>`
+      ).join('')}
+    </div>`;
+}
+
+async function logout() {
+  await db.auth.signOut();
+  window.location.href = 'index.html';
+}
+
+init();
+</script>
+</body>
+</html>

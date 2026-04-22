@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faith Lock & Safe -- Login</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f0f0f0; }
+.box { background: white; padding: 2rem; border: 1px solid #ccc; width: 320px; }
+h2 { margin-top: 0; font-size: 1.2rem; }
+label { font-size: 0.85rem; font-weight: bold; }
+input { width: 100%; padding: 0.5rem; margin: 0.3rem 0 1rem; box-sizing: border-box; border: 1px solid #ccc; }
+button { width: 100%; padding: 0.6rem; background: #1a1a1a; color: white; border: none; cursor: pointer; font-size: 1rem; }
+button:hover { background: #333; }
+.err { color: red; font-size: 0.85rem; margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h2>Faith Lock &amp; Safe Co.</h2>
+  <p style="font-size:0.85rem;color:#555;margin-top:0;">Job Management System</p>
+  <label>Email</label>
+  <input type="email" id="email" placeholder="email@example.com">
+  <label>Password</label>
+  <input type="password" id="password" placeholder="Password">
+  <button onclick="login()">Sign In</button>
+  <div class="err" id="err"></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://jmsrlhqbzstuczxilxua.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc3JsaHFienN0dWN6eGlseHVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzA5NDcsImV4cCI6MjA5MjQwNjk0N30.jpHtuhezvfRXJ2uVhwglqS_rImZl8JqqBX85WUv2Z5g';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// If already logged in, redirect
+db.auth.getSession().then(({ data }) => {
+  if (data.session) redirect(data.session.user.id);
+});
+
+async function login() {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const err = document.getElementById('err');
+  err.textContent = '';
+
+  const { data, error } = await db.auth.signInWithPassword({ email, password });
+  if (error) { err.textContent = error.message; return; }
+
+  redirect(data.user.id);
+}
+
+async function redirect(uid) {
+  const { data } = await db.from('user_profiles').select('role').eq('id', uid).single();
+  if (!data) { document.getElementById('err').textContent = 'Profile not found. Contact admin.'; return; }
+  if (data.role === 'admin') window.location.href = 'admin.html';
+  else window.location.href = 'tech.html';
+}
+
+// Allow Enter key to submit
+document.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+</script>
+</body>
+</html>
