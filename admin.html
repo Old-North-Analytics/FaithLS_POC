@@ -940,7 +940,7 @@ async function loadJobPhotos(jobId) {
       ${p.url
         ? `<a href="${p.url}" target="_blank"><img src="${p.url}"
             style="width:100px;height:80px;object-fit:cover;border:1px solid #ccc;display:block;cursor:pointer"
-            onerror="this.parentElement.innerHTML='<div style=&quot;width:100px;height:80px;background:#eee;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:0.75rem;padding:4px&quot;>${p.file_name||\'photo\'}</div>'"></a>`
+            onerror="this.parentElement.innerHTML='<div style=&quot;width:100px;height:80px;background:#eee;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:0.75rem;padding:4px&quot;>' + (p.file_name||'photo') + '</div>'"></a>`
         : `<div style="width:100px;height:80px;background:#eee;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:0.75rem;padding:4px">${p.file_name||'photo'}</div>`
       }
       <div style="font-size:0.72rem;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">
