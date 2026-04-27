@@ -120,8 +120,7 @@ input[type=checkbox] { width: auto; }
     <table id="accounts-table">
       <thead>
         <tr>
-          <th onclick="sortTable('account_name')">Name</th>
-          <th onclick="sortTable('type')">Type</th>
+          <th onclick="sortTable('account_name')">Account</th>
           <th onclick="sortTable('address')">Address</th>
           <th>Phone</th>
           <th>Primary Contact</th>
@@ -365,18 +364,27 @@ function sortTable(key) {
 }
 
 function sortAndRender() {
-  const sorted = [...filteredAccounts].sort((a, b) => {
+  // Sort masters first, then for each master insert its subs immediately after
+  const masters = filteredAccounts.filter(a => !a.parent_account_id).sort((a, b) => {
     let av, bv;
     if (sortKey === 'account_name') { av = a.account_name; bv = b.account_name; }
-    else if (sortKey === 'address') { av = a.address||''; bv = b.address||''; }
-    else if (sortKey === 'type') { av = a.parent_account_id ? 1 : 0; bv = b.parent_account_id ? 1 : 0; }
-    else if (sortKey === 'job_count') { av = allJobsByAccount[a.id]?.count || 0; bv = allJobsByAccount[b.id]?.count || 0; }
-    else if (sortKey === 'last_service') { av = allJobsByAccount[a.id]?.lastDate || ''; bv = allJobsByAccount[b.id]?.lastDate || ''; }
+    else if (sortKey === 'job_count') { av = allJobsByAccount[a.id]?.count||0; bv = allJobsByAccount[b.id]?.count||0; }
+    else if (sortKey === 'last_service') { av = allJobsByAccount[a.id]?.lastDate||''; bv = allJobsByAccount[b.id]?.lastDate||''; }
     else { av = a[sortKey]||''; bv = b[sortKey]||''; }
     if (av < bv) return -1 * sortDir;
     if (av > bv) return 1 * sortDir;
     return 0;
   });
+
+  const ordered = [];
+  masters.forEach(m => {
+    ordered.push(m);
+    const subs = filteredAccounts.filter(a => a.parent_account_id === m.id)
+      .sort((a, b) => a.account_name.localeCompare(b.account_name));
+    subs.forEach(s => ordered.push(s));
+  });
+  // Also include subs whose parent isn't in the filtered list
+  filteredAccounts.filter(a => a.parent_account_id && !ordered.includes(a)).forEach(a => ordered.push(a));
 
   const totalActive = allAccounts.filter(a => a.active).length;
   const totalMaster = allAccounts.filter(a => !a.parent_account_id && a.active).length;
@@ -384,18 +392,21 @@ function sortAndRender() {
     `<span style="font-size:0.85rem;color:#555">${filteredAccounts.length} of ${allAccounts.length} accounts shown | ${totalMaster} master accounts | ${totalActive} active</span>`;
 
   const tbody = document.getElementById('accounts-tbody');
-  if (!sorted.length) { tbody.innerHTML = '<tr><td colspan="10">No accounts found.</td></tr>'; return; }
+  if (!ordered.length) { tbody.innerHTML = '<tr><td colspan="9">No accounts found.</td></tr>'; return; }
 
-  tbody.innerHTML = sorted.map(a => {
+  tbody.innerHTML = ordered.map(a => {
     const stats = allJobsByAccount[a.id] || {};
-    const parent = a.parent_account_id ? allAccounts.find(x => x.id === a.parent_account_id) : null;
+    const isSub = !!a.parent_account_id;
     const pc = allPrimaryContacts[a.id];
     const contactDisplay = pc
       ? `${pc.contact_name}${pc.work_phone ? '<br><span style="font-size:0.78rem;color:#555">'+pc.work_phone+'</span>' : pc.cell_phone ? '<br><span style="font-size:0.78rem;color:#555">'+pc.cell_phone+'</span>' : ''}`
       : '<span style="color:#aaa;font-size:0.8rem">None</span>';
-    return `<tr class="${a.active ? '' : 'inactive-row'}">
-      <td><strong>${a.account_name}</strong>${parent ? `<br><span style="font-size:0.78rem;color:#666">under: ${parent.account_name}</span>` : ''}</td>
-      <td>${a.parent_account_id ? 'Sub' : 'Master'}</td>
+    const rowBg = isSub ? 'background:#f7f7f7;' : '';
+    const nameCell = isSub
+      ? `<span style="padding-left:1rem;color:#555;font-size:0.9rem">&#8627; ${a.account_name}</span>`
+      : `<strong>${a.account_name}</strong>`;
+    return `<tr class="${a.active ? '' : 'inactive-row'}" style="${rowBg}">
+      <td>${nameCell}</td>
       <td style="font-size:0.82rem">${a.address||''}</td>
       <td style="font-size:0.82rem">${a.phone||''}</td>
       <td style="font-size:0.82rem">${contactDisplay}</td>
@@ -800,26 +811,27 @@ async function loadAccountPhotos() {
 
   if (error || !photos?.length) { el.innerHTML = '<p class="meta">No photos on file.</p>'; return; }
 
-  const signedUrls = await Promise.all(photos.map(async p => {
-    const { data } = await db.storage.from('job-photos').createSignedUrl(p.storage_path, 3600);
-    return { ...p, url: data?.signedUrl || null };
+  const withUrls = await Promise.all(photos.map(async p => {
+    const { data: signed } = await db.storage.from('job-photos').createSignedUrl(p.storage_path, 7200);
+    if (signed?.signedUrl) return { ...p, url: signed.signedUrl };
+    const { data: pub } = db.storage.from('job-photos').getPublicUrl(p.storage_path);
+    return { ...p, url: pub?.publicUrl || null };
   }));
 
   el.innerHTML = `<p style="font-size:0.82rem;color:#555">${photos.length} photo(s) across all jobs for this account.</p>
-    <div class="photo-grid">
-      ${signedUrls.map(p => p.url
-        ? `<div style="text-align:center;margin-bottom:0.3rem">
-            <a href="${p.url}" target="_blank" title="Open full size">
-              <img src="${p.url}" class="photo-thumb"
-                onerror="this.style.display='none'"
-                title="${p.file_name||''}">
-            </a>
-            <div style="font-size:0.72rem;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-              <a href="${p.url}" target="_blank" style="color:#1a4a8a">${p.file_name||'photo'}</a>
-            </div>
-            <div style="font-size:0.72rem;color:#888">${new Date(p.uploaded_at).toLocaleDateString('en-US')}</div>
-           </div>`
-        : `<div style="font-size:0.78rem;color:#aaa">${p.file_name||''} (unavailable)</div>`
+    <div style="display:flex;flex-wrap:wrap;gap:0.5rem">
+      ${withUrls.map(p =>
+        `<div style="text-align:center">
+          ${p.url
+            ? `<a href="${p.url}" target="_blank"><img src="${p.url}" style="width:100px;height:80px;object-fit:cover;border:1px solid #ccc;display:block;cursor:pointer"
+                onerror="this.parentElement.innerHTML='<div style=&quot;width:100px;height:80px;background:#eee;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:0.75rem;padding:4px&quot;>${p.file_name||&quot;photo&quot;}</div>'"></a>`
+            : `<div style="width:100px;height:80px;background:#eee;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:0.75rem;padding:4px">${p.file_name||'photo'}</div>`
+          }
+          <div style="font-size:0.72rem;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">
+            ${p.url ? `<a href="${p.url}" target="_blank" style="color:#1a4a8a">${p.file_name||'photo'}</a>` : (p.file_name||'photo')}
+          </div>
+          <div style="font-size:0.72rem;color:#888">${new Date(p.uploaded_at).toLocaleDateString('en-US')}</div>
+        </div>`
       ).join('')}
     </div>`;
 }
