@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Faith Lock | Field View</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="shared.js"></script>
 <style>
 * { box-sizing: border-box; }
 body { font-family: sans-serif; margin: 0; background: #f0f0f0; font-size: 0.9rem; }
@@ -62,6 +63,7 @@ input[type=checkbox] { width: auto; }
     <div class="tab" onclick="showTab('newcustomer')">+ New Customer</div>
   </div>
 
+  <!-- ---- MY JOBS TAB ---- -->
   <div id="tab-jobs">
     <div class="filters">
       <button class="filter-btn active" onclick="setFilter('today',this)">Today</button>
@@ -71,6 +73,7 @@ input[type=checkbox] { width: auto; }
     <div id="jobs-list">Loading...</div>
   </div>
 
+  <!-- ---- NEW JOB TAB ---- -->
   <div id="tab-newjob" style="display:none">
     <div class="card">
       <h3>Log Unscheduled Job</h3>
@@ -121,6 +124,7 @@ input[type=checkbox] { width: auto; }
     </div>
   </div>
 
+  <!-- ---- NEW CUSTOMER TAB ---- -->
   <div id="tab-newcustomer" style="display:none">
     <div class="card">
       <h3>Submit New Customer</h3>
@@ -135,7 +139,10 @@ input[type=checkbox] { width: auto; }
   </div>
 </div>
 
-<!-- Job Detail Modal -->
+<!-- ---- JOB DETAIL MODAL ----
+     A full-screen overlay that shows all job info + a completion form (if not yet submitted).
+     Using a modal instead of an inline expand keeps the jobs list visible behind it and makes
+     the form layout much easier to scroll on mobile. -->
 <div id="modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:100;overflow-y:auto">
   <div style="background:white;max-width:640px;margin:0 auto;padding:1.5rem;position:relative;min-height:100vh">
     <button onclick="closeModal()" style="position:absolute;top:0.5rem;right:0.5rem;background:#ddd;border:none;font-size:1rem;cursor:pointer;padding:0.3rem 0.6rem">Close</button>
@@ -144,30 +151,54 @@ input[type=checkbox] { width: auto; }
 </div>
 
 <script>
-const SUPABASE_URL = 'https://jmsrlhqbzstuczxilxua.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc3JsaHFienN0dWN6eGlseHVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzA5NDcsImV4cCI6MjA5MjQwNjk0N30.jpHtuhezvfRXJ2uVhwglqS_rImZl8JqqBX85WUv2Z5g';
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// ============================================================
+// tech.html — Faith Lock & Safe Field View
+//
+// This page is used by field technicians on their phones or tablets.
+// It is intentionally simpler than admin.html — no billing details,
+// no account management. Techs log their work, submit completions,
+// and upload photos. Admin reviews everything in admin.html.
+//
+// Globals from shared.js (loaded above):
+//   db, formatDate(), today(), weekStart(), nowLocal(),
+//   populateSelect(), populateMultiSelect(), resizeImage(),
+//   fetchPhotoUrls(), renderPhotoGrid(), mapsLink(), logout()
+// ============================================================
 
-let currentUser = null;
-let allParts = [], allLaborTypes = [], allAccounts = [], allJobTypes = [];
-let currentFilter = 'today';
-let modalJobId = null;
+
+// ---- STATE ----
+// These are the top-level variables the page uses. Everything else is local to its function.
+
+let currentUser  = null;     // Supabase auth user object (set on init)
+let currentFilter = 'today'; // Active date filter: 'today' | 'week' | 'open'
+let modalJobId   = null;     // ID of the job currently open in the modal
+
+// Parts and labor lists for the completion modal ('m') and the new-job form ('nj').
+// Kept separate so both forms can be open (conceptually) without cross-contamination.
 let modalParts = [], modalLabor = [];
-let njParts = [], njLabor = [];
+let njParts    = [], njLabor    = [];
 
-// ---- DATE FORMAT ----
-function formatDate(str) {
-  if (!str) return '';
-  const [y, m, d] = str.split('-');
-  return `${m}/${d}/${y}`;
-}
+// Reference data — loaded once on init and reused everywhere.
+let allParts      = [];
+let allLaborTypes = [];
+let allAccounts   = [];
+let allJobTypes   = [];
 
+// Cache of primary contacts keyed by account_id.
+// Populated once per loadJobs() call to avoid N+1 queries (one contact lookup per card).
+let allPrimaryContactsCache = {};
+
+
+// ---- INIT ----
+// Entry point: verify auth, then load reference data and jobs in parallel.
 async function init() {
   try {
     const { data: { session }, error: sessErr } = await db.auth.getSession();
     if (sessErr) throw sessErr;
     if (!session) { window.location.href = 'index.html'; return; }
     currentUser = session.user;
+
+    // Load both in parallel — neither depends on the other.
     await Promise.all([loadRefData(), loadJobs()]);
   } catch (err) {
     document.getElementById('jobs-list').innerHTML =
@@ -177,6 +208,10 @@ async function init() {
   }
 }
 
+
+// ---- REFERENCE DATA ----
+// Loads the lookup tables (parts, labor types, accounts, job types) used to
+// populate dropdowns. Runs once on init; results are cached in the globals above.
 async function loadRefData() {
   const [p, l, a, jt] = await Promise.all([
     db.from('parts').select('id,part_name,category,unit').eq('active', true).order('part_name'),
@@ -184,32 +219,25 @@ async function loadRefData() {
     db.from('accounts').select('id,account_name,parent_account_id').eq('active', true).order('account_name'),
     db.from('job_types').select('id,job_type_name,category').eq('active', true).order('job_type_name')
   ]);
-  allParts = p.data || [];
-  allLaborTypes = l.data || [];
-  allAccounts = a.data || [];
-  allJobTypes = jt.data || [];
-  populateSelect('nj-account', allAccounts.filter(a => !a.parent_account_id), 'id', 'account_name', 'Select account...');
-  populateSelect('nj-jobtype', allJobTypes, 'id', 'job_type_name', 'Select type...');
+  allParts      = p.data  || [];
+  allLaborTypes = l.data  || [];
+  allAccounts   = a.data  || [];
+  allJobTypes   = jt.data || [];
+
+  // Only show top-level (parent) accounts in the account picker; sub-accounts load separately.
+  populateSelect('nj-account',   allAccounts.filter(a => !a.parent_account_id), 'id', 'account_name', 'Select account...');
+  populateSelect('nj-jobtype',   allJobTypes,   'id', 'job_type_name',   'Select type...');
   populateSelect('nj-labortype', allLaborTypes, 'id', 'labor_type_name', 'Select type...');
   document.getElementById('nj-date').value = today();
 }
 
-function populateSelect(id, items, vk, lk, ph) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.innerHTML = `<option value="">${ph}</option>` + items.map(i => `<option value="${i[vk]}">${i[lk]}</option>`).join('');
-}
 
-function today() { return new Date().toISOString().split('T')[0]; }
-function weekStart() {
-  const d = new Date();
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return d.toISOString().split('T')[0];
-}
+// ---- JOB LIST ----
 
-// Primary contacts cache for job cards (account_id -> contact)
-let allPrimaryContactsCache = {};
-
+// loadJobs: fetches jobs assigned to the current tech for the active date filter.
+// Uses .contains('assigned_tech_ids', [currentUser.id]) so each tech sees ONLY
+// their own jobs. The array-contains operator matches rows where assigned_tech_ids
+// includes (at minimum) the given value — other IDs in the array don't matter.
 async function loadJobs() {
   const list = document.getElementById('jobs-list');
   list.innerHTML = '<p style="color:#888">Loading...</p>';
@@ -223,15 +251,22 @@ async function loadJobs() {
                job_types(job_type_name),
                job_completions(id,tech_notes,follow_up_flag,submitted_at),
                job_line_items(id,item_type,item_id,quantity)`)
-      .not('status', 'in', '("Cancelled","Approved")');
+      .not('status', 'in', '("Cancelled","Approved")')
+      .contains('assigned_tech_ids', [currentUser.id]); // Only jobs assigned to this tech
+
     if (currentFilter === 'today') query = query.eq('job_date', today());
     else if (currentFilter === 'week') query = query.gte('job_date', weekStart());
+
     const { data, error } = await query.order('job_date', { ascending: true });
     if (error) throw error;
+
     const myJobs = data || [];
     if (!myJobs.length) { list.innerHTML = '<p>No jobs found for this period.</p>'; return; }
 
-    // Fetch primary contacts for all unique account IDs in the job list
+    // Pre-fetch primary contacts for all accounts in the result set in a SINGLE query.
+    // Without this, each jobCard() would trigger its own DB call — an N+1 query problem.
+    // Instead we collect all unique account IDs first, fetch contacts once, then store
+    // them in allPrimaryContactsCache for jobCard() to read synchronously.
     const accountIds = [...new Set(myJobs.map(j => j.account_id).filter(Boolean))];
     allPrimaryContactsCache = {};
     if (accountIds.length) {
@@ -248,16 +283,21 @@ async function loadJobs() {
   }
 }
 
+// jobCard: builds the HTML for a single job card in the list.
+// Each card shows the account, date, status, fixed-price warning, expected
+// parts/labor, contact info, address, scope, and a "Job Details" button.
 function jobCard(j) {
-  const account = j.accounts?.account_name || 'Unknown Account';
-  const sub = j.sub?.account_name ? ` / ${j.sub.account_name}` : '';
-  const comp = j.job_completions?.[0];
+  const account   = j.accounts?.account_name || 'Unknown Account';
+  const sub       = j.sub?.account_name ? ` / ${j.sub.account_name}` : '';
+  const comp      = j.job_completions?.[0];
   const submitted = !!comp;
 
+  // Bright red banner for fixed-price jobs — tells the tech not to over-scope.
   const fixedBanner = j.is_fixed_price
-    ? `<div class="fixed-banner">FIXED PRICE | Quoted: $${Number(j.quote_amount||0).toFixed(2)} | Do not exceed scope without calling Rich.</div>` : '';
+    ? `<div class="fixed-banner">FIXED PRICE | Quoted: $${Number(j.quote_amount||0).toFixed(2)} | Do not exceed scope without calling Rich.</div>`
+    : '';
 
-  // Primary contact from cache (loaded in loadJobs)
+  // Primary contact from the pre-fetched cache (avoids a DB call per card).
   const pc = allPrimaryContactsCache[j.account_id];
   let contactHtml = '';
   if (pc) {
@@ -267,6 +307,8 @@ function jobCard(j) {
     contactHtml = `<div class="contact-info">${line}</div>`;
   }
 
+  // Expected parts/labor (pre-loaded by admin) shown as a blue banner.
+  // Only shown on un-submitted jobs so the tech knows what to bring/expect.
   const expParts = (j.job_line_items||[]).filter(i => i.item_type === 'Part');
   const expLabor = (j.job_line_items||[]).filter(i => i.item_type === 'Labor');
   let expHtml = '';
@@ -279,16 +321,15 @@ function jobCard(j) {
       const l = allLaborTypes.find(x => x.id === i.item_id);
       return l ? `${l.labor_type_name} ${i.quantity}hr` : '';
     }).filter(Boolean).join(', ');
-    expHtml = `<div class="expected-banner">${pNames?`<div><strong>Expected parts:</strong> ${pNames}</div>`:''}${lNames?`<div><strong>Expected labor:</strong> ${lNames}</div>`:''}</div>`;
+    expHtml = `<div class="expected-banner">${pNames ? `<div><strong>Expected parts:</strong> ${pNames}</div>` : ''}${lNames ? `<div><strong>Expected labor:</strong> ${lNames}</div>` : ''}</div>`;
   }
 
-  // Address block
-  const addr = j.accounts?.address;
-  const addrHtml = addr ? `<div class="address-info"><strong>Address:</strong> ${addr}</div>` : '';
+  // Address wrapped in a Google Maps link so techs can tap for turn-by-turn directions.
+  const addr    = j.accounts?.address;
+  const addrHtml = addr ? `<div class="address-info"><strong>Address:</strong> ${mapsLink(addr)}</div>` : '';
 
-  // WO/PO
   const wopo = [
-    j.work_order_number ? `WO: ${j.work_order_number}` : '',
+    j.work_order_number    ? `WO: ${j.work_order_number}`    : '',
     j.purchase_order_number ? `PO: ${j.purchase_order_number}` : ''
   ].filter(Boolean).join(' | ');
 
@@ -299,12 +340,14 @@ function jobCard(j) {
     ${addrHtml}
     ${contactHtml}
     ${fixedBanner}${expHtml}
-    ${j.scope ? `<div style="font-size:0.85rem;margin-bottom:0.4rem"><strong>Scope:</strong> ${j.scope}</div>` : ''}
+    ${j.scope      ? `<div style="font-size:0.85rem;margin-bottom:0.4rem"><strong>Scope:</strong> ${j.scope}</div>` : ''}
     ${j.site_notes ? `<div style="font-size:0.85rem;margin-bottom:0.4rem"><strong>Site Notes:</strong> ${j.site_notes}</div>` : ''}
     ${submitted ? '<div class="msg success" style="margin-bottom:0.4rem">Submitted</div>' : ''}
     <div style="margin-top:0.4rem">
       <button class="btn btn-primary" onclick="openJobDetail('${j.id}')" style="width:100%">Job Details</button>
-      ${submitted && j.status==='Pending Review' ? `<button class="btn btn-warn" onclick="unsubmit('${j.id}','${comp.id}')" style="width:100%;margin-top:0.4rem">Unsubmit</button>` : ''}
+      ${submitted && j.status === 'Pending Review'
+        ? `<button class="btn btn-warn" onclick="unsubmit('${j.id}','${comp.id}')" style="width:100%;margin-top:0.4rem">Unsubmit</button>`
+        : ''}
     </div>
   </div>`;
 }
@@ -316,6 +359,9 @@ function setFilter(f, btn) {
   loadJobs();
 }
 
+// unsubmit: removes a submitted completion so the tech can re-submit with corrections.
+// Deletes job_line_items too because submitCompletion() re-inserts them fresh, avoiding
+// duplicates. The job status returns to Scheduled so admin knows it's not ready to review.
 async function unsubmit(jobId, compId) {
   if (!confirm('Remove your submission? The job will return to Scheduled. Only do this if Rich has not yet reviewed it.')) return;
   await db.from('job_completions').delete().eq('id', compId);
@@ -332,9 +378,12 @@ function showTab(name) {
     t.classList.toggle('active', ['jobs','newjob','newcustomer'][i] === name));
 }
 
+
 // ---- JOB DETAIL MODAL ----
-// Opens for both completed and uncompleted jobs.
-// Shows all job info + contact + completion form if not yet submitted.
+
+// openJobDetail: loads full job data and builds the modal for a single job.
+// If the job is already submitted, shows read-only details + photo panel.
+// If not yet submitted, shows the completion form with pre-loaded parts/labor.
 async function openJobDetail(jobId) {
   modalJobId = jobId;
   modalParts = [];
@@ -348,23 +397,24 @@ async function openJobDetail(jobId) {
              job_line_items(id,item_type,item_id,quantity)`)
     .eq('id', jobId).single();
 
-  // Fetch primary contact for this account
+  // Fetch all contacts for this account to show primary + secondary in the modal.
+  // The card list only shows the primary contact; the modal shows both for complete info.
   let contactHtml = '';
   if (job.account_id) {
     const { data: contacts } = await db.from('account_contacts')
       .select('*').eq('account_id', job.account_id).eq('active', true)
       .order('is_primary', { ascending: false });
     if (contacts?.length) {
-      const primary = contacts.find(c => c.is_primary) || contacts[0];
+      const primary   = contacts.find(c => c.is_primary) || contacts[0];
       const secondary = contacts.find(c => c.is_secondary && !c.is_primary);
       let ch = `<div class="contact-info"><strong>Contact:</strong> ${primary.contact_name}`;
-      if (primary.title) ch += ` | ${primary.title}`;
-      if (primary.company) ch += ` | ${primary.company}`;
+      if (primary.title)    ch += ` | ${primary.title}`;
+      if (primary.company)  ch += ` | ${primary.company}`;
       ch += '<br>';
       if (primary.work_phone) ch += `Work: ${primary.work_phone} &nbsp;`;
       if (primary.cell_phone) ch += `Cell: ${primary.cell_phone} &nbsp;`;
-      if (primary.email) ch += primary.email;
-      if (primary.notes) ch += `<br><em style="font-size:0.82rem">${primary.notes}</em>`;
+      if (primary.email)      ch += primary.email;
+      if (primary.notes)      ch += `<br><em style="font-size:0.82rem">${primary.notes}</em>`;
       if (secondary) {
         ch += `<br><span style="font-size:0.82rem">Secondary: ${secondary.contact_name}`;
         if (secondary.work_phone) ch += ` | ${secondary.work_phone}`;
@@ -376,10 +426,11 @@ async function openJobDetail(jobId) {
     }
   }
 
-  const comp = job.job_completions?.[0];
+  const comp      = job.job_completions?.[0];
   const submitted = !!comp;
 
-  // Pre-load expected line items so tech can confirm/adjust
+  // Pre-load any expected parts/labor (set by admin when scheduling) so the tech
+  // can confirm or adjust quantities rather than entering everything from scratch.
   (job.job_line_items || []).forEach(i => {
     if (i.item_type === 'Part') {
       const p = allParts.find(x => x.id === i.item_id);
@@ -391,23 +442,29 @@ async function openJobDetail(jobId) {
   });
 
   const laborOpts = allLaborTypes.map(l => `<option value="${l.id}">${l.labor_type_name}</option>`).join('');
+
   const fixedBanner = job.is_fixed_price
-    ? `<div class="fixed-banner">FIXED PRICE | Quoted: $${Number(job.quote_amount||0).toFixed(2)} | Do not exceed scope without calling Rich.</div>` : '';
+    ? `<div class="fixed-banner">FIXED PRICE | Quoted: $${Number(job.quote_amount||0).toFixed(2)} | Do not exceed scope without calling Rich.</div>`
+    : '';
 
   const wopo = [
-    job.work_order_number ? `WO: ${job.work_order_number}` : '',
+    job.work_order_number    ? `WO: ${job.work_order_number}`    : '',
     job.purchase_order_number ? `PO: ${job.purchase_order_number}` : ''
   ].filter(Boolean).join(' | ');
 
+  // Address as a Google Maps link so the tech can tap for navigation.
   const addrHtml = job.accounts?.address
-    ? `<div class="address-info"><strong>Address:</strong> ${job.accounts.address}</div>` : '';
+    ? `<div class="address-info"><strong>Address:</strong> ${mapsLink(job.accounts.address)}</div>`
+    : '';
 
-  const preNote = (job.job_line_items||[]).filter(i => i.item_type === 'Part' || i.item_type === 'Labor').length
-    ? `<p style="font-size:0.82rem;color:#446;margin:0 0 0.5rem">Expected parts and labor are pre-loaded. Adjust quantities or add/remove as needed.</p>` : '';
+  const hasExpected = (job.job_line_items||[]).some(i => i.item_type === 'Part' || i.item_type === 'Labor');
+  const preNote = hasExpected
+    ? `<p style="font-size:0.82rem;color:#446;margin:0 0 0.5rem">Expected parts and labor are pre-loaded. Adjust quantities or add/remove as needed.</p>`
+    : '';
 
   let completionSection = '';
   if (submitted) {
-    // Show submitted data read-only with option to add a note
+    // Read-only view for completed jobs — shows what was submitted.
     completionSection = `
       <div class="form-section">
         <div class="section-title">Submitted Details</div>
@@ -421,7 +478,7 @@ async function openJobDetail(jobId) {
       </div>
       <div class="form-section">
         <div class="section-title">Photos</div>
-        <div id="tech-job-photos-${jobId}" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.5rem">
+        <div id="tech-job-photos-${jobId}" style="margin-bottom:0.5rem">
           <span style="font-size:0.82rem;color:#aaa">Loading photos...</span>
         </div>
         <div class="form-row"><label>Add Photos</label><input type="file" id="extra-photos-${jobId}" accept="image/*" multiple></div>
@@ -480,7 +537,7 @@ async function openJobDetail(jobId) {
     ${addrHtml}
     ${contactHtml}
     ${fixedBanner}
-    ${job.scope ? `<p style="font-size:0.85rem;margin:0.3rem 0"><strong>Scope:</strong> ${job.scope}</p>` : ''}
+    ${job.scope      ? `<p style="font-size:0.85rem;margin:0.3rem 0"><strong>Scope:</strong> ${job.scope}</p>` : ''}
     ${job.site_notes ? `<p style="font-size:0.85rem;margin:0.3rem 0"><strong>Site Notes:</strong> ${job.site_notes}</p>` : ''}
     ${submitted ? '<div class="msg success">Job submitted. Awaiting admin review.</div>' : ''}
     ${completionSection}
@@ -489,16 +546,29 @@ async function openJobDetail(jobId) {
   if (!submitted) {
     renderPartsTable('m');
     renderLaborTable('m');
+    // Pre-fill Time In with current local time so the tech doesn't have to type it.
+    // nowLocal() (from shared.js) returns YYYY-MM-DDTHH:MM in local timezone —
+    // the exact format required by <input type="datetime-local">.
+    document.getElementById('m-timein').value = nowLocal();
   } else {
     loadTechJobPhotos(jobId);
   }
+
   document.getElementById('modal').style.display = '';
   window.scrollTo(0, 0);
 }
 
-function closeModal() { document.getElementById('modal').style.display = 'none'; }
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+}
+
 
 // ---- JOB PHOTOS (tech view) ----
+
+// loadTechJobPhotos: fetches and displays photos for a completed job.
+// Uses shared fetchPhotoUrls() and renderPhotoGrid() to avoid duplicating
+// the signed-URL and thumbnail logic that also lives in admin.html.
+// showDate is false here — the tech view is compact and doesn't need upload dates.
 async function loadTechJobPhotos(jobId) {
   const grid = document.getElementById(`tech-job-photos-${jobId}`);
   if (!grid) return;
@@ -509,31 +579,8 @@ async function loadTechJobPhotos(jobId) {
     .eq('job_id', jobId)
     .order('uploaded_at', { ascending: false });
 
-  if (!photos?.length) {
-    grid.innerHTML = '<span style="font-size:0.82rem;color:#aaa">No photos yet.</span>';
-    return;
-  }
-
-  const withUrls = await Promise.all(photos.map(async p => {
-    const { data: signed } = await db.storage.from('job-photos').createSignedUrl(p.storage_path, 7200);
-    if (signed?.signedUrl) return { ...p, url: signed.signedUrl };
-    const { data: pub } = db.storage.from('job-photos').getPublicUrl(p.storage_path);
-    return { ...p, url: pub?.publicUrl || null };
-  }));
-
-  grid.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:0.5rem">' + withUrls.map(p =>
-    `<div style="text-align:center">
-      ${p.url
-        ? `<a href="${p.url}" target="_blank"><img src="${p.url}"
-            style="width:100px;height:80px;object-fit:cover;border:1px solid #ccc;display:block"
-            onerror="this.parentElement.innerHTML='<div style=&quot;width:100px;height:80px;background:#eee;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:0.75rem;padding:4px&quot;>' + (p.file_name||'photo') + '</div>'"></a>`
-        : `<div style="width:100px;height:80px;background:#eee;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:0.75rem;padding:4px">${p.file_name||'photo'}</div>`
-      }
-      <div style="font-size:0.72rem;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">
-        ${p.url ? `<a href="${p.url}" target="_blank" style="color:#1a4a8a">${p.file_name||'photo'}</a>` : (p.file_name||'photo')}
-      </div>
-    </div>`
-  ).join('') + '</div>';
+  const withUrls = await fetchPhotoUrls(photos || []);
+  renderPhotoGrid(grid, withUrls, false); // false = don't show upload date
 }
 
 async function uploadExtraPhotos(jobId) {
@@ -547,9 +594,14 @@ async function uploadExtraPhotos(jobId) {
   await loadTechJobPhotos(jobId);
 }
 
+
 // ---- PARTS SEARCH ----
+// Inline autocomplete for the parts search field.
+// Uses mousedown + preventDefault so the click registers before the input loses focus.
+// Without preventDefault, the blur event on the input fires first and hides the results
+// dropdown before the click on a result row can register.
 function searchParts(prefix) {
-  const input = document.getElementById(`${prefix}-partsearch`);
+  const input   = document.getElementById(`${prefix}-partsearch`);
   const results = document.getElementById(`${prefix}-parts-results`);
   if (!input || !results) return;
   const q = input.value.toLowerCase().trim();
@@ -557,19 +609,22 @@ function searchParts(prefix) {
   const matches = allParts.filter(p => p.part_name.toLowerCase().includes(q)).slice(0, 12);
   if (!matches.length) { results.style.display = 'none'; return; }
   results.innerHTML = matches.map(p =>
-    `<div data-id="${p.id}" data-name="${p.part_name.replace(/"/g,'&quot;')}" data-unit="${(p.unit||'').replace(/"/g,'&quot;')}">
+    `<div data-id="${p.id}"
+          data-name="${p.part_name.replace(/"/g,'&quot;')}"
+          data-unit="${(p.unit||'').replace(/"/g,'&quot;')}">
       ${p.part_name}${p.unit ? ` (${p.unit})` : ''}${p.category ? ` | ${p.category}` : ''}
     </div>`).join('');
   results.style.display = 'block';
   results.querySelectorAll('div').forEach(div => {
     div.addEventListener('mousedown', e => {
-      e.preventDefault();
+      e.preventDefault(); // prevent blur on the input before click registers
       e.stopPropagation();
       addPart(prefix, div.dataset.id, div.dataset.name, div.dataset.unit);
     });
   });
 }
 
+// Close parts dropdown when clicking anywhere outside the parts search widget.
 document.addEventListener('click', e => {
   if (!e.target.closest('.parts-wrap'))
     document.querySelectorAll('.parts-results').forEach(el => el.style.display = 'none');
@@ -584,110 +639,142 @@ function addPart(prefix, id, name, unit) {
   document.getElementById(`${prefix}-partsearch`).value = '';
 }
 
-function removePart(prefix, idx) { (prefix==='m'?modalParts:njParts).splice(idx, 1); renderPartsTable(prefix); }
+function removePart(prefix, idx) {
+  (prefix === 'm' ? modalParts : njParts).splice(idx, 1);
+  renderPartsTable(prefix);
+}
+
 function renderPartsTable(prefix) {
-  const store = prefix==='m' ? modalParts : njParts;
+  const store = prefix === 'm' ? modalParts : njParts;
   const tbody = document.querySelector(`#${prefix}-parts-table tbody`);
   if (!tbody) return;
   tbody.innerHTML = store.map((p, i) =>
-    `<tr><td>${p.name}</td>
-     <td><input type="number" min="0.1" step="0.1" value="${p.qty}" style="width:60px;padding:0.3rem;border:1px solid #ccc;font-size:0.9rem" onchange="${prefix==='m'?'modalParts':'njParts'}[${i}].qty=parseFloat(this.value)||1"></td>
-     <td><button onclick="removePart('${prefix}',${i})" style="border:none;background:none;cursor:pointer;color:red;font-size:1.1rem;padding:0.2rem 0.5rem">X</button></td></tr>`
+    `<tr>
+       <td>${p.name}</td>
+       <td><input type="number" min="0.1" step="0.1" value="${p.qty}"
+             style="width:60px;padding:0.3rem;border:1px solid #ccc;font-size:0.9rem"
+             onchange="${prefix === 'm' ? 'modalParts' : 'njParts'}[${i}].qty=parseFloat(this.value)||1"></td>
+       <td><button onclick="removePart('${prefix}',${i})"
+             style="border:none;background:none;cursor:pointer;color:red;font-size:1.1rem;padding:0.2rem 0.5rem">X</button></td>
+     </tr>`
   ).join('') || '<tr><td colspan="3" style="color:#aaa;font-style:italic">None added</td></tr>';
 }
 
+
+// ---- LABOR ----
+
 function addLabor(prefix) {
   const typeId = document.getElementById(`${prefix}-labortype`).value;
-  const hours = parseFloat(document.getElementById(`${prefix}-laborhours`).value);
+  const hours  = parseFloat(document.getElementById(`${prefix}-laborhours`).value);
   if (!typeId || isNaN(hours) || hours <= 0) return;
-  const lt = allLaborTypes.find(l => l.id === typeId);
-  const store = prefix==='m' ? modalLabor : njLabor;
-  const ex = store.find(l => l.id === typeId);
+  const lt    = allLaborTypes.find(l => l.id === typeId);
+  const store = prefix === 'm' ? modalLabor : njLabor;
+  const ex    = store.find(l => l.id === typeId);
   if (ex) ex.hours = hours; else store.push({ id: typeId, name: lt.labor_type_name, hours });
   renderLaborTable(prefix);
   document.getElementById(`${prefix}-laborhours`).value = '';
 }
 
-function removeLabor(prefix, idx) { (prefix==='m'?modalLabor:njLabor).splice(idx, 1); renderLaborTable(prefix); }
+function removeLabor(prefix, idx) {
+  (prefix === 'm' ? modalLabor : njLabor).splice(idx, 1);
+  renderLaborTable(prefix);
+}
+
 function renderLaborTable(prefix) {
-  const store = prefix==='m' ? modalLabor : njLabor;
+  const store = prefix === 'm' ? modalLabor : njLabor;
   const tbody = document.querySelector(`#${prefix}-labor-table tbody`);
   if (!tbody) return;
   tbody.innerHTML = store.map((l, i) =>
-    `<tr><td>${l.name}</td><td>${l.hours} hr</td>
-     <td><button onclick="removeLabor('${prefix}',${i})" style="border:none;background:none;cursor:pointer;color:red;font-size:1rem">X</button></td></tr>`
+    `<tr>
+       <td>${l.name}</td>
+       <td>${l.hours} hr</td>
+       <td><button onclick="removeLabor('${prefix}',${i})"
+             style="border:none;background:none;cursor:pointer;color:red;font-size:1rem">X</button></td>
+     </tr>`
   ).join('') || '<tr><td colspan="3" style="color:#aaa;font-style:italic">None added</td></tr>';
 }
 
+
 // ---- SUBMIT COMPLETION ----
+// Saves the tech's completion data for a scheduled job.
+// Step 1: Delete any existing line items for this job (they were pre-set by admin;
+//         the tech's actual usage replaces them — avoids duplicates on re-submission).
+// Step 2: Insert the job_completions record.
+// Step 3: Insert the final job_line_items (parts + labor the tech actually used).
+// Step 4: Update job status to 'Pending Review' so admin sees it in the review queue.
+// Step 5: Upload any photos attached to the form.
+// Step 6: If a quote form was filled in, insert a quote_forms record.
 async function submitCompletion() {
   const msg = document.getElementById('m-msg');
   msg.innerHTML = '';
+
+  // Delete pre-loaded line items so we can insert the tech's actual usage fresh.
   await db.from('job_line_items').delete().eq('job_id', modalJobId);
+
   const { error: ce } = await db.from('job_completions').insert({
-    job_id: modalJobId,
-    time_in: document.getElementById('m-timein').value || null,
-    time_out: document.getElementById('m-timeout').value || null,
-    payment_type: document.getElementById('m-paytype').value || null,
+    job_id:         modalJobId,
+    time_in:        document.getElementById('m-timein').value    || null,
+    time_out:       document.getElementById('m-timeout').value   || null,
+    payment_type:   document.getElementById('m-paytype').value   || null,
     payment_detail: document.getElementById('m-paydetail').value || null,
     follow_up_flag: document.getElementById('m-followup').checked,
-    tech_notes: document.getElementById('m-notes').value || null,
-    submitted_by: currentUser.id
+    tech_notes:     document.getElementById('m-notes').value     || null,
+    submitted_by:   currentUser.id
   });
   if (ce) { msg.innerHTML = `<div class="msg error">${ce.message}</div>`; return; }
 
   const lineItems = [
-    ...modalParts.map(p => ({ job_id: modalJobId, item_type: 'Part', item_id: p.id, quantity: p.qty, unit_cost: 0 })),
+    ...modalParts.map(p => ({ job_id: modalJobId, item_type: 'Part',  item_id: p.id, quantity: p.qty,   unit_cost: 0 })),
     ...modalLabor.map(l => ({ job_id: modalJobId, item_type: 'Labor', item_id: l.id, quantity: l.hours, unit_cost: 0 }))
   ];
   if (lineItems.length) await db.from('job_line_items').insert(lineItems);
+
   await db.from('jobs').update({ status: 'Pending Review', updated_at: new Date().toISOString() }).eq('id', modalJobId);
   await uploadPhotos(document.getElementById('m-photos').files, modalJobId);
 
+  // Only insert a quote form if the tech actually filled something in.
   const qScope = document.getElementById('m-quote-scope').value;
-  const qMat = document.getElementById('m-quote-materials').value;
+  const qMat   = document.getElementById('m-quote-materials').value;
   if (qScope || qMat) {
     await db.from('quote_forms').insert({
-      job_id: modalJobId, scope_observed: qScope||null,
-      materials_json: qMat ? [{ notes: qMat }] : null,
-      locked_at: new Date().toISOString(), created_by: currentUser.id
+      job_id:          modalJobId,
+      scope_observed:  qScope || null,
+      materials_json:  qMat ? [{ notes: qMat }] : null,
+      locked_at:       new Date().toISOString(),
+      created_by:      currentUser.id
     });
   }
+
   msg.innerHTML = '<div class="msg success">Job submitted successfully.</div>';
   setTimeout(() => { closeModal(); loadJobs(); }, 1200);
 }
 
+
 // ---- PHOTO UPLOAD ----
+// Resizes each selected image to 1200px wide (via shared resizeImage()) before uploading
+// to keep storage costs low. Stores a record in job_photos for display in the grid.
 async function uploadPhotos(files, jobId) {
   if (!files || !files.length) return;
   const { data: job } = await db.from('jobs').select('account_id').eq('id', jobId).single();
   for (const file of files) {
-    const path = `${jobId}/${Date.now()}_${file.name}`;
+    const path    = `${jobId}/${Date.now()}_${file.name}`;
     const resized = await resizeImage(file, 1200);
     const { error } = await db.storage.from('job-photos').upload(path, resized);
     if (error) continue;
     await db.from('job_photos').insert({
-      job_id: jobId, account_id: job?.account_id || null,
-      storage_path: path, file_name: file.name, uploaded_by: currentUser.id
+      job_id:       jobId,
+      account_id:   job?.account_id || null,
+      storage_path: path,
+      file_name:    file.name,
+      uploaded_by:  currentUser.id
     });
   }
 }
 
-function resizeImage(file, maxW) {
-  return new Promise(resolve => {
-    const img = new Image(), url = URL.createObjectURL(file);
-    img.onload = () => {
-      const scale = Math.min(1, maxW / img.width);
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width * scale; canvas.height = img.height * scale;
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.85);
-      URL.revokeObjectURL(url);
-    };
-    img.src = url;
-  });
-}
 
+// ---- ADD NOTE ----
+// Appends a timestamped note to an already-submitted job's tech_notes field.
+// Uses prompt() for simplicity — this is a rare edge-case action, not a primary flow.
 async function openAddNote(jobId) {
   const note = prompt('Add a note to this job:');
   if (!note) return;
@@ -695,73 +782,99 @@ async function openAddNote(jobId) {
   if (!ex) return;
   const appended = (ex.tech_notes || '') + `\n[${new Date().toLocaleString()}] ${note}`;
   await db.from('job_completions').update({
-    tech_notes: appended, last_edited_by: currentUser.id, last_edited_at: new Date().toISOString()
+    tech_notes:     appended,
+    last_edited_by: currentUser.id,
+    last_edited_at: new Date().toISOString()
   }).eq('id', ex.id);
   alert('Note added.');
   closeModal();
   loadJobs();
 }
 
+
+// ---- SUB-ACCOUNTS ----
+// Loads sub-accounts for the selected parent in the New Job form.
+// Shared populateSelect() is used here just as in admin.html.
 function loadSubAccounts(prefix) {
   const parentId = document.getElementById(`${prefix}-account`).value;
-  const subs = allAccounts.filter(a => a.parent_account_id === parentId);
+  const subs     = allAccounts.filter(a => a.parent_account_id === parentId);
   populateSelect(`${prefix}-subaccount`, subs, 'id', 'account_name', 'None');
 }
 
+
+// ---- NEW JOB ----
+// Allows a tech to log a job that was not pre-scheduled by admin.
+// Creates the job AND its completion record in one go (since the tech is already on site).
+// Redirects to My Jobs tab after a short success message.
 async function submitNewJob() {
   const accountId = document.getElementById('nj-account').value;
-  const date = document.getElementById('nj-date').value;
-  const msg = document.getElementById('nj-msg');
-  msg.innerHTML = '';
-  if (!accountId || !date) { msg.innerHTML = '<div class="msg error">Account and date are required.</div>'; return; }
+  const date      = document.getElementById('nj-date').value;
+  const msg       = document.getElementById('nj-msg');
+  msg.innerHTML   = '';
+  if (!accountId || !date) {
+    msg.innerHTML = '<div class="msg error">Account and date are required.</div>';
+    return;
+  }
+
   const { data: job, error } = await db.from('jobs').insert({
-    job_date: date, account_id: accountId,
-    sub_account_id: document.getElementById('nj-subaccount').value || null,
-    job_type_id: document.getElementById('nj-jobtype').value || null,
-    assigned_tech_ids: [currentUser.id], status: 'Pending Review',
-    scope: document.getElementById('nj-scope').value || null, created_by: currentUser.id
+    job_date:          date,
+    account_id:        accountId,
+    sub_account_id:    document.getElementById('nj-subaccount').value || null,
+    job_type_id:       document.getElementById('nj-jobtype').value    || null,
+    assigned_tech_ids: [currentUser.id],
+    status:            'Pending Review',
+    scope:             document.getElementById('nj-scope').value || null,
+    created_by:        currentUser.id
   }).select().single();
   if (error) { msg.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
+
   await db.from('job_completions').insert({
-    job_id: job.id,
-    time_in: document.getElementById('nj-timein').value || null,
-    time_out: document.getElementById('nj-timeout').value || null,
-    payment_type: document.getElementById('nj-paytype').value || null,
+    job_id:         job.id,
+    time_in:        document.getElementById('nj-timein').value    || null,
+    time_out:       document.getElementById('nj-timeout').value   || null,
+    payment_type:   document.getElementById('nj-paytype').value   || null,
     payment_detail: document.getElementById('nj-paydetail').value || null,
     follow_up_flag: document.getElementById('nj-followup').checked,
-    tech_notes: document.getElementById('nj-notes').value || null,
-    submitted_by: currentUser.id
+    tech_notes:     document.getElementById('nj-notes').value     || null,
+    submitted_by:   currentUser.id
   });
+
   const lineItems = [
-    ...njParts.map(p => ({ job_id: job.id, item_type: 'Part', item_id: p.id, quantity: p.qty, unit_cost: 0 })),
+    ...njParts.map(p => ({ job_id: job.id, item_type: 'Part',  item_id: p.id, quantity: p.qty,   unit_cost: 0 })),
     ...njLabor.map(l => ({ job_id: job.id, item_type: 'Labor', item_id: l.id, quantity: l.hours, unit_cost: 0 }))
   ];
   if (lineItems.length) await db.from('job_line_items').insert(lineItems);
   await uploadPhotos(document.getElementById('nj-photos').files, job.id);
+
   msg.innerHTML = '<div class="msg success">Job submitted.</div>';
   njParts = []; njLabor = [];
   renderPartsTable('nj'); renderLaborTable('nj');
   setTimeout(() => { showTab('jobs'); loadJobs(); }, 1200);
 }
 
+
+// ---- NEW CUSTOMER ----
+// Submits a new customer request to the new_customers table.
+// Admin reviews these in accounts.html and can migrate them to the main accounts table.
 async function submitNewCustomer() {
   const name = document.getElementById('nc-name').value.trim();
-  const msg = document.getElementById('nc-msg');
+  const msg  = document.getElementById('nc-msg');
   msg.innerHTML = '';
   if (!name) { msg.innerHTML = '<div class="msg error">Name is required.</div>'; return; }
+
   const { error } = await db.from('new_customers').insert({
     name,
-    address: document.getElementById('nc-address').value || null,
-    phone: document.getElementById('nc-phone').value || null,
-    notes: document.getElementById('nc-notes').value || null,
+    address:      document.getElementById('nc-address').value || null,
+    phone:        document.getElementById('nc-phone').value   || null,
+    notes:        document.getElementById('nc-notes').value   || null,
     submitted_by: currentUser.id
   });
   if (error) { msg.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
+
   msg.innerHTML = '<div class="msg success">Submitted. Admin will add to the account list.</div>';
   ['nc-name','nc-address','nc-phone','nc-notes'].forEach(id => document.getElementById(id).value = '');
 }
 
-async function logout() { await db.auth.signOut(); window.location.href = 'index.html'; }
 
 init();
 </script>

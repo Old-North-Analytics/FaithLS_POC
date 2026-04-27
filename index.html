@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Faith Lock & Safe - Login</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="shared.js"></script>
 <style>
 body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f0f0f0; }
 .box { background: white; padding: 2rem; border: 1px solid #ccc; width: 320px; }
@@ -29,35 +30,37 @@ button:hover { background: #333; }
 </div>
 
 <script>
-const SUPABASE_URL = 'https://jmsrlhqbzstuczxilxua.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc3JsaHFienN0dWN6eGlseHVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzA5NDcsImV4cCI6MjA5MjQwNjk0N30.jpHtuhezvfRXJ2uVhwglqS_rImZl8JqqBX85WUv2Z5g';
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// If already logged in, redirect
+// ---- INIT ----
+// If the user already has an active session (e.g. they bookmarked the page
+// while logged in), skip the login form and redirect them immediately.
 db.auth.getSession().then(({ data }) => {
-  if (data.session) redirect(data.session.user.id);
+  if (data.session) redirectByRole(data.session.user.id);
 });
 
+// ---- LOGIN ----
 async function login() {
-  const email = document.getElementById('email').value.trim();
+  const email    = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
-  const err = document.getElementById('err');
+  const err      = document.getElementById('err');
   err.textContent = '';
 
   const { data, error } = await db.auth.signInWithPassword({ email, password });
   if (error) { err.textContent = error.message; return; }
 
-  redirect(data.user.id);
+  redirectByRole(data.user.id);
 }
 
-async function redirect(uid) {
+// redirectByRole: looks up the user's role in user_profiles and sends them
+// to the correct page. Admins go to the full management dashboard;
+// technicians go to the simplified field view.
+async function redirectByRole(uid) {
   const { data } = await db.from('user_profiles').select('role').eq('id', uid).single();
   if (!data) { document.getElementById('err').textContent = 'Profile not found. Contact admin.'; return; }
   if (data.role === 'admin') window.location.href = 'admin.html';
   else window.location.href = 'tech.html';
 }
 
-// Allow Enter key to submit
+// Allow Enter key to submit the form (common user expectation on login screens)
 document.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 </script>
 </body>

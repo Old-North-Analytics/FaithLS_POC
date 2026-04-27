@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Faith Lock | Accounts</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="shared.js"></script>
 <style>
 * { box-sizing: border-box; }
 body { font-family: sans-serif; margin: 0; background: #f0f0f0; font-size: 0.9rem; }
@@ -52,8 +53,6 @@ tr:hover td { background: #fafafa; }
 .status-Cancelled { background: #eee; color: #666; }
 .inactive-row td { color: #aaa; }
 .detail-panel { display: none; }
-.photo-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
-.photo-thumb { width: 100px; height: 80px; object-fit: cover; border: 1px solid #ccc; cursor: pointer; }
 .stat-box { display: inline-block; background: #f5f5f5; border: 1px solid #ddd; padding: 0.4rem 0.8rem; margin-right: 0.5rem; margin-bottom: 0.5rem; text-align: center; min-width: 90px; }
 .stat-box .val { font-size: 1.3rem; font-weight: bold; }
 .stat-box .lbl { font-size: 0.78rem; color: #555; }
@@ -81,7 +80,7 @@ input[type=checkbox] { width: auto; }
 <div class="container">
 
 <!-- ============================================================ -->
-<!-- ACCOUNT LIST -->
+<!-- ACCOUNT LIST SECTION -->
 <!-- ============================================================ -->
 <div id="section-list">
   <div class="card">
@@ -107,7 +106,8 @@ input[type=checkbox] { width: auto; }
         <button class="btn btn-yellow" onclick="toggleNewCustomers()">New Customer Submissions</button>
       </div>
     </div>
-    <!-- New Customer Submissions inline panel -->
+
+    <!-- New Customer Submissions inline panel (toggled by button above) -->
     <div id="new-customers-panel" style="display:none;border:1px solid #e0c040;background:#fffbe8;padding:0.8rem;margin-bottom:0.8rem">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
         <strong>Pending New Customer Submissions</strong>
@@ -115,6 +115,7 @@ input[type=checkbox] { width: auto; }
       </div>
       <div id="newcustomers-list">Loading...</div>
     </div>
+
     <div id="accounts-summary" style="margin-bottom:0.6rem"></div>
     <div style="overflow-x:auto">
     <table id="accounts-table">
@@ -132,7 +133,7 @@ input[type=checkbox] { width: auto; }
         </tr>
       </thead>
       <tbody id="accounts-tbody">
-        <tr><td colspan="10">Loading...</td></tr>
+        <tr><td colspan="9">Loading...</td></tr>
       </tbody>
     </table>
     </div>
@@ -140,7 +141,7 @@ input[type=checkbox] { width: auto; }
 </div>
 
 <!-- ============================================================ -->
-<!-- ADD / EDIT ACCOUNT FORM -->
+<!-- ADD / EDIT ACCOUNT FORM SECTION -->
 <!-- ============================================================ -->
 <div id="section-add" style="display:none">
   <div class="card">
@@ -163,7 +164,7 @@ input[type=checkbox] { width: auto; }
 </div>
 
 <!-- ============================================================ -->
-<!-- ACCOUNT DETAIL PANEL -->
+<!-- ACCOUNT DETAIL SECTION -->
 <!-- ============================================================ -->
 <div id="section-detail" class="detail-panel">
   <div class="card">
@@ -174,15 +175,15 @@ input[type=checkbox] { width: auto; }
 
     <!-- Detail Tabs -->
     <div style="display:flex;gap:0.4rem;margin:0.8rem 0;flex-wrap:wrap">
-      <button class="btn btn-primary" id="dtab-history" onclick="switchDetailTab('history')">Job History</button>
-      <button class="btn btn-secondary" id="dtab-contacts" onclick="switchDetailTab('contacts')">Contacts</button>
-      <button class="btn btn-secondary" id="dtab-quotes" onclick="switchDetailTab('quotes')">Quote Forms</button>
-      <button class="btn btn-secondary" id="dtab-photos" onclick="switchDetailTab('photos')">Photos</button>
+      <button class="btn btn-primary"   id="dtab-history"      onclick="switchDetailTab('history')">Job History</button>
+      <button class="btn btn-secondary" id="dtab-contacts"     onclick="switchDetailTab('contacts')">Contacts</button>
+      <button class="btn btn-secondary" id="dtab-quotes"       onclick="switchDetailTab('quotes')">Quote Forms</button>
+      <button class="btn btn-secondary" id="dtab-photos"       onclick="switchDetailTab('photos')">Photos</button>
       <button class="btn btn-secondary" id="dtab-instructions" onclick="switchDetailTab('instructions')">Instructions</button>
       <button class="btn btn-secondary" onclick="exportAccountDetailCSV()" style="margin-left:auto">Export Account CSV</button>
     </div>
 
-    <!-- Job History -->
+    <!-- Job History Tab -->
     <div id="dtab-history-panel">
       <div class="filters" style="margin-top:0.4rem">
         <div><label>Status</label>
@@ -193,20 +194,20 @@ input[type=checkbox] { width: auto; }
           </select>
         </div>
         <div><label>From</label><input type="date" id="dj-from" onchange="loadAccountJobs()"></div>
-        <div><label>To</label><input type="date" id="dj-to" onchange="loadAccountJobs()"></div>
+        <div><label>To</label>  <input type="date" id="dj-to"   onchange="loadAccountJobs()"></div>
         <div style="align-self:flex-end"><button class="btn btn-primary" onclick="loadAccountJobs()">Filter</button></div>
       </div>
       <div id="detail-jobs">Loading jobs...</div>
     </div>
 
-    <!-- Contacts -->
+    <!-- Contacts Tab -->
     <div id="dtab-contacts-panel" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap;gap:0.4rem">
         <div class="section-title" style="margin:0;border:none">Contacts</div>
         <button class="btn btn-green" onclick="openAddContact()">+ Add Contact</button>
       </div>
 
-      <!-- Add/Edit contact form (hidden by default) -->
+      <!-- Add / Edit contact form — hidden until triggered -->
       <div id="contact-form-wrap" style="display:none;background:#f9f9f9;border:1px solid #ccc;padding:1rem;margin-bottom:1rem">
         <h4 id="contact-form-title" style="margin:0 0 0.6rem">Add Contact</h4>
         <input type="hidden" id="cf-id">
@@ -220,31 +221,31 @@ input[type=checkbox] { width: auto; }
         </div>
         <div class="form-row"><label>Notes</label><textarea id="cf-notes" style="height:50px"></textarea></div>
         <div style="display:flex;gap:1rem;margin-bottom:0.5rem;flex-wrap:wrap">
-          <label><input type="checkbox" id="cf-primary"> Primary Contact</label>
+          <label><input type="checkbox" id="cf-primary">   Primary Contact</label>
           <label><input type="checkbox" id="cf-secondary"> Secondary Contact</label>
-          <label><input type="checkbox" id="cf-onsite"> On-Site Contact</label>
+          <label><input type="checkbox" id="cf-onsite">    On-Site Contact</label>
         </div>
         <div id="cf-msg"></div>
-        <button class="btn btn-primary" onclick="saveContact()">Save</button>
+        <button class="btn btn-primary"   onclick="saveContact()">Save</button>
         <button class="btn btn-secondary" onclick="closeContactForm()">Cancel</button>
       </div>
 
       <div id="contacts-list">Loading contacts...</div>
     </div>
 
-    <!-- Quote Forms -->
+    <!-- Quote Forms Tab -->
     <div id="dtab-quotes-panel" style="display:none">
       <div class="section-title">Quote Forms</div>
       <div id="detail-quotes">Loading...</div>
     </div>
 
-    <!-- Photos -->
+    <!-- Photos Tab -->
     <div id="dtab-photos-panel" style="display:none">
       <div class="section-title">Photos</div>
       <div id="detail-photos">Loading...</div>
     </div>
 
-    <!-- Instructions -->
+    <!-- Instructions Tab -->
     <div id="dtab-instructions-panel" style="display:none">
       <div class="section-title">Account Instructions</div>
       <p style="font-size:0.82rem;color:#555;margin-bottom:0.5rem">Gate codes, key locations, access restrictions, billing quirks. Visible to admin only.</p>
@@ -258,31 +259,38 @@ input[type=checkbox] { width: auto; }
   </div>
 </div>
 
-</div><!-- end container -->
+</div><!-- end .container -->
 
 <script>
-const SUPABASE_URL = 'https://jmsrlhqbzstuczxilxua.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc3JsaHFienN0dWN6eGlseHVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzA5NDcsImV4cCI6MjA5MjQwNjk0N30.jpHtuhezvfRXJ2uVhwglqS_rImZl8JqqBX85WUv2Z5g';
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// ============================================================
+// accounts.html — Faith Lock & Safe Account Management
+//
+// Admin-only page for managing account records, contacts, job history,
+// quote forms, photos, and account instructions.
+//
+// Globals from shared.js:
+//   db, formatDate(), downloadCSV(), fetchPhotoUrls(), renderPhotoGrid(),
+//   mapsLink(), logout()
+// ============================================================
 
-let currentUser = null;
-let allAccounts = [];
-let filteredAccounts = [];
-let allJobsByAccount = {};
-let allPrimaryContacts = {}; // accountId -> contact object
-let sortKey = 'account_name';
-let sortDir = 1;
-let currentDetailAccountId = null;
-let allParts = [], allLaborTypes = [];
 
-// ---- DATE FORMAT ----
-function formatDate(str) {
-  if (!str) return '';
-  const [y, m, d] = str.split('-');
-  return `${m}/${d}/${y}`;
-}
+// ---- STATE ----
+
+let currentUser            = null;
+let allAccounts            = [];       // Full account list (never filtered — needed for parent lookups)
+let filteredAccounts       = [];       // What's currently shown in the table after search/filter
+let allJobsByAccount       = {};       // account_id → { count, lastDate, totalRevenue, approvedRevenue }
+let allPrimaryContacts     = {};       // account_id → primary contact object
+let sortKey                = 'account_name';
+let sortDir                = 1;        // 1 = ascending, -1 = descending
+let currentDetailAccountId = null;     // ID of the account currently open in the detail panel
+let allParts               = [];
+let allLaborTypes          = [];
+
 
 // ---- INIT ----
+// Verifies the session and that the user is an admin, then loads accounts.
+// Non-admin users (techs) are redirected to the login page.
 async function init() {
   try {
     const { data: { session }, error: sessErr } = await db.auth.getSession();
@@ -299,47 +307,54 @@ async function init() {
       db.from('parts').select('id,part_name').eq('active', true),
       db.from('labor_types').select('id,labor_type_name')
     ]);
-    allParts = p.data || [];
+    allParts      = p.data || [];
     allLaborTypes = l.data || [];
 
     await loadAccounts();
   } catch (err) {
     document.getElementById('accounts-tbody').innerHTML =
-      `<tr><td colspan="10" style="color:#a00;padding:1rem">
+      `<tr><td colspan="9" style="color:#a00;padding:1rem">
         <strong>Load error:</strong> ${err.message || JSON.stringify(err)}<br>
-        <span style="font-size:0.82rem">Check the browser console for details. Try signing out and back in.</span>
+        <span style="font-size:0.82rem">Try signing out and back in.</span>
       </td></tr>`;
     console.error('accounts init error:', err);
   }
 }
 
+
 // ---- LOAD ACCOUNTS ----
+// Fetches all accounts plus job stats and primary contacts in parallel.
+// Includes the instructions column so loadInstructions() can read from the cache
+// without a second DB round-trip when the Instructions tab is opened.
 async function loadAccounts() {
-  document.getElementById('accounts-tbody').innerHTML = '<tr><td colspan="9" style="color:#888;padding:0.5rem">Loading...</td></tr>';
+  document.getElementById('accounts-tbody').innerHTML =
+    '<tr><td colspan="9" style="color:#888;padding:0.5rem">Loading...</td></tr>';
   try {
     const { data: accounts, error } = await db.from('accounts')
-      .select('id,account_name,parent_account_id,address,phone,billing_notes,active')
+      .select('id,account_name,parent_account_id,address,phone,billing_notes,active,instructions')
       .order('account_name');
     if (error) throw error;
     allAccounts = accounts || [];
 
-    // Load job stats per account
+    // Aggregate job stats per account (count, last date, revenue).
     const { data: jobStats, error: jobErr } = await db.from('jobs')
       .select('id,account_id,job_date,status,job_line_items(unit_cost,override_cost,quantity)');
     if (jobErr) console.warn('Job stats load error (non-fatal):', jobErr.message);
     allJobsByAccount = {};
     (jobStats || []).forEach(j => {
       if (!j.account_id) return;
-      if (!allJobsByAccount[j.account_id]) allJobsByAccount[j.account_id] = { count: 0, lastDate: null, totalRevenue: 0, approvedRevenue: 0 };
+      if (!allJobsByAccount[j.account_id])
+        allJobsByAccount[j.account_id] = { count: 0, lastDate: null, totalRevenue: 0, approvedRevenue: 0 };
       const s = allJobsByAccount[j.account_id];
       s.count++;
       if (!s.lastDate || j.job_date > s.lastDate) s.lastDate = j.job_date;
-      const rev = (j.job_line_items || []).reduce((sum, i) => sum + (Number(i.override_cost ?? i.unit_cost) * Number(i.quantity)), 0);
+      const rev = (j.job_line_items || []).reduce(
+        (sum, i) => sum + (Number(i.override_cost ?? i.unit_cost) * Number(i.quantity)), 0);
       s.totalRevenue += rev;
       if (j.status === 'Approved') s.approvedRevenue += rev;
     });
 
-    // Load primary contacts for all accounts (for list display)
+    // Pre-fetch primary contacts for all accounts (used in the list table).
     const { data: contacts, error: conErr } = await db.from('account_contacts')
       .select('account_id,contact_name,work_phone,cell_phone,is_primary')
       .eq('active', true).eq('is_primary', true);
@@ -347,9 +362,9 @@ async function loadAccounts() {
     allPrimaryContacts = {};
     (contacts || []).forEach(c => { allPrimaryContacts[c.account_id] = c; });
 
-    // Populate parent select in add form
-    const masters = allAccounts.filter(a => !a.parent_account_id);
-    const parentSel = document.getElementById('f-parent');
+    // Populate the parent picker in the add/edit form with only master accounts.
+    const masters    = allAccounts.filter(a => !a.parent_account_id);
+    const parentSel  = document.getElementById('f-parent');
     if (parentSel) {
       parentSel.innerHTML = '<option value="">-- Master Account --</option>' +
         masters.map(a => `<option value="${a.id}">${a.account_name}</option>`).join('');
@@ -365,18 +380,24 @@ async function loadAccounts() {
   }
 }
 
+
 // ---- FILTER & RENDER ----
+
+// filterAccounts: applies search text + type/status dropdowns to allAccounts,
+// then calls sortAndRender() to display the result.
+// filteredAccounts is kept separate from allAccounts because filter changes what's
+// visible, but allAccounts is still needed for things like parent-account name lookups.
 function filterAccounts() {
-  const q = document.getElementById('f-search').value.toLowerCase();
-  const type = document.getElementById('f-type').value;
+  const q         = document.getElementById('f-search').value.toLowerCase();
+  const type      = document.getElementById('f-type').value;
   const activeVal = document.getElementById('f-active').value;
 
   filteredAccounts = allAccounts.filter(a => {
     if (q && !`${a.account_name} ${a.address||''} ${a.phone||''}`.toLowerCase().includes(q)) return false;
-    if (type === 'master' && a.parent_account_id) return false;
-    if (type === 'sub' && !a.parent_account_id) return false;
-    if (activeVal === 'true' && !a.active) return false;
-    if (activeVal === 'false' && a.active) return false;
+    if (type === 'master' && a.parent_account_id)  return false;
+    if (type === 'sub'    && !a.parent_account_id) return false;
+    if (activeVal === 'true'  && !a.active) return false;
+    if (activeVal === 'false' &&  a.active) return false;
     return true;
   });
   sortAndRender();
@@ -389,28 +410,36 @@ function sortTable(key) {
   sortAndRender();
 }
 
+// sortAndRender: renders the accounts table, grouping sub-accounts immediately after
+// their parent master account so the hierarchy is visually clear.
+// The sort is applied to master accounts only; sub-accounts are always alphabetical
+// under their parent regardless of sort column.
+// Sub-accounts whose parent is not in the filtered view are appended at the end.
 function sortAndRender() {
-  // Sort masters first, then for each master insert its subs immediately after
   const masters = filteredAccounts.filter(a => !a.parent_account_id).sort((a, b) => {
     let av, bv;
-    if (sortKey === 'account_name') { av = a.account_name; bv = b.account_name; }
-    else if (sortKey === 'job_count') { av = allJobsByAccount[a.id]?.count||0; bv = allJobsByAccount[b.id]?.count||0; }
-    else if (sortKey === 'last_service') { av = allJobsByAccount[a.id]?.lastDate||''; bv = allJobsByAccount[b.id]?.lastDate||''; }
-    else { av = a[sortKey]||''; bv = b[sortKey]||''; }
+    if      (sortKey === 'account_name') { av = a.account_name; bv = b.account_name; }
+    else if (sortKey === 'job_count')    { av = allJobsByAccount[a.id]?.count   || 0; bv = allJobsByAccount[b.id]?.count   || 0; }
+    else if (sortKey === 'last_service') { av = allJobsByAccount[a.id]?.lastDate|| ''; bv = allJobsByAccount[b.id]?.lastDate|| ''; }
+    else                                 { av = a[sortKey] || ''; bv = b[sortKey] || ''; }
     if (av < bv) return -1 * sortDir;
-    if (av > bv) return 1 * sortDir;
+    if (av > bv) return  1 * sortDir;
     return 0;
   });
 
+  // Build the final display order: each master followed by its subs.
   const ordered = [];
   masters.forEach(m => {
     ordered.push(m);
-    const subs = filteredAccounts.filter(a => a.parent_account_id === m.id)
-      .sort((a, b) => a.account_name.localeCompare(b.account_name));
-    subs.forEach(s => ordered.push(s));
+    filteredAccounts
+      .filter(a => a.parent_account_id === m.id)
+      .sort((a, b) => a.account_name.localeCompare(b.account_name))
+      .forEach(s => ordered.push(s));
   });
-  // Also include subs whose parent isn't in the filtered list
-  filteredAccounts.filter(a => a.parent_account_id && !ordered.includes(a)).forEach(a => ordered.push(a));
+  // Any subs whose parent is outside the filtered view still need to appear.
+  filteredAccounts
+    .filter(a => a.parent_account_id && !ordered.includes(a))
+    .forEach(a => ordered.push(a));
 
   const totalActive = allAccounts.filter(a => a.active).length;
   const totalMaster = allAccounts.filter(a => !a.parent_account_id && a.active).length;
@@ -421,34 +450,41 @@ function sortAndRender() {
   if (!ordered.length) { tbody.innerHTML = '<tr><td colspan="9">No accounts found.</td></tr>'; return; }
 
   tbody.innerHTML = ordered.map(a => {
-    const stats = allJobsByAccount[a.id] || {};
-    const isSub = !!a.parent_account_id;
-    const pc = allPrimaryContacts[a.id];
+    const stats  = allJobsByAccount[a.id] || {};
+    const isSub  = !!a.parent_account_id;
+    const pc     = allPrimaryContacts[a.id];
     const contactDisplay = pc
-      ? `${pc.contact_name}${pc.work_phone ? '<br><span style="font-size:0.78rem;color:#555">'+pc.work_phone+'</span>' : pc.cell_phone ? '<br><span style="font-size:0.78rem;color:#555">'+pc.cell_phone+'</span>' : ''}`
+      ? `${pc.contact_name}${pc.work_phone
+          ? '<br><span style="font-size:0.78rem;color:#555">'+pc.work_phone+'</span>'
+          : pc.cell_phone
+            ? '<br><span style="font-size:0.78rem;color:#555">'+pc.cell_phone+'</span>'
+            : ''}`
       : '<span style="color:#aaa;font-size:0.8rem">None</span>';
-    const rowBg = isSub ? 'background:#f7f7f7;' : '';
+    const rowBg  = isSub ? 'background:#f7f7f7;' : '';
     const nameCell = isSub
       ? `<span style="padding-left:1rem;color:#555;font-size:0.9rem">&#8627; ${a.account_name}</span>`
       : `<strong>${a.account_name}</strong>`;
+
     return `<tr class="${a.active ? '' : 'inactive-row'}" style="${rowBg}">
       <td>${nameCell}</td>
-      <td style="font-size:0.82rem">${a.address||''}</td>
-      <td style="font-size:0.82rem">${a.phone||''}</td>
+      <td style="font-size:0.82rem">${a.address || ''}</td>
+      <td style="font-size:0.82rem">${a.phone   || ''}</td>
       <td style="font-size:0.82rem">${contactDisplay}</td>
-      <td style="font-size:0.82rem;max-width:120px">${a.billing_notes||''}</td>
-      <td style="text-align:center">${stats.count||0}</td>
-      <td style="font-size:0.82rem;white-space:nowrap">${formatDate(stats.lastDate)||'--'}</td>
+      <td style="font-size:0.82rem;max-width:120px">${a.billing_notes || ''}</td>
+      <td style="text-align:center">${stats.count    || 0}</td>
+      <td style="font-size:0.82rem;white-space:nowrap">${formatDate(stats.lastDate) || '--'}</td>
       <td style="text-align:center">${a.active ? 'Yes' : 'No'}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-blue" onclick="openDetail('${a.id}')">Open</button>
-        <button class="btn btn-red" onclick="toggleAccountActive('${a.id}',${a.active})">${a.active ? 'Deactivate' : 'Activate'}</button>
+        <button class="btn btn-red"  onclick="toggleAccountActive('${a.id}',${a.active})">${a.active ? 'Deactivate' : 'Activate'}</button>
       </td>
     </tr>`;
   }).join('');
 }
 
-// ---- ADD / EDIT ACCOUNT ----
+
+// ---- SECTION NAVIGATION ----
+// Shows one of the three top-level sections (list | add | detail) and hides the others.
 function showSection(name) {
   ['list','add','detail'].forEach(s => {
     const el = document.getElementById(`section-${s}`);
@@ -459,17 +495,20 @@ function showSection(name) {
   });
 }
 
+
+// ---- ADD / EDIT ACCOUNT ----
+
 function openEdit(id) {
   const a = allAccounts.find(x => x.id === id);
   if (!a) return;
   document.getElementById('form-title').textContent = 'Edit Account';
-  document.getElementById('edit-id').value = a.id;
-  document.getElementById('f-name').value = a.account_name;
-  document.getElementById('f-parent').value = a.parent_account_id || '';
-  document.getElementById('f-address').value = a.address || '';
-  document.getElementById('f-phone').value = a.phone || '';
-  document.getElementById('f-billing').value = a.billing_notes || '';
-  document.getElementById('f-active').checked = a.active;
+  document.getElementById('edit-id').value        = a.id;
+  document.getElementById('f-name').value         = a.account_name;
+  document.getElementById('f-parent').value       = a.parent_account_id || '';
+  document.getElementById('f-address').value      = a.address           || '';
+  document.getElementById('f-phone').value        = a.phone             || '';
+  document.getElementById('f-billing').value      = a.billing_notes     || '';
+  document.getElementById('f-active').checked     = a.active;
   showSection('add');
 }
 
@@ -477,33 +516,30 @@ function cancelEdit() {
   document.getElementById('edit-id').value = '';
   document.getElementById('form-title').textContent = 'Add Account';
   ['f-name','f-address','f-phone','f-billing'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('f-parent').value = '';
-  document.getElementById('f-active').checked = true;
+  document.getElementById('f-parent').value    = '';
+  document.getElementById('f-active').checked  = true;
   showSection('list');
 }
 
 async function saveAccount() {
   const name = document.getElementById('f-name').value.trim();
-  const msg = document.getElementById('form-msg');
+  const msg  = document.getElementById('form-msg');
   msg.innerHTML = '';
   if (!name) { msg.innerHTML = '<div class="msg error">Account name is required.</div>'; return; }
 
   const payload = {
-    account_name: name,
-    parent_account_id: document.getElementById('f-parent').value || null,
-    address: document.getElementById('f-address').value || null,
-    phone: document.getElementById('f-phone').value || null,
-    billing_notes: document.getElementById('f-billing').value || null,
-    active: document.getElementById('f-active').checked
+    account_name:      name,
+    parent_account_id: document.getElementById('f-parent').value  || null,
+    address:           document.getElementById('f-address').value || null,
+    phone:             document.getElementById('f-phone').value   || null,
+    billing_notes:     document.getElementById('f-billing').value || null,
+    active:            document.getElementById('f-active').checked
   };
 
   const editId = document.getElementById('edit-id').value;
   let error;
-  if (editId) {
-    ({ error } = await db.from('accounts').update(payload).eq('id', editId));
-  } else {
-    ({ error } = await db.from('accounts').insert(payload));
-  }
+  if (editId) ({ error } = await db.from('accounts').update(payload).eq('id', editId));
+  else        ({ error } = await db.from('accounts').insert(payload));
 
   if (error) { msg.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
   msg.innerHTML = '<div class="msg success">Saved.</div>';
@@ -516,29 +552,38 @@ async function toggleAccountActive(id, current) {
   await loadAccounts();
 }
 
-// ---- NEW CUSTOMERS (inline panel on accounts list) ----
+
+// ---- NEW CUSTOMERS (inline panel) ----
+// Field techs can submit a new customer via tech.html. Those submissions land in the
+// new_customers table and appear here for admin to review and either migrate (add to
+// the main accounts table) or dismiss (mark as migrated without creating an account).
+
 function toggleNewCustomers() {
-  const panel = document.getElementById('new-customers-panel');
+  const panel   = document.getElementById('new-customers-panel');
   const visible = panel.style.display === 'block';
   panel.style.display = visible ? 'none' : 'block';
   if (!visible) loadNewCustomers();
 }
 
 async function loadNewCustomers() {
-  const { data } = await db.from('new_customers').select('*').eq('migrated', false).order('submitted_at', { ascending: false });
+  const { data } = await db.from('new_customers').select('*').eq('migrated', false)
+    .order('submitted_at', { ascending: false });
   const el = document.getElementById('newcustomers-list');
   if (!data?.length) { el.innerHTML = '<p style="margin:0;font-size:0.85rem">No pending submissions.</p>'; return; }
   el.innerHTML = `<div style="overflow-x:auto"><table>
     <thead><tr><th>Submitted</th><th>Name</th><th>Address</th><th>Phone</th><th>Notes</th><th></th></tr></thead>
     <tbody>${data.map(c => `<tr>
       <td style="font-size:0.82rem;white-space:nowrap">${new Date(c.submitted_at).toLocaleDateString('en-US')}</td>
-      <td>${c.name}</td><td>${c.address||''}</td><td>${c.phone||''}</td>
+      <td>${c.name}</td>
+      <td>${c.address||''}</td>
+      <td>${c.phone||''}</td>
       <td style="font-size:0.82rem">${c.notes||''}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-green" onclick="migrateCustomer('${c.id}','${c.name.replace(/'/g,"\\'")}','${(c.address||'').replace(/'/g,"\\'")}','${c.phone||''}')">Add to Accounts</button>
         <button class="btn btn-secondary" onclick="dismissCustomer('${c.id}')">Dismiss</button>
       </td>
-    </tr>`).join('')}</tbody>
+    </tr>`).join('')}
+    </tbody>
   </table></div>`;
 }
 
@@ -555,7 +600,10 @@ async function dismissCustomer(id) {
   loadNewCustomers();
 }
 
+
 // ---- ACCOUNT DETAIL ----
+// Opens the detail panel for a single account. Populates the header, stat boxes,
+// sub-accounts list, and then loads the Job History tab by default.
 async function openDetail(accountId) {
   currentDetailAccountId = accountId;
   const a = allAccounts.find(x => x.id === accountId);
@@ -565,13 +613,15 @@ async function openDetail(accountId) {
   document.getElementById('section-detail').style.display = 'block';
 
   const stats = allJobsByAccount[accountId] || {};
+
+  // Address wrapped in a Maps link so admin can navigate to the site.
   document.getElementById('detail-header').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem">
       <div>
         <h3 style="margin:0 0 0.2rem">${a.account_name}</h3>
         <div class="meta">${a.parent_account_id ? 'Sub-Account' : 'Master Account'} | ${a.active ? 'Active' : 'Inactive'}</div>
-        ${a.address ? `<div class="meta">Address: ${a.address}</div>` : ''}
-        ${a.phone ? `<div class="meta">Phone: ${a.phone}</div>` : ''}
+        ${a.address ? `<div class="meta">Address: ${mapsLink(a.address)}</div>` : ''}
+        ${a.phone   ? `<div class="meta">Phone: ${a.phone}</div>` : ''}
         ${a.billing_notes ? `<div style="margin-top:0.4rem;padding:0.4rem;background:#fff8e0;border:1px solid #e0c060;font-size:0.82rem"><strong>Billing Note:</strong> ${a.billing_notes}</div>` : ''}
       </div>
       <div>
@@ -580,46 +630,51 @@ async function openDetail(accountId) {
     </div>`;
 
   document.getElementById('detail-stats').innerHTML = `
-    <div class="stat-box"><div class="val">${stats.count||0}</div><div class="lbl">Total Jobs</div></div>
-    <div class="stat-box"><div class="val">$${(stats.totalRevenue||0).toFixed(0)}</div><div class="lbl">Total Revenue</div></div>
-    <div class="stat-box"><div class="val">$${(stats.approvedRevenue||0).toFixed(0)}</div><div class="lbl">Approved Revenue</div></div>
-    <div class="stat-box"><div class="val">${formatDate(stats.lastDate)||'--'}</div><div class="lbl">Last Service</div></div>`;
+    <div class="stat-box"><div class="val">${stats.count||0}</div>                           <div class="lbl">Total Jobs</div></div>
+    <div class="stat-box"><div class="val">$${(stats.totalRevenue||0).toFixed(0)}</div>      <div class="lbl">Total Revenue</div></div>
+    <div class="stat-box"><div class="val">$${(stats.approvedRevenue||0).toFixed(0)}</div>   <div class="lbl">Approved Revenue</div></div>
+    <div class="stat-box"><div class="val">${formatDate(stats.lastDate)||'--'}</div>          <div class="lbl">Last Service</div></div>`;
 
   const subs = allAccounts.filter(x => x.parent_account_id === accountId);
   if (subs.length) {
     document.getElementById('detail-subs').innerHTML = `
       <div class="section-title">Sub-Accounts (${subs.length})</div>
-      <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Address</th><th>Phone</th><th>Jobs</th><th></th></tr></thead>
-      <tbody>${subs.map(s => {
-        const ss = allJobsByAccount[s.id] || {};
-        return `<tr>
-          <td>${s.account_name}</td>
-          <td style="font-size:0.82rem">${s.address||''}</td>
-          <td style="font-size:0.82rem">${s.phone||''}</td>
-          <td>${ss.count||0}</td>
-          <td><button class="btn btn-blue" onclick="openDetail('${s.id}')">View</button></td>
-        </tr>`;
-      }).join('')}</tbody></table></div>`;
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>Name</th><th>Address</th><th>Phone</th><th>Jobs</th><th></th></tr></thead>
+        <tbody>${subs.map(s => {
+          const ss = allJobsByAccount[s.id] || {};
+          return `<tr>
+            <td>${s.account_name}</td>
+            <td style="font-size:0.82rem">${s.address ? mapsLink(s.address) : ''}</td>
+            <td style="font-size:0.82rem">${s.phone||''}</td>
+            <td>${ss.count||0}</td>
+            <td><button class="btn btn-blue" onclick="openDetail('${s.id}')">View</button></td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table></div>`;
   } else {
     document.getElementById('detail-subs').innerHTML = '';
   }
 
-  const now = new Date();
+  // Default date range: last 12 months.
+  const now       = new Date();
   const oneYearAgo = new Date(now); oneYearAgo.setFullYear(now.getFullYear() - 1);
-  document.getElementById('dj-from').value = oneYearAgo.toISOString().split('T')[0];
-  document.getElementById('dj-to').value = now.toISOString().split('T')[0];
+  document.getElementById('dj-from').value   = oneYearAgo.toISOString().split('T')[0];
+  document.getElementById('dj-to').value     = now.toISOString().split('T')[0];
   document.getElementById('dj-status').value = '';
 
   switchDetailTab('history');
   await loadAccountJobs();
 }
 
-// ---- ACCOUNT JOBS ----
+
+// ---- ACCOUNT JOB HISTORY ----
 async function loadAccountJobs() {
   const status = document.getElementById('dj-status').value;
-  const from = document.getElementById('dj-from').value;
-  const to = document.getElementById('dj-to').value;
-  const el = document.getElementById('detail-jobs');
+  const from   = document.getElementById('dj-from').value;
+  const to     = document.getElementById('dj-to').value;
+  const el     = document.getElementById('detail-jobs');
   el.innerHTML = 'Loading...';
 
   let query = db.from('jobs')
@@ -633,8 +688,8 @@ async function loadAccountJobs() {
     .order('job_date', { ascending: false });
 
   if (status) query = query.eq('status', status);
-  if (from) query = query.gte('job_date', from);
-  if (to) query = query.lte('job_date', to);
+  if (from)   query = query.gte('job_date', from);
+  if (to)     query = query.lte('job_date', to);
 
   const { data, error } = await query;
   if (error) { el.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
@@ -646,16 +701,20 @@ async function loadAccountJobs() {
   el.innerHTML = `
     <div style="font-size:0.85rem;color:#555;margin-bottom:0.5rem">${data.length} jobs | Total: $${totalRev.toFixed(2)}</div>
     <div style="overflow-x:auto"><table>
-      <thead><tr><th>Date</th><th>Sub-Account</th><th>Type</th><th>WO/PO</th><th>Status</th><th>Payment</th><th>Total</th><th>Follow-up</th><th>Notes</th></tr></thead>
-      <tbody>${data.map(j => {
-        const comp = j.job_completions?.[0] || {};
-        const total = (j.job_line_items||[]).reduce((s, i) => s + ((i.override_cost??i.unit_cost)*i.quantity), 0);
-        const fixedNote = j.is_fixed_price ? ` <span style="color:#900;font-size:0.78rem">[Fixed $${Number(j.quote_amount||0).toFixed(2)}]</span>` : '';
-        const wopo = [j.work_order_number||'', j.purchase_order_number||''].filter(Boolean).join(' / ');
+      <thead><tr>
+        <th>Date</th><th>Sub-Account</th><th>Type</th><th>WO/PO</th>
+        <th>Status</th><th>Payment</th><th>Total</th><th>Follow-up</th><th>Notes</th>
+      </tr></thead>
+      <tbody>
+      ${data.map(j => {
+        const comp   = j.job_completions?.[0] || {};
+        const total  = (j.job_line_items||[]).reduce((s, i) => s + ((i.override_cost??i.unit_cost)*i.quantity), 0);
+        const fixed  = j.is_fixed_price ? ` <span style="color:#900;font-size:0.78rem">[Fixed $${Number(j.quote_amount||0).toFixed(2)}]</span>` : '';
+        const wopo   = [j.work_order_number||'', j.purchase_order_number||''].filter(Boolean).join(' / ');
         return `<tr>
           <td style="white-space:nowrap">${formatDate(j.job_date)}</td>
           <td style="font-size:0.82rem">${j.sub?.account_name||''}</td>
-          <td style="font-size:0.82rem">${j.job_types?.job_type_name||''}${fixedNote}</td>
+          <td style="font-size:0.82rem">${j.job_types?.job_type_name||''}${fixed}</td>
           <td style="font-size:0.82rem">${wopo}</td>
           <td><span class="status-badge status-${(j.status||'').replace(/ /g,'-')}">${j.status}</span></td>
           <td style="font-size:0.82rem">${comp.payment_type||'--'}</td>
@@ -669,38 +728,37 @@ async function loadAccountJobs() {
     </table></div>`;
 }
 
+
 // ---- CONTACTS ----
+
 async function loadContactsTab() {
   const el = document.getElementById('contacts-list');
   el.innerHTML = 'Loading...';
   const { data: contacts, error } = await db.from('account_contacts')
     .select('*').eq('account_id', currentDetailAccountId).eq('active', true)
-    .order('is_primary', { ascending: false })
+    .order('is_primary',   { ascending: false })
     .order('is_secondary', { ascending: false })
     .order('contact_name');
 
   if (error) { el.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
-  if (!contacts?.length) {
-    el.innerHTML = '<p class="meta">No contacts on file. Add one above.</p>';
-    return;
-  }
+  if (!contacts?.length) { el.innerHTML = '<p class="meta">No contacts on file. Add one above.</p>'; return; }
 
   el.innerHTML = contacts.map(c => {
     const flags = [
-      c.is_primary ? '<span>Primary</span>' : '',
-      c.is_secondary ? '<span class="secondary">Secondary</span>' : '',
-      c.is_onsite ? '<span class="onsite">On-Site</span>' : ''
+      c.is_primary   ? '<span>Primary</span>'                    : '',
+      c.is_secondary ? '<span class="secondary">Secondary</span>': '',
+      c.is_onsite    ? '<span class="onsite">On-Site</span>'     : ''
     ].filter(Boolean).join('');
 
     return `<div class="contact-card">
       <div class="flags">${flags || '<span style="background:#999">Contact</span>'}</div>
       <strong style="font-size:0.95rem">${c.contact_name}</strong>
-      ${c.title ? `<span style="color:#555;font-size:0.85rem"> | ${c.title}</span>` : ''}
+      ${c.title   ? `<span style="color:#555;font-size:0.85rem"> | ${c.title}</span>`   : ''}
       ${c.company ? `<span style="color:#555;font-size:0.85rem"> | ${c.company}</span>` : ''}
       <div style="margin-top:0.3rem;font-size:0.85rem">
         ${c.work_phone ? `<span style="margin-right:1rem">Work: ${c.work_phone}</span>` : ''}
         ${c.cell_phone ? `<span style="margin-right:1rem">Cell: ${c.cell_phone}</span>` : ''}
-        ${c.email ? `<span>${c.email}</span>` : ''}
+        ${c.email      ? `<span>${c.email}</span>`                                      : ''}
       </div>
       ${c.notes ? `<div style="margin-top:0.3rem;font-size:0.82rem;color:#444;font-style:italic">${c.notes}</div>` : ''}
       <div style="margin-top:0.4rem;font-size:0.78rem;color:#888">Added: ${new Date(c.date_added).toLocaleDateString('en-US')}</div>
@@ -715,25 +773,27 @@ async function loadContactsTab() {
 function openAddContact() {
   document.getElementById('contact-form-title').textContent = 'Add Contact';
   document.getElementById('cf-id').value = '';
-  ['cf-name','cf-title','cf-workphone','cf-cellphone','cf-email','cf-company','cf-notes'].forEach(id => document.getElementById(id).value = '');
-  ['cf-primary','cf-secondary','cf-onsite'].forEach(id => document.getElementById(id).checked = false);
+  ['cf-name','cf-title','cf-workphone','cf-cellphone','cf-email','cf-company','cf-notes']
+    .forEach(id => document.getElementById(id).value = '');
+  ['cf-primary','cf-secondary','cf-onsite']
+    .forEach(id => document.getElementById(id).checked = false);
   document.getElementById('cf-msg').innerHTML = '';
   document.getElementById('contact-form-wrap').style.display = '';
 }
 
 function openEditContact(c) {
   document.getElementById('contact-form-title').textContent = 'Edit Contact';
-  document.getElementById('cf-id').value = c.id;
-  document.getElementById('cf-name').value = c.contact_name || '';
-  document.getElementById('cf-title').value = c.title || '';
-  document.getElementById('cf-workphone').value = c.work_phone || '';
-  document.getElementById('cf-cellphone').value = c.cell_phone || '';
-  document.getElementById('cf-email').value = c.email || '';
-  document.getElementById('cf-company').value = c.company || '';
-  document.getElementById('cf-notes').value = c.notes || '';
-  document.getElementById('cf-primary').checked = c.is_primary || false;
+  document.getElementById('cf-id').value        = c.id;
+  document.getElementById('cf-name').value      = c.contact_name || '';
+  document.getElementById('cf-title').value     = c.title        || '';
+  document.getElementById('cf-workphone').value = c.work_phone   || '';
+  document.getElementById('cf-cellphone').value = c.cell_phone   || '';
+  document.getElementById('cf-email').value     = c.email        || '';
+  document.getElementById('cf-company').value   = c.company      || '';
+  document.getElementById('cf-notes').value     = c.notes        || '';
+  document.getElementById('cf-primary').checked   = c.is_primary   || false;
   document.getElementById('cf-secondary').checked = c.is_secondary || false;
-  document.getElementById('cf-onsite').checked = c.is_onsite || false;
+  document.getElementById('cf-onsite').checked    = c.is_onsite    || false;
   document.getElementById('cf-msg').innerHTML = '';
   document.getElementById('contact-form-wrap').style.display = '';
 }
@@ -742,54 +802,54 @@ function closeContactForm() {
   document.getElementById('contact-form-wrap').style.display = 'none';
 }
 
+// saveContact: inserts or updates a contact for the current account.
+// Primary/secondary uniqueness is enforced by clearing the flag on all OTHER contacts
+// before setting it on this one. The `.neq('id', sentinel)` pattern handles both
+// the add case (no id yet — sentinel is a valid UUID that won't match any real row)
+// and the edit case (exclude the row being edited from the clear).
+// The all-zeros UUID '00000000-...' is used as the sentinel because Supabase requires
+// a valid UUID type in the .neq() call — it will never match a real auto-generated ID.
 async function saveContact() {
   const name = document.getElementById('cf-name').value.trim();
-  const msg = document.getElementById('cf-msg');
+  const msg  = document.getElementById('cf-msg');
   msg.innerHTML = '';
   if (!name) { msg.innerHTML = '<div class="msg error">Contact name is required.</div>'; return; }
 
-  const isPrimary = document.getElementById('cf-primary').checked;
+  const isPrimary   = document.getElementById('cf-primary').checked;
   const isSecondary = document.getElementById('cf-secondary').checked;
-  const isOnsite = document.getElementById('cf-onsite').checked;
-  const editId = document.getElementById('cf-id').value;
+  const isOnsite    = document.getElementById('cf-onsite').checked;
+  const editId      = document.getElementById('cf-id').value;
 
-  // Enforce uniqueness: if setting primary, clear primary on all other contacts
   if (isPrimary) {
-    await db.from('account_contacts')
-      .update({ is_primary: false })
+    await db.from('account_contacts').update({ is_primary: false })
       .eq('account_id', currentDetailAccountId)
       .neq('id', editId || '00000000-0000-0000-0000-000000000000');
   }
-  // Enforce uniqueness: if setting secondary, clear secondary on all other contacts
   if (isSecondary) {
-    await db.from('account_contacts')
-      .update({ is_secondary: false })
+    await db.from('account_contacts').update({ is_secondary: false })
       .eq('account_id', currentDetailAccountId)
       .neq('id', editId || '00000000-0000-0000-0000-000000000000');
   }
 
   const payload = {
-    account_id: currentDetailAccountId,
+    account_id:   currentDetailAccountId,
     contact_name: name,
-    title: document.getElementById('cf-title').value || null,
-    work_phone: document.getElementById('cf-workphone').value || null,
-    cell_phone: document.getElementById('cf-cellphone').value || null,
-    email: document.getElementById('cf-email').value || null,
-    company: document.getElementById('cf-company').value || null,
-    notes: document.getElementById('cf-notes').value || null,
-    is_primary: isPrimary,
+    title:        document.getElementById('cf-title').value     || null,
+    work_phone:   document.getElementById('cf-workphone').value || null,
+    cell_phone:   document.getElementById('cf-cellphone').value || null,
+    email:        document.getElementById('cf-email').value     || null,
+    company:      document.getElementById('cf-company').value   || null,
+    notes:        document.getElementById('cf-notes').value     || null,
+    is_primary:   isPrimary,
     is_secondary: isSecondary,
-    is_onsite: isOnsite,
-    updated_at: new Date().toISOString(),
-    created_by: currentUser.id
+    is_onsite:    isOnsite,
+    updated_at:   new Date().toISOString(),
+    created_by:   currentUser.id
   };
 
   let error;
-  if (editId) {
-    ({ error } = await db.from('account_contacts').update(payload).eq('id', editId));
-  } else {
-    ({ error } = await db.from('account_contacts').insert(payload));
-  }
+  if (editId) ({ error } = await db.from('account_contacts').update(payload).eq('id', editId));
+  else        ({ error } = await db.from('account_contacts').insert(payload));
 
   if (error) { msg.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
   msg.innerHTML = '<div class="msg success">Saved.</div>';
@@ -802,9 +862,13 @@ async function deactivateContact(id) {
   loadContactsTab();
 }
 
-// ---- ACCOUNT QUOTE FORMS ----
+
+// ---- QUOTE FORMS TAB ----
 async function loadAccountQuotes() {
   const el = document.getElementById('detail-quotes');
+
+  // Quote forms are linked to jobs, not directly to accounts, so we first get the
+  // job IDs for this account, then query quote_forms by those IDs.
   const { data: jobs } = await db.from('jobs').select('id').eq('account_id', currentDetailAccountId);
   if (!jobs?.length) { el.innerHTML = '<p class="meta">No quote forms.</p>'; return; }
 
@@ -821,13 +885,17 @@ async function loadAccountQuotes() {
       <td style="font-size:0.82rem;white-space:nowrap">${new Date(q.created_at).toLocaleDateString('en-US')}</td>
       <td style="font-size:0.82rem;max-width:200px">${q.scope_observed||''}</td>
       <td style="font-size:0.82rem">${q.materials_json ? JSON.stringify(q.materials_json) : '--'}</td>
-      <td style="font-size:0.82rem">${q.locked_at ? 'Yes - '+new Date(q.locked_at).toLocaleDateString('en-US') : 'No'}</td>
+      <td style="font-size:0.82rem">${q.locked_at ? 'Yes — '+new Date(q.locked_at).toLocaleDateString('en-US') : 'No'}</td>
       <td style="font-size:0.82rem">${q.admin_notes||''}</td>
-    </tr>`).join('')}</tbody>
+    </tr>`).join('')}
+    </tbody>
   </table></div>`;
 }
 
-// ---- ACCOUNT PHOTOS ----
+
+// ---- PHOTOS TAB ----
+// Uses shared fetchPhotoUrls() + renderPhotoGrid() to avoid duplicating the signed-URL
+// and thumbnail logic that also lives in admin.html and tech.html.
 async function loadAccountPhotos() {
   const el = document.getElementById('detail-photos');
   const { data: photos, error } = await db.from('job_photos')
@@ -837,82 +905,96 @@ async function loadAccountPhotos() {
 
   if (error || !photos?.length) { el.innerHTML = '<p class="meta">No photos on file.</p>'; return; }
 
-  const withUrls = await Promise.all(photos.map(async p => {
-    const { data: signed } = await db.storage.from('job-photos').createSignedUrl(p.storage_path, 7200);
-    if (signed?.signedUrl) return { ...p, url: signed.signedUrl };
-    const { data: pub } = db.storage.from('job-photos').getPublicUrl(p.storage_path);
-    return { ...p, url: pub?.publicUrl || null };
-  }));
-
-  el.innerHTML = `<p style="font-size:0.82rem;color:#555">${photos.length} photo(s) across all jobs for this account.</p>
-    <div style="display:flex;flex-wrap:wrap;gap:0.5rem">
-      ${withUrls.map(p =>
-        `<div style="text-align:center">
-          ${p.url
-            ? `<a href="${p.url}" target="_blank"><img src="${p.url}" style="width:100px;height:80px;object-fit:cover;border:1px solid #ccc;display:block;cursor:pointer"
-                onerror="this.parentElement.innerHTML='<div style=&quot;width:100px;height:80px;background:#eee;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:0.75rem;padding:4px&quot;>' + (p.file_name||'photo') + '</div>'"></a>`
-            : `<div style="width:100px;height:80px;background:#eee;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:0.75rem;padding:4px">${p.file_name||'photo'}</div>`
-          }
-          <div style="font-size:0.72rem;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">
-            ${p.url ? `<a href="${p.url}" target="_blank" style="color:#1a4a8a">${p.file_name||'photo'}</a>` : (p.file_name||'photo')}
-          </div>
-          <div style="font-size:0.72rem;color:#888">${new Date(p.uploaded_at).toLocaleDateString('en-US')}</div>
-        </div>`
-      ).join('')}
-    </div>`;
+  const withUrls = await fetchPhotoUrls(photos);
+  // Prepend a photo count line before the grid.
+  el.innerHTML = `<p style="font-size:0.82rem;color:#555">${photos.length} photo(s) across all jobs for this account.</p>`;
+  const gridEl = document.createElement('div');
+  el.appendChild(gridEl);
+  renderPhotoGrid(gridEl, withUrls, true); // true = show upload date
 }
 
+
 // ---- DETAIL TABS ----
+// Switches which tab panel is visible and highlights the active tab button.
+// Loads tab data on first open (lazy — avoids unnecessary queries).
 function switchDetailTab(tab) {
   ['history','contacts','quotes','photos','instructions'].forEach(t => {
     document.getElementById(`dtab-${t}-panel`).style.display = t === tab ? '' : 'none';
     const btn = document.getElementById(`dtab-${t}`);
     if (btn) btn.className = t === tab ? 'btn btn-primary' : 'btn btn-secondary';
   });
-  if (tab === 'contacts') loadContactsTab();
-  if (tab === 'quotes') loadAccountQuotes();
-  if (tab === 'photos') loadAccountPhotos();
+  if (tab === 'contacts')     loadContactsTab();
+  if (tab === 'quotes')       loadAccountQuotes();
+  if (tab === 'photos')       loadAccountPhotos();
   if (tab === 'instructions') loadInstructions();
 }
 
+
 // ---- INSTRUCTIONS ----
-// POC: localStorage. Production: accounts.instructions column.
+// Reads and writes the instructions field directly from the allAccounts cache
+// (which was loaded with the instructions column by loadAccounts()).
+// Saving writes back to Supabase so the value is available on any device —
+// unlike the previous localStorage approach which was per-browser only.
+
 function loadInstructions() {
-  const key = `fl_instructions_${currentDetailAccountId}`;
-  const val = localStorage.getItem(key) || '';
-  document.getElementById('instructions-text').value = val;
+  const a = allAccounts.find(x => x.id === currentDetailAccountId);
+  document.getElementById('instructions-text').value = a?.instructions || '';
 }
-function saveInstructions() {
-  const key = `fl_instructions_${currentDetailAccountId}`;
-  localStorage.setItem(key, document.getElementById('instructions-text').value);
+
+async function saveInstructions() {
+  const text = document.getElementById('instructions-text').value;
+  const { error } = await db.from('accounts')
+    .update({ instructions: text || null })
+    .eq('id', currentDetailAccountId);
+  if (error) {
+    const msg = document.getElementById('instructions-msg');
+    msg.style.color = '#a00';
+    msg.textContent = 'Save failed: ' + error.message;
+    return;
+  }
+  // Update the local cache so switching tabs and back doesn't show stale data.
+  const a = allAccounts.find(x => x.id === currentDetailAccountId);
+  if (a) a.instructions = text;
+
   const msg = document.getElementById('instructions-msg');
+  msg.style.color = '#2a7a2a';
   msg.textContent = 'Saved.';
   setTimeout(() => msg.textContent = '', 2000);
 }
 
-// ---- EXPORT ACCOUNTS CSV ----
+
+// ---- EXPORT CSV ----
+// Both export functions use shared downloadCSV() (from shared.js) instead of
+// building the blob manually. The data rows are still built here since they
+// require local state (allJobsByAccount, allPrimaryContacts, etc.).
+
 function exportAccountsCSV() {
   if (!filteredAccounts.length) { alert('No accounts to export.'); return; }
   const rows = [['Name','Type','Parent Account','Address','Phone','Primary Contact','Billing Notes','Jobs','Last Service','Active']];
   filteredAccounts.forEach(a => {
-    const stats = allJobsByAccount[a.id] || {};
+    const stats  = allJobsByAccount[a.id] || {};
     const parent = a.parent_account_id ? allAccounts.find(x => x.id === a.parent_account_id)?.account_name||'' : '';
-    const pc = allPrimaryContacts[a.id];
+    const pc     = allPrimaryContacts[a.id];
     rows.push([
-      a.account_name, a.parent_account_id ? 'Sub' : 'Master', parent,
-      a.address||'', a.phone||'',
-      pc ? `${pc.contact_name}${pc.work_phone?' | '+pc.work_phone:''}` : '',
-      a.billing_notes||'', stats.count||0, formatDate(stats.lastDate)||'',
+      a.account_name,
+      a.parent_account_id ? 'Sub' : 'Master',
+      parent,
+      a.address        || '',
+      a.phone          || '',
+      pc ? `${pc.contact_name}${pc.work_phone ? ' | '+pc.work_phone : ''}` : '',
+      a.billing_notes  || '',
+      stats.count      || 0,
+      formatDate(stats.lastDate) || '',
       a.active ? 'Yes' : 'No'
     ]);
   });
   downloadCSV(rows, 'faithlock_accounts');
 }
 
-// ---- EXPORT ACCOUNT DETAIL CSV ----
 async function exportAccountDetailCSV() {
   const a = allAccounts.find(x => x.id === currentDetailAccountId);
   if (!a) return;
+
   const { data: jobs } = await db.from('jobs')
     .select(`id,job_date,status,scope,is_fixed_price,quote_amount,work_order_number,purchase_order_number,
              sub:accounts!jobs_sub_account_id_fkey(account_name),
@@ -926,32 +1008,29 @@ async function exportAccountDetailCSV() {
 
   const rows = [['Account','Date','Sub-Account','Job Type','WO','PO','Status','Fixed Price','Quote Amount','Payment Type','Payment Detail','Total','Follow-up','Tech Notes','Scope']];
   jobs.forEach(j => {
-    const comp = j.job_completions?.[0]||{};
+    const comp  = j.job_completions?.[0] || {};
     const total = (j.job_line_items||[]).reduce((s,i) => s+((i.override_cost??i.unit_cost)*i.quantity), 0);
     rows.push([
-      a.account_name, formatDate(j.job_date), j.sub?.account_name||'',
-      j.job_types?.job_type_name||'', j.work_order_number||'', j.purchase_order_number||'',
-      j.status, j.is_fixed_price ? 'Yes' : 'No', j.quote_amount||'',
-      comp.payment_type||'', comp.payment_detail||'', total.toFixed(2),
-      comp.follow_up_flag ? 'Yes' : 'No', comp.tech_notes||'', j.scope||''
+      a.account_name,
+      formatDate(j.job_date),
+      j.sub?.account_name          || '',
+      j.job_types?.job_type_name   || '',
+      j.work_order_number          || '',
+      j.purchase_order_number      || '',
+      j.status,
+      j.is_fixed_price ? 'Yes' : 'No',
+      j.quote_amount               || '',
+      comp.payment_type            || '',
+      comp.payment_detail          || '',
+      total.toFixed(2),
+      comp.follow_up_flag ? 'Yes' : 'No',
+      comp.tech_notes              || '',
+      j.scope                      || ''
     ]);
   });
   downloadCSV(rows, `faithlock_account_${a.account_name.replace(/[^a-z0-9]/gi,'_')}`);
 }
 
-function downloadCSV(rows, filename) {
-  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `${filename}.csv`; a.click();
-  URL.revokeObjectURL(url);
-}
-
-async function logout() {
-  await db.auth.signOut();
-  window.location.href = 'index.html';
-}
 
 init();
 </script>

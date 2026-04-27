@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Faith Lock Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="shared.js"></script>
 <style>
 * { box-sizing: border-box; }
 body { font-family: sans-serif; margin: 0; background: #f0f0f0; font-size: 0.9rem; }
@@ -96,7 +97,7 @@ select[multiple] { height: 90px; }
         </select>
       </div>
       <div class="form-row"><label>Account</label>
-        <select id="a-account" onchange="loadSubs('a'); loadAccountContact()"><option value="">-- Select --</option></select>
+        <select id="a-account" onchange="loadSubAccounts('a'); loadAccountContact()"><option value="">-- Select --</option></select>
       </div>
       <div class="form-row"><label>Sub-Account</label>
         <select id="a-subaccount"><option value="">-- None --</option></select>
@@ -190,7 +191,7 @@ select[multiple] { height: 90px; }
 </div>
 
 <!-- ============================================================ -->
-<!-- JOBS LIST SECTION (formerly Schedule Viewer) -->
+<!-- JOBS LIST SECTION -->
 <!-- ============================================================ -->
 <div id="section-jobslist" style="display:none">
   <div class="card">
@@ -376,60 +377,77 @@ select[multiple] { height: 90px; }
 </div>
 
 <script>
-const SUPABASE_URL = 'https://jmsrlhqbzstuczxilxua.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc3JsaHFienN0dWN6eGlseHVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzA5NDcsImV4cCI6MjA5MjQwNjk0N30.jpHtuhezvfRXJ2uVhwglqS_rImZl8JqqBX85WUv2Z5g';
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// ============================================================
+// admin.html — Faith Lock & Safe Admin Dashboard
+//
+// Shared utilities (db, formatDate, today, etc.) are in shared.js.
+// This script handles admin-specific logic: job assignment, review,
+// schedule, calendar, reference data, search, and export.
+// ============================================================
 
-let currentUser = null;
-let allAccounts = [], allTechs = [], allJobTypes = [], allParts = [], allLaborTypes = [];
-let lastJob = null;
-let reopenParts = [], reopenLabor = [], reopenCharges = [];
-let assignParts = [], assignLabor = [], assignCharges = [];
-let currentAccountContacts = [];
-let contactEditMode = false;
+// ---- PAGE STATE ----
+// These variables hold data loaded from Supabase and track UI state.
+let currentUser         = null;
+let allAccounts         = [];   // all accounts (master + sub)
+let allTechs            = [];
+let allJobTypes         = [];
+let allParts            = [];
+let allLaborTypes       = [];
+let lastJob             = null; // last-assigned job, used for "Duplicate Last Job"
+let reopenParts         = [];   // line items in the reopen/edit modal
+let reopenLabor         = [];
+let reopenCharges       = [];
+let assignParts         = [];   // line items in the assign form
+let assignLabor         = [];
+let assignCharges       = [];
+let currentAccountContacts = []; // contacts for the currently selected account
+let contactEditMode     = false;
 
-// ---- DATE FORMATTING ----
-// Single shared helper. All job_date values are YYYY-MM-DD strings from Postgres.
-// Converts to MM/DD/YYYY for display without timezone shift.
-function formatDate(str) {
-  if (!str) return '';
-  const [y, m, d] = str.split('-');
-  return `${m}/${d}/${y}`;
-}
 
 // ---- INIT ----
+// Called on page load. Verifies the user is logged in and is an admin,
+// then loads all reference data needed to populate the form dropdowns.
 async function init() {
   try {
     const { data: { session }, error: sessErr } = await db.auth.getSession();
     if (sessErr) throw sessErr;
+    // Not logged in — send to login page
     if (!session) { window.location.href = 'index.html'; return; }
     currentUser = session.user;
+
+    // Confirm this user has the admin role. Techs are redirected to tech.html.
     const { data: profile, error: profErr } = await db.from('user_profiles')
       .select('role').eq('id', currentUser.id).single();
     if (profErr) throw profErr;
     if (!profile || profile.role !== 'admin') { window.location.href = 'index.html'; return; }
+
     await loadRefData();
     setDateDefaults();
   } catch (err) {
+    // Show a readable error in the page rather than silently failing
     document.querySelector('.container').innerHTML =
       `<div style="color:#a00;background:white;border:1px solid #f99;padding:1rem;margin-top:1rem">
         <strong>Load error:</strong> ${err.message || JSON.stringify(err)}<br>
-        <span style="font-size:0.82rem">Check the browser console. Try signing out and back in.</span>
+        <span style="font-size:0.82rem">Check the browser console (F12). Try signing out and back in.</span>
       </div>`;
     console.error('admin init error:', err);
   }
 }
 
+// setDateDefaults: pre-fills all date inputs to today so forms are ready to use immediately.
 function setDateDefaults() {
   const t = today();
-  ['a-date','sv-from','sv-to','ex-from','ex-to'].forEach(id => {
+  ['a-date', 'sv-from', 'sv-to', 'ex-from', 'ex-to'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = t;
   });
 }
 
-function today() { return new Date().toISOString().split('T')[0]; }
 
+// ---- REFERENCE DATA ----
+// loadRefData: loads all lookup tables from Supabase in parallel (Promise.all),
+// then populates every dropdown on the page that depends on them.
+// Called once on init and again after any reference data is added/changed.
 async function loadRefData() {
   const [a, tc, jt, p, lt] = await Promise.all([
     db.from('accounts').select('id,account_name,parent_account_id,address').eq('active', true).order('account_name'),
@@ -439,70 +457,79 @@ async function loadRefData() {
     db.from('labor_types').select('*').order('labor_type_name')
   ]);
 
-  if (a.error) console.error('accounts load error:', a.error.message);
-  if (p.error) console.error('parts load error:', p.error.message);
+  if (a.error)  console.error('accounts load error:', a.error.message);
+  if (p.error)  console.error('parts load error:', p.error.message);
 
-  allAccounts = a.data || [];
-  allTechs = tc.data || [];
-  allJobTypes = jt.data || [];
-  allParts = p.data || [];
+  allAccounts   = a.data  || [];
+  allTechs      = tc.data || [];
+  allJobTypes   = jt.data || [];
+  allParts      = p.data  || [];
   allLaborTypes = lt.data || [];
 
-  popSelect('a-account', allAccounts.filter(x => !x.parent_account_id), 'id', 'account_name', '-- Select Account --');
-  popSelect('a-leadtech', allTechs, 'id', 'tech_name', '-- Select Lead --');
-  popMultiSelect('a-techs', allTechs, 'id', 'tech_name');
-  popSelect('a-jobtype', allJobTypes, 'id', 'job_type_name', '-- Select --');
-  popSelect('s-account', allAccounts.filter(x => !x.parent_account_id), 'id', 'account_name', '-- All --');
-  popSelect('s-tech', allTechs, 'id', 'tech_name', '-- All --');
-  const cats = [...new Set(allJobTypes.map(j => j.category).filter(Boolean))];
-  popSelect('s-category', cats.map(c => ({id:c,name:c})), 'id', 'name', '-- All --');
-  popSelect('a-labortype', allLaborTypes, 'id', 'labor_type_name', 'Select type...');
+  // Assign form dropdowns — only master accounts shown (no parent_account_id)
+  populateSelect('a-account', allAccounts.filter(x => !x.parent_account_id), 'id', 'account_name', '-- Select Account --');
+  populateSelect('a-leadtech', allTechs, 'id', 'tech_name', '-- Select Lead --');
+  populateMultiSelect('a-techs', allTechs, 'id', 'tech_name');
+  populateSelect('a-jobtype', allJobTypes, 'id', 'job_type_name', '-- Select --');
 
+  // Search form dropdowns
+  populateSelect('s-account', allAccounts.filter(x => !x.parent_account_id), 'id', 'account_name', '-- All --');
+  populateSelect('s-tech', allTechs, 'id', 'tech_name', '-- All --');
+  const cats = [...new Set(allJobTypes.map(j => j.category).filter(Boolean))];
+  populateSelect('s-category', cats.map(c => ({ id: c, name: c })), 'id', 'name', '-- All --');
+
+  populateSelect('a-labortype', allLaborTypes, 'id', 'labor_type_name', 'Select type...');
+
+  // Calendar tech filter
   const calTech = document.getElementById('cal-tech');
   if (calTech) {
     calTech.innerHTML = '<option value="">All Techs</option>' +
       allTechs.map(t => `<option value="${t.id}">${t.tech_name}</option>`).join('');
   }
 
+  // Re-render all reference tables
   renderPartsRef();
   renderJobTypesRef();
   renderLaborTypesRef();
   renderTechsRef();
 }
 
-function popSelect(id, items, val, label, placeholder) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.innerHTML = `<option value="">${placeholder}</option>` +
-    items.map(i => `<option value="${i[val]}">${i[label]}</option>`).join('');
-}
-
-function popMultiSelect(id, items, val, label) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.innerHTML = items.map(i => `<option value="${i[val]}">${i[label]}</option>`).join('');
-}
-
-function loadSubs(prefix) {
+// loadSubAccounts: populates the sub-account dropdown based on the selected parent account.
+// Called whenever the account dropdown changes (onchange="loadSubAccounts('a')").
+// prefix matches the input ID prefix used in that form section (e.g. 'a' for assign).
+function loadSubAccounts(prefix) {
   const parentId = document.getElementById(`${prefix}-account`).value;
   const subs = allAccounts.filter(a => a.parent_account_id === parentId);
-  popSelect(`${prefix}-subaccount`, subs, 'id', 'account_name', '-- None --');
+  populateSelect(`${prefix}-subaccount`, subs, 'id', 'account_name', '-- None --');
 }
 
+// toggleFixed: shows/hides the quote amount field when Fixed Price is checked.
 function toggleFixed() {
   document.getElementById('a-quotewrap').style.display =
     document.getElementById('a-fixedprice').checked ? '' : 'none';
 }
 
-// ---- ACCOUNT CONTACT FETCH ----
+
+// ---- ACCOUNT CONTACT ----
+// loadAccountContact: fetches the primary and secondary contacts for the selected account
+// and displays them in the contact banner. Called when the account dropdown changes.
+// The contact info is shown as a reference — the admin can optionally edit it
+// for this job only (changes do NOT update the CRM).
 async function loadAccountContact() {
   const accountId = document.getElementById('a-account').value;
-  const panel = document.getElementById('a-contact-panel');
-  const banner = document.getElementById('a-contact-banner');
-  if (!accountId) { panel.style.display = 'none'; currentAccountContacts = []; return; }
+  const panel     = document.getElementById('a-contact-panel');
+  const banner    = document.getElementById('a-contact-banner');
 
+  if (!accountId) {
+    panel.style.display = 'none';
+    currentAccountContacts = [];
+    return;
+  }
+
+  // Fetch contacts ordered by is_primary descending so primary comes first
   const { data: contacts } = await db.from('account_contacts')
-    .select('*').eq('account_id', accountId).eq('active', true).order('is_primary', { ascending: false });
+    .select('*').eq('account_id', accountId).eq('active', true)
+    .order('is_primary', { ascending: false });
   currentAccountContacts = contacts || [];
 
   if (!currentAccountContacts.length) {
@@ -511,73 +538,84 @@ async function loadAccountContact() {
     return;
   }
 
-  const primary = currentAccountContacts.find(c => c.is_primary) || currentAccountContacts[0];
+  const primary   = currentAccountContacts.find(c => c.is_primary) || currentAccountContacts[0];
   const secondary = currentAccountContacts.find(c => c.is_secondary && !c.is_primary);
 
   let html = `<strong>${primary.contact_name}</strong>`;
-  if (primary.title) html += ` &mdash; ${primary.title}`;
-  if (primary.company) html += ` | ${primary.company}`;
+  if (primary.title)      html += ` &mdash; ${primary.title}`;
+  if (primary.company)    html += ` | ${primary.company}`;
   html += '<br>';
   if (primary.work_phone) html += `Work: ${primary.work_phone} &nbsp;`;
   if (primary.cell_phone) html += `Cell: ${primary.cell_phone} &nbsp;`;
-  if (primary.email) html += `${primary.email}`;
-  if (primary.notes) html += `<br><em>${primary.notes}</em>`;
+  if (primary.email)      html += primary.email;
+  if (primary.notes)      html += `<br><em>${primary.notes}</em>`;
   if (secondary) {
     html += `<br><span style="color:#446;font-size:0.8rem">Secondary: ${secondary.contact_name}`;
     if (secondary.work_phone) html += ` | ${secondary.work_phone}`;
     if (secondary.cell_phone) html += ` / ${secondary.cell_phone}`;
     html += '</span>';
   }
+
   banner.innerHTML = html;
   panel.style.display = '';
   document.getElementById('a-contact-edit').style.display = 'none';
   contactEditMode = false;
 }
 
+// toggleContactEdit: shows or hides the per-job contact edit fields.
+// WHY this exists: the admin sometimes needs to record a different contact
+// for a specific job (e.g. an on-site person) without changing the CRM record.
 function toggleContactEdit() {
   contactEditMode = !contactEditMode;
   const editDiv = document.getElementById('a-contact-edit');
   editDiv.style.display = contactEditMode ? '' : 'none';
   if (contactEditMode) {
     const primary = currentAccountContacts.find(c => c.is_primary) || currentAccountContacts[0] || {};
-    document.getElementById('ac-name').value = primary.contact_name || '';
-    document.getElementById('ac-title').value = primary.title || '';
-    document.getElementById('ac-workphone').value = primary.work_phone || '';
-    document.getElementById('ac-cellphone').value = primary.cell_phone || '';
-    document.getElementById('ac-email').value = primary.email || '';
-    document.getElementById('ac-company').value = primary.company || '';
-    document.getElementById('ac-notes').value = primary.notes || '';
+    document.getElementById('ac-name').value      = primary.contact_name || '';
+    document.getElementById('ac-title').value     = primary.title        || '';
+    document.getElementById('ac-workphone').value = primary.work_phone   || '';
+    document.getElementById('ac-cellphone').value = primary.cell_phone   || '';
+    document.getElementById('ac-email').value     = primary.email        || '';
+    document.getElementById('ac-company').value   = primary.company      || '';
+    document.getElementById('ac-notes').value     = primary.notes        || '';
     document.getElementById('a-contact-warn').textContent =
       'These changes apply to this job only and will not update the CRM. To update the permanent record, go to Accounts.';
   }
 }
 
-// ---- ASSIGN ----
+
+// ---- ASSIGN JOB ----
+// assignJob: reads the assign form and creates a new job record in Supabase,
+// including all expected line items (parts, labor, charges).
 async function assignJob() {
   const msg = document.getElementById('a-msg');
   msg.innerHTML = '';
-  const date = document.getElementById('a-date').value;
+  const date      = document.getElementById('a-date').value;
   const accountId = document.getElementById('a-account').value;
-  if (!date || !accountId) { msg.innerHTML = '<div class="msg error">Date and account are required.</div>'; return; }
+  if (!date || !accountId) {
+    msg.innerHTML = '<div class="msg error">Date and account are required.</div>';
+    return;
+  }
 
   const techEls = document.getElementById('a-techs').selectedOptions;
   const techIds = Array.from(techEls).map(o => o.value);
 
   const payload = {
-    job_date: date,
-    account_id: accountId || null,
-    sub_account_id: document.getElementById('a-subaccount').value || null,
-    job_type_id: document.getElementById('a-jobtype').value || null,
-    assigned_tech_ids: techIds,
-    lead_tech_id: document.getElementById('a-leadtech').value || null,
-    status: document.getElementById('a-status').value,
-    scope: document.getElementById('a-scope').value || null,
-    site_notes: document.getElementById('a-sitenotes').value || null,
-    work_order_number: document.getElementById('a-wo').value || null,
-    purchase_order_number: document.getElementById('a-po').value || null,
-    is_fixed_price: document.getElementById('a-fixedprice').checked,
-    quote_amount: document.getElementById('a-fixedprice').checked
-      ? parseFloat(document.getElementById('a-quoteamount').value) || null : null,
+    job_date:             date,
+    account_id:           accountId || null,
+    sub_account_id:       document.getElementById('a-subaccount').value   || null,
+    job_type_id:          document.getElementById('a-jobtype').value       || null,
+    assigned_tech_ids:    techIds,
+    lead_tech_id:         document.getElementById('a-leadtech').value      || null,
+    status:               document.getElementById('a-status').value,
+    scope:                document.getElementById('a-scope').value         || null,
+    site_notes:           document.getElementById('a-sitenotes').value     || null,
+    work_order_number:    document.getElementById('a-wo').value            || null,
+    purchase_order_number: document.getElementById('a-po').value          || null,
+    is_fixed_price:       document.getElementById('a-fixedprice').checked,
+    quote_amount:         document.getElementById('a-fixedprice').checked
+                            ? parseFloat(document.getElementById('a-quoteamount').value) || null
+                            : null,
     created_by: currentUser.id
   };
 
@@ -585,65 +623,75 @@ async function assignJob() {
   if (error) { msg.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
   lastJob = payload;
 
-  // Insert all expected line items: parts, labor, charges
+  // Build line items array for all expected parts, labor, and flat charges.
+  // The sentinel UUID '00000000-...' is used as item_id for flat charges
+  // (Service Call, Other) because they don't reference a catalog part or labor type.
   const expItems = [
     ...assignParts.map(p => ({
       job_id: data.id, item_type: 'Part', item_id: p.id,
-      quantity: p.qty, unit_cost: allParts.find(x => x.id === p.id)?.unit_cost || 0
+      quantity: p.qty,
+      unit_cost: allParts.find(x => x.id === p.id)?.unit_cost || 0
     })),
     ...assignLabor.map(l => ({
       job_id: data.id, item_type: 'Labor', item_id: l.id,
-      quantity: l.hours, unit_cost: allLaborTypes.find(x => x.id === l.id)?.hourly_rate || 0
+      quantity: l.hours,
+      unit_cost: allLaborTypes.find(x => x.id === l.id)?.hourly_rate || 0
     })),
     ...assignCharges.map(c => ({
-      job_id: data.id, item_type: c.type, item_id: '00000000-0000-0000-0000-000000000000',
+      job_id: data.id, item_type: c.type,
+      item_id: '00000000-0000-0000-0000-000000000000',
       quantity: 1, unit_cost: c.amount, override_reason: c.description
     }))
   ];
   if (expItems.length) await db.from('job_line_items').insert(expItems);
 
   msg.innerHTML = '<div class="msg success">Job assigned successfully.</div>';
-  ['a-scope','a-sitenotes','a-wo','a-po'].forEach(id => document.getElementById(id).value = '');
+  ['a-scope', 'a-sitenotes', 'a-wo', 'a-po'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('a-fixedprice').checked = false;
   document.getElementById('a-quotewrap').style.display = 'none';
   assignParts = []; assignLabor = []; assignCharges = [];
   renderAssignParts(); renderAssignLabor(); renderAssignCharges();
   document.getElementById('a-contact-panel').style.display = 'none';
-  document.getElementById('a-contact-edit').style.display = 'none';
+  document.getElementById('a-contact-edit').style.display  = 'none';
 }
 
+// duplicateLast: pre-fills the assign form with values from the last assigned job.
+// Useful when assigning the same account/type job on multiple consecutive days.
 async function duplicateLast() {
   if (!lastJob) { alert('No job assigned this session to duplicate.'); return; }
-  document.getElementById('a-account').value = lastJob.account_id || '';
-  loadSubs('a');
+  document.getElementById('a-account').value   = lastJob.account_id   || '';
+  loadSubAccounts('a');
   await loadAccountContact();
-  document.getElementById('a-jobtype').value = lastJob.job_type_id || '';
-  document.getElementById('a-leadtech').value = lastJob.lead_tech_id || '';
-  document.getElementById('a-date').value = today();
-  document.getElementById('a-msg').innerHTML = '<div class="msg success">Last job duplicated. Review and assign.</div>';
+  document.getElementById('a-jobtype').value   = lastJob.job_type_id  || '';
+  document.getElementById('a-leadtech').value  = lastJob.lead_tech_id || '';
+  document.getElementById('a-date').value      = today();
+  document.getElementById('a-msg').innerHTML   = '<div class="msg success">Last job duplicated. Review and assign.</div>';
 }
 
-// ---- SCHEDULE VIEWER ----
+
+// ---- JOBS LIST (SCHEDULE VIEWER) ----
+// setScheduleRange: shortcut buttons to pre-fill the date range inputs.
 function setScheduleRange(range) {
-  const now = new Date();
   if (range === 'today') {
     const t = today();
     document.getElementById('sv-from').value = t;
-    document.getElementById('sv-to').value = t;
+    document.getElementById('sv-to').value   = t;
   } else if (range === 'week') {
-    const mon = new Date(now);
-    mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    const mon = weekStart();
+    // Add 6 days to Monday to get Sunday
     const sun = new Date(mon);
-    sun.setDate(mon.getDate() + 6);
-    document.getElementById('sv-from').value = mon.toISOString().split('T')[0];
-    document.getElementById('sv-to').value = sun.toISOString().split('T')[0];
+    sun.setDate(sun.getDate() + 6);
+    document.getElementById('sv-from').value = mon;
+    document.getElementById('sv-to').value   = sun.toISOString().split('T')[0];
   }
   loadSchedule();
 }
 
+// loadSchedule: fetches all non-cancelled jobs in the date range and renders them
+// as a table, plus a parts/labor totals summary useful for stocking a truck.
 async function loadSchedule() {
   const from = document.getElementById('sv-from').value;
-  const to = document.getElementById('sv-to').value;
+  const to   = document.getElementById('sv-to').value;
   const { data, error } = await db.from('jobs')
     .select(`id, job_date, status, scope, is_fixed_price, work_order_number, purchase_order_number,
              accounts!jobs_account_id_fkey(account_name),
@@ -653,8 +701,16 @@ async function loadSchedule() {
     .not('status', 'eq', 'Cancelled')
     .order('job_date');
 
+  // WHY !fk_name syntax for accounts: the jobs table has TWO foreign keys to accounts
+  // (account_id and sub_account_id). Supabase needs the constraint name to know
+  // which relationship to join. Without it, the query would be ambiguous.
+
   const el = document.getElementById('schedule-list');
-  if (error || !data?.length) { el.innerHTML = '<p>No jobs found.</p>'; document.getElementById('stocking-panel').style.display='none'; return; }
+  if (error || !data?.length) {
+    el.innerHTML = '<p>No jobs found.</p>';
+    document.getElementById('stocking-panel').style.display = 'none';
+    return;
+  }
 
   el.innerHTML = `<div style="overflow-x:auto"><table>
     <thead><tr><th>Date</th><th>Account</th><th>Type</th><th>WO</th><th>Status</th><th>Scope</th><th></th></tr></thead>
@@ -663,18 +719,19 @@ async function loadSchedule() {
       <td>${j.accounts?.account_name || ''}</td>
       <td>${j.job_types?.job_type_name || ''}</td>
       <td style="font-size:0.82rem">${j.work_order_number || ''}</td>
-      <td><span class="status-badge status-${j.status.replace(/ /g,'-')}">${j.status}</span></td>
+      <td><span class="status-badge status-${j.status.replace(/ /g, '-')}">${j.status}</span></td>
       <td style="max-width:200px;font-size:0.82rem">${j.scope || ''}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-blue" onclick="openReopen('${j.id}')">Edit</button>
-        ${!['Approved','Pending Review'].includes(j.status)
+        ${!['Approved', 'Pending Review'].includes(j.status)
           ? `<button class="btn btn-red" onclick="deleteJob('${j.id}')">Delete</button>` : ''}
       </td>
     </tr>`).join('')}</tbody>
   </table></div>`;
 
-  // Build stocking totals
-  const partTotals = {}, laborTotals = {};
+  // Build parts/labor totals by summing expected line items across all loaded jobs
+  const partTotals  = {};
+  const laborTotals = {};
   data.forEach(j => {
     (j.job_line_items || []).forEach(i => {
       if (i.item_type === 'Part') {
@@ -687,11 +744,9 @@ async function loadSchedule() {
     });
   });
 
-  const partEntries = Object.entries(partTotals).sort((a,b) => a[0].localeCompare(b[0]));
-  const laborEntries = Object.entries(laborTotals).sort((a,b) => a[0].localeCompare(b[0]));
-
-  const stockPanel = document.getElementById('stocking-panel');
-  const stockContent = document.getElementById('stocking-content');
+  const partEntries  = Object.entries(partTotals).sort((a, b) => a[0].localeCompare(b[0]));
+  const laborEntries = Object.entries(laborTotals).sort((a, b) => a[0].localeCompare(b[0]));
+  const stockPanel   = document.getElementById('stocking-panel');
 
   if (!partEntries.length && !laborEntries.length) {
     stockPanel.style.display = 'none';
@@ -699,8 +754,8 @@ async function loadSchedule() {
   }
 
   stockPanel.style.display = 'block';
-  stockContent.innerHTML = `
-    <p style="font-size:0.85rem;color:#555;margin-bottom:0.8rem">Based on expected parts and labor pre-loaded on scheduled and upcoming jobs. Does not include jobs with no line items assigned yet.</p>
+  document.getElementById('stocking-content').innerHTML = `
+    <p style="font-size:0.85rem;color:#555;margin-bottom:0.8rem">Based on expected parts and labor pre-loaded on jobs. Does not include jobs with no line items.</p>
     <div style="display:flex;gap:2rem;flex-wrap:wrap">
       ${partEntries.length ? `<div style="flex:1;min-width:200px">
         <div class="section-title" style="margin-top:0">Parts Needed</div>
@@ -716,12 +771,14 @@ async function loadSchedule() {
 }
 
 async function deleteJob(id) {
-  if (!confirm('Delete this job?')) return;
+  if (!confirm('Delete this job? This cannot be undone.')) return;
   await db.from('jobs').delete().eq('id', id);
   loadSchedule();
 }
 
+
 // ---- REVIEW ----
+// loadReview: fetches jobs filtered by status and renders each as a review card.
 async function loadReview() {
   const status = document.getElementById('rv-status').value;
   let query = db.from('jobs')
@@ -732,7 +789,8 @@ async function loadReview() {
              job_types(job_type_name),
              job_completions(id,time_in,time_out,payment_type,payment_detail,follow_up_flag,tech_notes,submitted_at),
              job_line_items(id,item_type,item_id,quantity,unit_cost,override_cost,override_reason),
-             admin_reviews(review_status,review_notes,reviewed_at)`)
+             admin_reviews(review_status,review_notes,reviewed_at),
+             quote_forms(scope_observed,materials_json,created_at)`)
     .order('job_date', { ascending: false });
 
   if (status) query = query.eq('status', status);
@@ -747,66 +805,82 @@ async function loadReview() {
   el.innerHTML = data.map(j => reviewCard(j)).join('');
 }
 
+// reviewCard: builds the HTML for one job in the review list.
+// Each card is collapsed by default; the admin clicks Expand to see details.
 function reviewCard(j) {
   const account = j.accounts?.account_name || '';
-  const sub = j.sub?.account_name ? ` / ${j.sub.account_name}` : '';
-  const comp = j.job_completions?.[0] || {};
-  const items = j.job_line_items || [];
+  const sub     = j.sub?.account_name ? ` / ${j.sub.account_name}` : '';
+  const comp    = j.job_completions?.[0] || {};
+  const items   = j.job_line_items || [];
 
-  const partItems = items.filter(i => i.item_type === 'Part');
-  const laborItems = items.filter(i => i.item_type === 'Labor');
+  const partItems   = items.filter(i => i.item_type === 'Part');
+  const laborItems  = items.filter(i => i.item_type === 'Labor');
   const chargeItems = items.filter(i => i.item_type === 'Service Call' || i.item_type === 'Other');
 
+  // Build a table row for each line item, with an editable override cost field.
+  // setOverride() saves changes to the DB immediately on change — no Save button needed.
   const itemRow = (i, label) => {
-    const cost = i.override_cost ?? i.unit_cost;
-    const ext = cost * i.quantity;
+    const ext = (i.override_cost ?? i.unit_cost) * i.quantity;
     return `<tr>
       <td>${i.item_type}</td><td>${label}</td><td>${i.quantity}</td>
       <td>$${Number(i.unit_cost).toFixed(2)}</td>
-      <td><input type="number" step="0.01" placeholder="${i.unit_cost}" value="${i.override_cost||''}"
-        style="width:80px;padding:0.2rem;border:1px solid #ccc" onchange="setOverride('${i.id}',this.value,'reason-${i.id}')"></td>
-      <td><input type="text" id="reason-${i.id}" placeholder="Reason" value="${i.override_reason||''}"
+      <td><input type="number" step="0.01" placeholder="${i.unit_cost}" value="${i.override_cost || ''}"
+        style="width:80px;padding:0.2rem;border:1px solid #ccc"
+        onchange="setOverride('${i.id}', this.value, 'reason-${i.id}')"></td>
+      <td><input type="text" id="reason-${i.id}" placeholder="Reason" value="${i.override_reason || ''}"
         style="width:120px;padding:0.2rem;border:1px solid #ccc"></td>
       <td>$${ext.toFixed(2)}</td>
     </tr>`;
   };
 
-  const partRows = partItems.map(i => itemRow(i, allParts.find(p => p.id === i.item_id)?.part_name || i.item_id)).join('');
-  const laborRows = laborItems.map(i => itemRow(i, (allLaborTypes.find(l => l.id === i.item_id)?.labor_type_name || i.item_id) + ' (hrs)')).join('');
+  const partRows   = partItems.map(i => itemRow(i, allParts.find(p => p.id === i.item_id)?.part_name || i.item_id)).join('');
+  const laborRows  = laborItems.map(i => itemRow(i, (allLaborTypes.find(l => l.id === i.item_id)?.labor_type_name || i.item_id) + ' (hrs)')).join('');
   const chargeRows = chargeItems.map(i => itemRow(i, i.override_reason || i.item_type)).join('');
 
   const fixedBanner = j.is_fixed_price
-    ? `<div class="fixed-banner">FIXED PRICE | Quoted: $${Number(j.quote_amount||0).toFixed(2)}</div>` : '';
+    ? `<div class="fixed-banner">FIXED PRICE | Quoted: $${Number(j.quote_amount || 0).toFixed(2)}</div>` : '';
 
   const wopo = [
-    j.work_order_number ? `WO: ${j.work_order_number}` : '',
+    j.work_order_number    ? `WO: ${j.work_order_number}`    : '',
     j.purchase_order_number ? `PO: ${j.purchase_order_number}` : ''
   ].filter(Boolean).join(' | ');
+
+  // Quote form section — only shown if the tech submitted a quote form for this job
+  const qf = j.quote_forms?.[0];
+  const quoteSection = qf ? `
+    <div class="section-title">Quote Form</div>
+    ${qf.scope_observed ? `<p style="font-size:0.85rem"><strong>Scope observed:</strong> ${qf.scope_observed}</p>` : ''}
+    ${qf.materials_json ? `<p style="font-size:0.85rem"><strong>Materials/notes:</strong> ${
+      Array.isArray(qf.materials_json)
+        ? qf.materials_json.map(m => m.notes || JSON.stringify(m)).join('; ')
+        : JSON.stringify(qf.materials_json)
+    }</p>` : ''}
+    <p style="font-size:0.78rem;color:#888">Submitted: ${new Date(qf.created_at).toLocaleString()}</p>` : '';
 
   return `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.3rem">
       <div>
         <h3>${account}${sub}</h3>
         <div class="meta">${formatDate(j.job_date)} | ${j.job_types?.job_type_name || ''}</div>
-        ${j.accounts?.address ? `<div class="meta">Address: ${j.accounts.address}</div>` : ''}
+        ${j.accounts?.address ? `<div class="meta">Address: ${mapsLink(j.accounts.address)}</div>` : ''}
         ${wopo ? `<div class="meta">${wopo}</div>` : ''}
       </div>
-      <span class="status-badge status-${j.status.replace(/ /g,'-')}">${j.status}</span>
+      <span class="status-badge status-${j.status.replace(/ /g, '-')}">${j.status}</span>
     </div>
     ${fixedBanner}
     <button class="btn btn-secondary" onclick="toggleExpand('exp-${j.id}')">Expand / Collapse</button>
-    <button class="btn btn-green" onclick="reviewAction('${j.id}','Approved')">Approve</button>
-    <button class="btn btn-yellow" onclick="reviewAction('${j.id}','Flagged')">Flag</button>
-    <button class="btn btn-secondary" onclick="reviewAction('${j.id}','Reset')">Reset</button>
-    <button class="btn btn-blue" onclick="openReopen('${j.id}')">Reopen / Edit</button>
+    <button class="btn btn-green"     onclick="reviewAction('${j.id}', 'Approved')">Approve</button>
+    <button class="btn btn-yellow"    onclick="reviewAction('${j.id}', 'Flagged')">Flag</button>
+    <button class="btn btn-secondary" onclick="reviewAction('${j.id}', 'Reset')">Reset</button>
+    <button class="btn btn-blue"      onclick="openReopen('${j.id}')">Reopen / Edit</button>
 
     <div id="exp-${j.id}" class="expandable">
-      ${j.scope ? `<div class="section-title">Scope</div><p style="font-size:0.85rem">${j.scope}</p>` : ''}
+      ${j.scope      ? `<div class="section-title">Scope</div><p style="font-size:0.85rem">${j.scope}</p>` : ''}
       ${j.site_notes ? `<div class="section-title">Site Notes</div><p style="font-size:0.85rem">${j.site_notes}</p>` : ''}
 
       <div class="section-title">Completion</div>
       <table><tbody>
-        <tr><td><strong>Time In</strong></td><td>${comp.time_in ? new Date(comp.time_in).toLocaleString() : '--'}</td>
+        <tr><td><strong>Time In</strong></td><td>${comp.time_in  ? new Date(comp.time_in).toLocaleString()  : '--'}</td>
             <td><strong>Time Out</strong></td><td>${comp.time_out ? new Date(comp.time_out).toLocaleString() : '--'}</td></tr>
         <tr><td><strong>Payment</strong></td><td>${comp.payment_type || '--'}</td>
             <td><strong>Detail</strong></td><td>${comp.payment_detail || '--'}</td></tr>
@@ -818,15 +892,14 @@ function reviewCard(j) {
       ${items.length ? `
         <div class="section-title">Line Items</div>
         <div style="overflow-x:auto">
-        <table>
-          <thead><tr><th>Type</th><th>Item</th><th>Qty</th><th>Unit Cost</th><th>Override</th><th>Override Reason</th><th>Extended</th></tr></thead>
-          <tbody>${partRows}${laborRows}${chargeRows}</tbody>
-        </table>
-        </div>
-        <button class="btn btn-primary" style="margin-top:0.4rem" onclick="saveOverrides('${j.id}')">Save Overrides</button>
-      ` : '<p class="meta">No line items.</p>'}
+          <table>
+            <thead><tr><th>Type</th><th>Item</th><th>Qty</th><th>Unit Cost</th><th>Override</th><th>Override Reason</th><th>Extended</th></tr></thead>
+            <tbody>${partRows}${laborRows}${chargeRows}</tbody>
+          </table>
+        </div>` : '<p class="meta">No line items.</p>'}
 
-      <!-- Admin photo upload and view -->
+      ${quoteSection}
+
       <div class="section-title">Photos</div>
       <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;margin-bottom:0.5rem">
         <input type="file" id="aphoto-${j.id}" accept="image/*" multiple style="font-size:0.85rem">
@@ -843,16 +916,21 @@ function reviewCard(j) {
         <input type="text" id="rnote-${j.id}" placeholder="Add review note..." style="flex:1;padding:0.35rem;border:1px solid #ccc">
         <button class="btn btn-primary" onclick="saveReviewNote('${j.id}')">Save Note</button>
       </div>
-      ${j.admin_reviews?.length ? `<div style="font-size:0.82rem;margin-top:0.4rem;color:#444">Last: ${j.admin_reviews[j.admin_reviews.length-1].review_notes || ''} (${j.admin_reviews[j.admin_reviews.length-1].review_status})</div>` : ''}
+      ${j.admin_reviews?.length
+        ? `<div style="font-size:0.82rem;margin-top:0.4rem;color:#444">Last: ${j.admin_reviews[j.admin_reviews.length - 1].review_notes || ''} (${j.admin_reviews[j.admin_reviews.length - 1].review_status})</div>`
+        : ''}
     </div>
   </div>`;
 }
 
+// toggleExpand: shows or hides the expandable detail section of a review card.
 function toggleExpand(id) {
   const el = document.getElementById(id);
   el.style.display = el.style.display === 'block' ? 'none' : 'block';
 }
 
+// reviewAction: changes a job's status (Approved, Flagged, or back to Pending Review)
+// and records the action in admin_reviews for an audit trail.
 async function reviewAction(jobId, action) {
   const statusMap = { Approved: 'Approved', Flagged: 'Flagged', Reset: 'Pending Review' };
   await db.from('jobs').update({ status: statusMap[action], updated_at: new Date().toISOString() }).eq('id', jobId);
@@ -860,13 +938,18 @@ async function reviewAction(jobId, action) {
   loadReview();
 }
 
+// saveReviewNote: attaches a text note to a job in admin_reviews.
+// Flagged status is used here to ensure the note is visible in the review filter.
 async function saveReviewNote(jobId) {
   const note = document.getElementById(`rnote-${jobId}`).value;
   if (!note) return;
-  await db.from('admin_reviews').insert({ job_id: jobId, review_status: 'Flagged', review_notes: note, reviewed_by: currentUser.id });
+  await db.from('admin_reviews').insert({
+    job_id: jobId, review_status: 'Flagged', review_notes: note, reviewed_by: currentUser.id
+  });
   alert('Note saved.');
 }
 
+// bulkApprove: approves all currently Pending Review jobs in one operation.
 async function bulkApprove() {
   if (!confirm('Approve all Pending Review jobs?')) return;
   const { data } = await db.from('jobs').select('id').eq('status', 'Pending Review');
@@ -877,19 +960,20 @@ async function bulkApprove() {
   loadReview();
 }
 
+// setOverride: saves a cost override and reason for a single line item immediately.
+// Called onchange from the override input fields in reviewCard.
+// No separate "Save" step is needed — each field saves as you change it.
 async function setOverride(lineItemId, val, reasonFieldId) {
   const reason = document.getElementById(reasonFieldId)?.value || '';
   await db.from('job_line_items').update({
-    override_cost: val ? parseFloat(val) : null,
+    override_cost:   val ? parseFloat(val) : null,
     override_reason: reason || null
   }).eq('id', lineItemId);
 }
 
-async function saveOverrides(jobId) {
-  alert('Overrides saved.');
-}
 
-// ---- ADMIN PHOTO UPLOAD ----
+// ---- PHOTOS (Admin) ----
+// uploadAdminPhotos: uploads one or more photos from the review card file input.
 async function uploadAdminPhotos(jobId) {
   const input = document.getElementById(`aphoto-${jobId}`);
   const msgEl = document.getElementById(`aphoto-msg-${jobId}`);
@@ -900,7 +984,7 @@ async function uploadAdminPhotos(jobId) {
   let uploaded = 0;
   for (const file of input.files) {
     const resized = await resizeImage(file, 1200);
-    const path = `${jobId}/admin_${Date.now()}_${file.name}`;
+    const path    = `${jobId}/admin_${Date.now()}_${file.name}`;
     const { error } = await db.storage.from('job-photos').upload(path, resized);
     if (error) continue;
     await db.from('job_photos').insert({
@@ -914,6 +998,8 @@ async function uploadAdminPhotos(jobId) {
   await loadJobPhotos(jobId);
 }
 
+// loadJobPhotos: fetches photos for a job and renders them as thumbnails.
+// Uses shared fetchPhotoUrls() and renderPhotoGrid() from shared.js.
 async function loadJobPhotos(jobId) {
   const grid = document.getElementById(`job-photos-${jobId}`);
   if (!grid) return;
@@ -924,61 +1010,33 @@ async function loadJobPhotos(jobId) {
     .eq('job_id', jobId)
     .order('uploaded_at', { ascending: false });
 
-  if (!photos?.length) { grid.innerHTML = '<span style="font-size:0.82rem;color:#aaa">No photos uploaded yet.</span>'; return; }
+  if (!photos?.length) {
+    grid.innerHTML = '<span style="font-size:0.82rem;color:#aaa">No photos uploaded yet.</span>';
+    return;
+  }
 
-  const withUrls = await Promise.all(photos.map(async p => {
-    // Try signed URL first (works for private buckets)
-    const { data: signed } = await db.storage.from('job-photos').createSignedUrl(p.storage_path, 7200);
-    if (signed?.signedUrl) return { ...p, url: signed.signedUrl };
-    // Fallback: public URL (works if bucket is set to public)
-    const { data: pub } = db.storage.from('job-photos').getPublicUrl(p.storage_path);
-    return { ...p, url: pub?.publicUrl || null };
-  }));
-
-  grid.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:0.5rem">' + withUrls.map(p =>
-    `<div style="text-align:center">
-      ${p.url
-        ? `<a href="${p.url}" target="_blank"><img src="${p.url}"
-            style="width:100px;height:80px;object-fit:cover;border:1px solid #ccc;display:block;cursor:pointer"
-            onerror="this.parentElement.innerHTML='<div style=&quot;width:100px;height:80px;background:#eee;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:0.75rem;padding:4px&quot;>' + (p.file_name||'photo') + '</div>'"></a>`
-        : `<div style="width:100px;height:80px;background:#eee;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:0.75rem;padding:4px">${p.file_name||'photo'}</div>`
-      }
-      <div style="font-size:0.72rem;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">
-        ${p.url ? `<a href="${p.url}" target="_blank" style="color:#1a4a8a">${p.file_name||'photo'}</a>` : (p.file_name||'photo')}
-      </div>
-      <div style="font-size:0.72rem;color:#888">${new Date(p.uploaded_at).toLocaleDateString('en-US')}</div>
-    </div>`
-  ).join('') + '</div>';
+  const withUrls = await fetchPhotoUrls(photos);
+  renderPhotoGrid(grid, withUrls, true);
 }
 
-function resizeImage(file, maxW) {
-  return new Promise(resolve => {
-    const img = new Image(), url = URL.createObjectURL(file);
-    img.onload = () => {
-      const scale = Math.min(1, maxW / img.width);
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width * scale; canvas.height = img.height * scale;
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.85);
-      URL.revokeObjectURL(url);
-    };
-    img.src = url;
-  });
-}
 
 // ---- REOPEN / EDIT MODAL ----
+// openReopen: loads a job's current data into the edit modal so the admin
+// can change status, completion details, or line items.
 async function openReopen(jobId) {
   reopenParts = []; reopenLabor = []; reopenCharges = [];
+
   const { data: job } = await db.from('jobs')
     .select(`*, accounts!jobs_account_id_fkey(account_name), job_types(job_type_name),
              job_completions(*), job_line_items(*)`)
     .eq('id', jobId).single();
 
-  const comp = job.job_completions?.[0] || {};
+  const comp      = job.job_completions?.[0] || {};
   const laborOpts = allLaborTypes.map(l => `<option value="${l.id}">${l.labor_type_name}</option>`).join('');
-  const statusOpts = ['Scheduled','Quoted','Awaiting Parts','Pending Review','Flagged','Approved','Cancelled']
-    .map(s => `<option value="${s}" ${s===job.status?'selected':''}>${s}</option>`).join('');
+  const statusOpts = ['Scheduled', 'Quoted', 'Awaiting Parts', 'Pending Review', 'Flagged', 'Approved', 'Cancelled']
+    .map(s => `<option value="${s}" ${s === job.status ? 'selected' : ''}>${s}</option>`).join('');
 
+  // Pre-populate the line item arrays from the job's existing line items
   (job.job_line_items || []).forEach(i => {
     if (i.item_type === 'Part') {
       const p = allParts.find(x => x.id === i.item_id);
@@ -997,28 +1055,28 @@ async function openReopen(jobId) {
 
     <div class="form-row"><label>Status</label><select id="ro-status">${statusOpts}</select></div>
     <div class="two-col">
-      <div class="form-row"><label>Work Order No.</label><input type="text" id="ro-wo" value="${job.work_order_number||''}"></div>
-      <div class="form-row"><label>Purchase Order No.</label><input type="text" id="ro-po" value="${job.purchase_order_number||''}"></div>
+      <div class="form-row"><label>Work Order No.</label><input type="text" id="ro-wo" value="${job.work_order_number || ''}"></div>
+      <div class="form-row"><label>Purchase Order No.</label><input type="text" id="ro-po" value="${job.purchase_order_number || ''}"></div>
     </div>
-    <div class="form-row"><label>Scope</label><textarea id="ro-scope">${job.scope||''}</textarea></div>
-    <div class="form-row"><label>Site Notes</label><textarea id="ro-sitenotes">${job.site_notes||''}</textarea></div>
+    <div class="form-row"><label>Scope</label><textarea id="ro-scope">${job.scope || ''}</textarea></div>
+    <div class="form-row"><label>Site Notes</label><textarea id="ro-sitenotes">${job.site_notes || ''}</textarea></div>
 
     <div class="section-title">Completion Details</div>
     <div class="form-row"><label>Time In</label>
-      <input type="datetime-local" id="ro-timein" value="${comp.time_in ? comp.time_in.slice(0,16) : ''}"></div>
+      <input type="datetime-local" id="ro-timein" value="${comp.time_in ? comp.time_in.slice(0, 16) : ''}"></div>
     <div class="form-row"><label>Time Out</label>
-      <input type="datetime-local" id="ro-timeout" value="${comp.time_out ? comp.time_out.slice(0,16) : ''}"></div>
+      <input type="datetime-local" id="ro-timeout" value="${comp.time_out ? comp.time_out.slice(0, 16) : ''}"></div>
     <div class="form-row"><label>Payment Type</label>
       <select id="ro-paytype">
         <option value="">-- Select --</option>
-        ${['Cash','Check','Card','Invoice'].map(p => `<option ${p===comp.payment_type?'selected':''}>${p}</option>`).join('')}
+        ${['Cash', 'Check', 'Card', 'Invoice'].map(p => `<option ${p === comp.payment_type ? 'selected' : ''}>${p}</option>`).join('')}
       </select>
     </div>
     <div class="form-row"><label>Payment Detail</label>
-      <input type="text" id="ro-paydetail" value="${comp.payment_detail||''}"></div>
+      <input type="text" id="ro-paydetail" value="${comp.payment_detail || ''}"></div>
     <div class="form-row"><label>Tech Notes</label>
-      <textarea id="ro-technotes">${comp.tech_notes||''}</textarea></div>
-    <div class="form-row"><label><input type="checkbox" id="ro-followup" ${comp.follow_up_flag?'checked':''}> Follow-up Flag</label></div>
+      <textarea id="ro-technotes">${comp.tech_notes || ''}</textarea></div>
+    <div class="form-row"><label><input type="checkbox" id="ro-followup" ${comp.follow_up_flag ? 'checked' : ''}> Follow-up Flag</label></div>
 
     <div class="section-title">Parts</div>
     <div class="parts-search-wrap">
@@ -1050,7 +1108,7 @@ async function openReopen(jobId) {
     <table id="ro-charges-table"><thead><tr><th>Type</th><th>Description</th><th>Amount</th><th></th></tr></thead><tbody></tbody></table>
 
     <div id="ro-msg" style="margin-top:0.5rem"></div>
-    <button class="btn btn-primary" style="margin-top:0.8rem" onclick="saveReopen('${jobId}','${comp.id||''}')">Save Changes</button>
+    <button class="btn btn-primary" style="margin-top:0.8rem" onclick="saveReopen('${jobId}', '${comp.id || ''}')">Save Changes</button>
   `;
 
   renderReopenParts(); renderReopenLabor(); renderReopenCharges();
@@ -1059,18 +1117,22 @@ async function openReopen(jobId) {
 
 function closeReopenModal() { document.getElementById('reopen-modal').style.display = 'none'; }
 
-// Reopen parts
+// ---- Reopen Parts ----
+// searchReopenParts / addReopenPart / removeReopenPart / renderReopenParts:
+// manage the parts list in the reopen modal using the same pattern as assignParts.
 function searchReopenParts() {
-  const q = document.getElementById('ro-partsearch').value.toLowerCase();
+  const q   = document.getElementById('ro-partsearch').value.toLowerCase();
   const res = document.getElementById('ro-parts-results');
   if (q.length < 2) { res.style.display = 'none'; return; }
   const matches = allParts.filter(p => p.part_name.toLowerCase().includes(q)).slice(0, 8);
   if (!matches.length) { res.style.display = 'none'; return; }
   res.innerHTML = matches.map(p =>
-    `<div data-id="${p.id}" data-name="${p.part_name.replace(/"/g,'&quot;')}">
-      ${p.part_name} ${p.category ? '| ' + p.category : ''}</div>`
+    `<div data-id="${p.id}" data-name="${p.part_name.replace(/"/g, '&quot;')}">
+      ${p.part_name}${p.category ? ' | ' + p.category : ''}</div>`
   ).join('');
   res.style.display = 'block';
+  // WHY mousedown + preventDefault: mousedown fires before the input loses focus (blur).
+  // Without preventDefault, the dropdown disappears before the click registers.
   res.querySelectorAll('div').forEach(div => {
     div.addEventListener('mousedown', e => {
       e.preventDefault();
@@ -1095,9 +1157,9 @@ function renderReopenParts() {
   ).join('') || '<tr><td colspan="3" style="color:#aaa;font-style:italic">None</td></tr>';
 }
 
-// Reopen labor
+// ---- Reopen Labor ----
 function addReopenLabor() {
-  const id = document.getElementById('ro-labortype').value;
+  const id    = document.getElementById('ro-labortype').value;
   const hours = parseFloat(document.getElementById('ro-laborhours').value);
   if (!id || isNaN(hours)) return;
   const lt = allLaborTypes.find(l => l.id === id);
@@ -1113,16 +1175,16 @@ function renderReopenLabor() {
   ).join('') || '<tr><td colspan="3" style="color:#aaa;font-style:italic">None</td></tr>';
 }
 
-// Reopen charges
+// ---- Reopen Charges ----
 function addReopenCharge() {
   const type = document.getElementById('ro-chargetype').value;
   const desc = document.getElementById('ro-chargedesc').value.trim();
-  const amt = parseFloat(document.getElementById('ro-chargeamt').value);
+  const amt  = parseFloat(document.getElementById('ro-chargeamt').value);
   if (isNaN(amt) || amt < 0) return;
   reopenCharges.push({ type, description: desc, amount: amt });
   renderReopenCharges();
   document.getElementById('ro-chargedesc').value = '';
-  document.getElementById('ro-chargeamt').value = '';
+  document.getElementById('ro-chargeamt').value  = '';
 }
 function removeReopenCharge(idx) { reopenCharges.splice(idx, 1); renderReopenCharges(); }
 function renderReopenCharges() {
@@ -1132,31 +1194,34 @@ function renderReopenCharges() {
   ).join('') || '<tr><td colspan="4" style="color:#aaa;font-style:italic">None</td></tr>';
 }
 
+// saveReopen: writes all changes from the reopen modal back to the database.
+// Line items are replaced wholesale — existing items are deleted and re-inserted.
 async function saveReopen(jobId, compId) {
   const msg = document.getElementById('ro-msg');
   msg.innerHTML = '';
 
   await db.from('jobs').update({
-    status: document.getElementById('ro-status').value,
-    scope: document.getElementById('ro-scope').value || null,
-    site_notes: document.getElementById('ro-sitenotes').value || null,
-    work_order_number: document.getElementById('ro-wo').value || null,
-    purchase_order_number: document.getElementById('ro-po').value || null,
+    status:               document.getElementById('ro-status').value,
+    scope:                document.getElementById('ro-scope').value     || null,
+    site_notes:           document.getElementById('ro-sitenotes').value || null,
+    work_order_number:    document.getElementById('ro-wo').value        || null,
+    purchase_order_number: document.getElementById('ro-po').value       || null,
     updated_at: new Date().toISOString()
   }).eq('id', jobId);
 
   const compPayload = {
-    job_id: jobId,
-    time_in: document.getElementById('ro-timein').value || null,
-    time_out: document.getElementById('ro-timeout').value || null,
-    payment_type: document.getElementById('ro-paytype').value || null,
-    payment_detail: document.getElementById('ro-paydetail').value || null,
-    tech_notes: document.getElementById('ro-technotes').value || null,
-    follow_up_flag: document.getElementById('ro-followup').checked,
-    last_edited_by: currentUser.id,
-    last_edited_at: new Date().toISOString()
+    job_id:          jobId,
+    time_in:         document.getElementById('ro-timein').value    || null,
+    time_out:        document.getElementById('ro-timeout').value   || null,
+    payment_type:    document.getElementById('ro-paytype').value   || null,
+    payment_detail:  document.getElementById('ro-paydetail').value || null,
+    tech_notes:      document.getElementById('ro-technotes').value || null,
+    follow_up_flag:  document.getElementById('ro-followup').checked,
+    last_edited_by:  currentUser.id,
+    last_edited_at:  new Date().toISOString()
   };
 
+  // Update existing completion record or create a new one if none exists
   if (compId) {
     await db.from('job_completions').update(compPayload).eq('id', compId);
   } else {
@@ -1164,16 +1229,22 @@ async function saveReopen(jobId, compId) {
     await db.from('job_completions').insert(compPayload);
   }
 
-  // Replace line items wholesale
+  // Replace all line items wholesale (delete then re-insert)
   await db.from('job_line_items').delete().eq('job_id', jobId);
   const lineItems = [
-    ...reopenParts.map(p => ({ job_id: jobId, item_type: 'Part', item_id: p.id, quantity: p.qty,
-      unit_cost: allParts.find(x => x.id === p.id)?.unit_cost || 0 })),
-    ...reopenLabor.map(l => ({ job_id: jobId, item_type: 'Labor', item_id: l.id, quantity: l.hours,
-      unit_cost: allLaborTypes.find(x => x.id === l.id)?.hourly_rate || 0 })),
-    ...reopenCharges.map(c => ({ job_id: jobId, item_type: c.type,
+    ...reopenParts.map(p => ({
+      job_id: jobId, item_type: 'Part', item_id: p.id,
+      quantity: p.qty, unit_cost: allParts.find(x => x.id === p.id)?.unit_cost || 0
+    })),
+    ...reopenLabor.map(l => ({
+      job_id: jobId, item_type: 'Labor', item_id: l.id,
+      quantity: l.hours, unit_cost: allLaborTypes.find(x => x.id === l.id)?.hourly_rate || 0
+    })),
+    ...reopenCharges.map(c => ({
+      job_id: jobId, item_type: c.type,
       item_id: '00000000-0000-0000-0000-000000000000',
-      quantity: 1, unit_cost: c.amount, override_reason: c.description }))
+      quantity: 1, unit_cost: c.amount, override_reason: c.description
+    }))
   ];
   if (lineItems.length) await db.from('job_line_items').insert(lineItems);
 
@@ -1181,272 +1252,16 @@ async function saveReopen(jobId, compId) {
   setTimeout(() => { closeReopenModal(); loadReview(); }, 1000);
 }
 
-// ---- SEARCH ----
-async function runSearch() {
-  const from = document.getElementById('s-from').value;
-  const to = document.getElementById('s-to').value;
-  const account = document.getElementById('s-account').value;
-  const tech = document.getElementById('s-tech').value;
-  const status = document.getElementById('s-status').value;
-  const category = document.getElementById('s-category').value;
-  const address = document.getElementById('s-address').value.trim().toLowerCase();
 
-  let query = db.from('jobs')
-    .select(`id, job_date, status, scope, is_fixed_price, quote_amount, work_order_number, purchase_order_number,
-             accounts!jobs_account_id_fkey(account_name, address),
-             sub:accounts!jobs_sub_account_id_fkey(account_name),
-             job_types(job_type_name, category),
-             job_line_items(unit_cost, override_cost, quantity)`)
-    .order('job_date', { ascending: false });
-
-  if (from) query = query.gte('job_date', from);
-  if (to) query = query.lte('job_date', to);
-  if (account) query = query.eq('account_id', account);
-  if (status) query = query.eq('status', status);
-  if (category) query = query.eq('job_types.category', category);
-  if (tech) query = query.contains('assigned_tech_ids', [tech]);
-
-  const { data, error } = await query;
-  const el = document.getElementById('search-results');
-  if (error) { el.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
-
-  let results = data || [];
-  if (address) results = results.filter(j => (j.accounts?.address || '').toLowerCase().includes(address));
-  if (!results.length) { el.innerHTML = '<p>No results.</p>'; return; }
-
-  const totalRevenue = results.reduce((sum, j) =>
-    sum + (j.job_line_items || []).reduce((s, i) => s + ((i.override_cost ?? i.unit_cost) * i.quantity), 0), 0);
-
-  el.innerHTML = `
-    <div class="card" style="font-weight:bold">
-      ${results.length} jobs found | Total: $${totalRevenue.toFixed(2)}
-    </div>
-    <div style="overflow-x:auto">
-    <table>
-      <thead><tr><th>Date</th><th>Account</th><th>Type</th><th>WO</th><th>Status</th><th>Address</th><th>Total</th></tr></thead>
-      <tbody>${results.map(j => {
-        const total = (j.job_line_items || []).reduce((s,i) => s + ((i.override_cost??i.unit_cost)*i.quantity), 0);
-        return `<tr>
-          <td style="white-space:nowrap">${formatDate(j.job_date)}</td>
-          <td>${j.accounts?.account_name || ''}${j.sub?.account_name ? ' / '+j.sub.account_name : ''}</td>
-          <td>${j.job_types?.job_type_name || ''}</td>
-          <td style="font-size:0.82rem">${j.work_order_number || ''}</td>
-          <td><span class="status-badge status-${j.status.replace(/ /g,'-')}">${j.status}</span></td>
-          <td style="font-size:0.82rem">${j.accounts?.address || ''}</td>
-          <td>$${total.toFixed(2)}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table>
-    </div>`;
-}
-
-// ---- EXPORT ----
-async function runExport() {
-  const from = document.getElementById('ex-from').value;
-  const to = document.getElementById('ex-to').value;
-  const status = document.getElementById('ex-status').value;
-  const msg = document.getElementById('export-msg');
-  msg.innerHTML = '';
-
-  let query = db.from('jobs')
-    .select(`id, job_date, status, is_fixed_price, quote_amount, work_order_number, purchase_order_number,
-             accounts!jobs_account_id_fkey(account_name),
-             sub:accounts!jobs_sub_account_id_fkey(account_name),
-             job_types(job_type_name),
-             job_completions(time_in,time_out,payment_type,payment_detail,tech_notes),
-             job_line_items(item_type,item_id,quantity,unit_cost,override_cost,override_reason)`)
-    .order('job_date');
-
-  if (from) query = query.gte('job_date', from);
-  if (to) query = query.lte('job_date', to);
-  if (status) query = query.eq('status', status);
-
-  const { data, error } = await query;
-  if (error || !data?.length) { msg.innerHTML = '<div class="msg error">No data found.</div>'; return; }
-
-  const rows = [['Date','Customer','Sub-Customer','Job Type','WO','PO','Item Type','Item','Qty','Unit Cost','Override Cost','Extended','Payment Type','Payment Detail','Tech Notes','Status']];
-  data.forEach(j => {
-    const comp = j.job_completions?.[0] || {};
-    const items = j.job_line_items || [];
-    const base = [
-      formatDate(j.job_date),
-      j.accounts?.account_name || '',
-      j.sub?.account_name || '',
-      j.job_types?.job_type_name || '',
-      j.work_order_number || '',
-      j.purchase_order_number || ''
-    ];
-    if (items.length) {
-      items.forEach(i => {
-        let itemName = i.override_reason || '';
-        if (i.item_type === 'Part') itemName = allParts.find(p => p.id === i.item_id)?.part_name || i.item_id;
-        else if (i.item_type === 'Labor') itemName = allLaborTypes.find(l => l.id === i.item_id)?.labor_type_name || i.item_id;
-        const cost = i.override_cost ?? i.unit_cost;
-        rows.push([...base, i.item_type, itemName, i.quantity, i.unit_cost, i.override_cost||'', (cost*i.quantity).toFixed(2),
-          comp.payment_type||'', comp.payment_detail||'', comp.tech_notes||'', j.status]);
-      });
-    } else {
-      rows.push([...base, '', '', '', '', '', '', comp.payment_type||'', comp.payment_detail||'', comp.tech_notes||'', j.status]);
-    }
-  });
-
-  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `faithlock_export_${from}_${to}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-  msg.innerHTML = `<div class="msg success">${data.length} jobs exported.</div>`;
-}
-
-// ---- REFERENCE DATA ----
-function showRefTab(tab) {
-  ['parts','jobtypes','labortypes','techs'].forEach(t => {
-    document.getElementById(`ref-${t}`).style.display = t === tab ? '' : 'none';
-  });
-}
-
-function renderPartsRef() {
-  const tbody = document.getElementById('parts-ref-body');
-  if (!tbody) return;
-  tbody.innerHTML = allParts.map(p => `<tr>
-    <td>${p.part_name}</td><td>${p.category||''}</td><td>${p.unit||''}</td>
-    <td>$${Number(p.unit_cost).toFixed(2)}</td>
-    <td>${p.active ? 'Yes' : 'No'}</td>
-    <td><button class="btn btn-red" onclick="toggleActive('parts','${p.id}',${p.active})">
-      ${p.active ? 'Deactivate' : 'Activate'}</button></td>
-  </tr>`).join('');
-}
-
-async function addPart() {
-  const name = document.getElementById('rp-name').value.trim();
-  if (!name) return;
-  const { error } = await db.from('parts').insert({
-    part_name: name,
-    category: document.getElementById('rp-category').value || null,
-    unit: document.getElementById('rp-unit').value || null,
-    unit_cost: parseFloat(document.getElementById('rp-cost').value) || 0
-  });
-  if (error) { document.getElementById('parts-ref-msg').innerHTML = `<div class="msg error">${error.message}</div>`; return; }
-  ['rp-name','rp-category','rp-unit','rp-cost'].forEach(id => document.getElementById(id).value = '');
-  await loadRefData();
-}
-
-function renderJobTypesRef() {
-  const tbody = document.getElementById('jobtypes-ref-body');
-  if (!tbody) return;
-  tbody.innerHTML = allJobTypes.map(j => `<tr>
-    <td>${j.job_type_name}</td><td>${j.category||''}</td>
-    <td>${j.flat_rate ? '$'+Number(j.flat_rate).toFixed(2) : '--'}</td>
-    <td>${j.active ? 'Yes' : 'No'}</td>
-    <td><button class="btn btn-red" onclick="toggleActive('job_types','${j.id}',${j.active})">
-      ${j.active ? 'Deactivate' : 'Activate'}</button></td>
-  </tr>`).join('');
-}
-
-async function addJobType() {
-  const name = document.getElementById('rjt-name').value.trim();
-  if (!name) return;
-  await db.from('job_types').insert({
-    job_type_name: name,
-    category: document.getElementById('rjt-category').value || null,
-    flat_rate: parseFloat(document.getElementById('rjt-rate').value) || null
-  });
-  ['rjt-name','rjt-category','rjt-rate'].forEach(id => document.getElementById(id).value = '');
-  await loadRefData();
-}
-
-function renderLaborTypesRef() {
-  const tbody = document.getElementById('labortypes-ref-body');
-  if (!tbody) return;
-  tbody.innerHTML = allLaborTypes.map(l => `<tr>
-    <td>${l.labor_type_name}</td><td>$${Number(l.hourly_rate).toFixed(2)}/hr</td>
-    <td><button class="btn btn-red" onclick="deleteLaborType('${l.id}')">Delete</button></td>
-  </tr>`).join('');
-}
-
-async function addLaborType() {
-  const name = document.getElementById('rlt-name').value.trim();
-  if (!name) return;
-  await db.from('labor_types').insert({
-    labor_type_name: name,
-    hourly_rate: parseFloat(document.getElementById('rlt-rate').value) || 0
-  });
-  ['rlt-name','rlt-rate'].forEach(id => document.getElementById(id).value = '');
-  await loadRefData();
-}
-
-async function deleteLaborType(id) {
-  if (!confirm('Delete this labor type?')) return;
-  await db.from('labor_types').delete().eq('id', id);
-  await loadRefData();
-}
-
-function renderTechsRef() {
-  const tbody = document.getElementById('techs-ref-body');
-  if (!tbody) return;
-  tbody.innerHTML = allTechs.map(t => `<tr>
-    <td>${t.tech_name}</td><td>${t.active ? 'Yes' : 'No'}</td>
-    <td><button class="btn btn-red" onclick="toggleActive('techs','${t.id}',${t.active})">
-      ${t.active ? 'Deactivate' : 'Activate'}</button></td>
-  </tr>`).join('');
-}
-
-async function addTech() {
-  const name = document.getElementById('rt-name').value.trim();
-  if (!name) return;
-  await db.from('techs').insert({ tech_name: name });
-  document.getElementById('rt-name').value = '';
-  await loadRefData();
-}
-
-async function toggleActive(table, id, current) {
-  await db.from(table).update({ active: !current }).eq('id', id);
-  await loadRefData();
-}
-
-// ---- NEW CUSTOMERS ----
-async function loadNewCustomers() {
-  const { data } = await db.from('new_customers').select('*').eq('migrated', false).order('submitted_at', { ascending: false });
-  const el = document.getElementById('newcustomers-list');
-  if (!data?.length) { el.innerHTML = '<p>No pending submissions.</p>'; return; }
-  el.innerHTML = `<div style="overflow-x:auto"><table>
-    <thead><tr><th>Submitted</th><th>Name</th><th>Address</th><th>Phone</th><th>Notes</th><th></th></tr></thead>
-    <tbody>${data.map(c => `<tr>
-      <td style="font-size:0.82rem;white-space:nowrap">${new Date(c.submitted_at).toLocaleDateString('en-US')}</td>
-      <td>${c.name}</td><td>${c.address||''}</td><td>${c.phone||''}</td>
-      <td style="font-size:0.82rem">${c.notes||''}</td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-green" onclick="migrateCustomer('${c.id}','${c.name.replace(/'/g,"\\'")}','${(c.address||'').replace(/'/g,"\\'")}','${c.phone||''}')">Add to Accounts</button>
-        <button class="btn btn-red" onclick="dismissCustomer('${c.id}')">Dismiss</button>
-      </td>
-    </tr>`).join('')}</tbody>
-  </table></div>`;
-}
-
-async function migrateCustomer(id, name, address, phone) {
-  const { error } = await db.from('accounts').insert({ account_name: name, address, phone });
-  if (error) { alert(error.message); return; }
-  await db.from('new_customers').update({ migrated: true }).eq('id', id);
-  loadNewCustomers();
-}
-
-async function dismissCustomer(id) {
-  await db.from('new_customers').update({ migrated: true }).eq('id', id);
-  loadNewCustomers();
-}
-
-// ---- ASSIGN PARTS / LABOR / CHARGES ----
+// ---- ASSIGN: PARTS SEARCH ----
 function searchAssignParts() {
-  const q = document.getElementById('a-partsearch').value.toLowerCase().trim();
+  const q   = document.getElementById('a-partsearch').value.toLowerCase().trim();
   const res = document.getElementById('a-parts-results');
   if (!q) { res.style.display = 'none'; return; }
   const matches = allParts.filter(p => p.part_name.toLowerCase().includes(q)).slice(0, 10);
   if (!matches.length) { res.style.display = 'none'; return; }
-  res.innerHTML = matches.map((p, i) =>
-    `<div data-idx="${i}" data-id="${p.id}" data-name="${p.part_name.replace(/"/g,'&quot;')}">
+  res.innerHTML = matches.map(p =>
+    `<div data-id="${p.id}" data-name="${p.part_name.replace(/"/g, '&quot;')}">
       ${p.part_name}${p.unit ? ' (' + p.unit + ')' : ''}${p.category ? ' | ' + p.category : ''}</div>`
   ).join('');
   res.style.display = 'block';
@@ -1459,10 +1274,10 @@ function searchAssignParts() {
   });
 }
 
+// Close parts dropdowns when clicking elsewhere on the page
 document.addEventListener('click', e => {
-  if (!e.target.closest('.parts-search-wrap')) {
+  if (!e.target.closest('.parts-search-wrap'))
     document.querySelectorAll('.parts-results').forEach(el => el.style.display = 'none');
-  }
 });
 
 function addAssignPart(id, name) {
@@ -1481,8 +1296,10 @@ function renderAssignParts() {
   ).join('') || '<tr><td colspan="3" style="color:#aaa;font-style:italic">None</td></tr>';
 }
 
+
+// ---- ASSIGN: LABOR ----
 function addAssignLabor() {
-  const id = document.getElementById('a-labortype').value;
+  const id    = document.getElementById('a-labortype').value;
   const hours = parseFloat(document.getElementById('a-laborhours').value);
   if (!id || isNaN(hours) || hours <= 0) return;
   const lt = allLaborTypes.find(l => l.id === id);
@@ -1499,15 +1316,17 @@ function renderAssignLabor() {
   ).join('') || '<tr><td colspan="3" style="color:#aaa;font-style:italic">None</td></tr>';
 }
 
+
+// ---- ASSIGN: CHARGES ----
 function addAssignCharge() {
   const type = document.getElementById('a-chargetype').value;
   const desc = document.getElementById('a-chargedesc').value.trim();
-  const amt = parseFloat(document.getElementById('a-chargeamt').value);
+  const amt  = parseFloat(document.getElementById('a-chargeamt').value);
   if (isNaN(amt) || amt < 0) return;
   assignCharges.push({ type, description: desc, amount: amt });
   renderAssignCharges();
   document.getElementById('a-chargedesc').value = '';
-  document.getElementById('a-chargeamt').value = '';
+  document.getElementById('a-chargeamt').value  = '';
 }
 function removeAssignCharge(idx) { assignCharges.splice(idx, 1); renderAssignCharges(); }
 function renderAssignCharges() {
@@ -1517,12 +1336,245 @@ function renderAssignCharges() {
   ).join('') || '<tr><td colspan="4" style="color:#aaa;font-style:italic">None</td></tr>';
 }
 
+
+// ---- SEARCH ----
+async function runSearch() {
+  const from     = document.getElementById('s-from').value;
+  const to       = document.getElementById('s-to').value;
+  const account  = document.getElementById('s-account').value;
+  const tech     = document.getElementById('s-tech').value;
+  const status   = document.getElementById('s-status').value;
+  const category = document.getElementById('s-category').value;
+  const address  = document.getElementById('s-address').value.trim().toLowerCase();
+
+  let query = db.from('jobs')
+    .select(`id, job_date, status, scope, is_fixed_price, quote_amount, work_order_number, purchase_order_number,
+             accounts!jobs_account_id_fkey(account_name, address),
+             sub:accounts!jobs_sub_account_id_fkey(account_name),
+             job_types(job_type_name, category),
+             job_line_items(unit_cost, override_cost, quantity)`)
+    .order('job_date', { ascending: false });
+
+  if (from)     query = query.gte('job_date', from);
+  if (to)       query = query.lte('job_date', to);
+  if (account)  query = query.eq('account_id', account);
+  if (status)   query = query.eq('status', status);
+  if (category) query = query.eq('job_types.category', category);
+  // .contains() checks if the assigned_tech_ids array includes the given tech UUID
+  if (tech)     query = query.contains('assigned_tech_ids', [tech]);
+
+  const { data, error } = await query;
+  const el = document.getElementById('search-results');
+  if (error) { el.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
+
+  let results = data || [];
+  // Address is filtered client-side since Supabase can't do partial match on a joined column
+  if (address) results = results.filter(j => (j.accounts?.address || '').toLowerCase().includes(address));
+  if (!results.length) { el.innerHTML = '<p>No results.</p>'; return; }
+
+  const totalRevenue = results.reduce((sum, j) => sum + calcRevenue(j.job_line_items), 0);
+
+  el.innerHTML = `
+    <div class="card" style="font-weight:bold">${results.length} jobs found | Total: $${totalRevenue.toFixed(2)}</div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>Date</th><th>Account</th><th>Type</th><th>WO</th><th>Status</th><th>Address</th><th>Total</th></tr></thead>
+      <tbody>${results.map(j => {
+        const total = calcRevenue(j.job_line_items);
+        return `<tr>
+          <td style="white-space:nowrap">${formatDate(j.job_date)}</td>
+          <td>${j.accounts?.account_name || ''}${j.sub?.account_name ? ' / ' + j.sub.account_name : ''}</td>
+          <td>${j.job_types?.job_type_name || ''}</td>
+          <td style="font-size:0.82rem">${j.work_order_number || ''}</td>
+          <td><span class="status-badge status-${j.status.replace(/ /g, '-')}">${j.status}</span></td>
+          <td style="font-size:0.82rem">${j.accounts?.address ? mapsLink(j.accounts.address) : ''}</td>
+          <td>$${total.toFixed(2)}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+    </div>`;
+}
+
+
+// ---- EXPORT ----
+// runExport: fetches approved jobs for a date range and downloads a CSV
+// formatted for import into QuickBooks Desktop.
+async function runExport() {
+  const from   = document.getElementById('ex-from').value;
+  const to     = document.getElementById('ex-to').value;
+  const status = document.getElementById('ex-status').value;
+  const msg    = document.getElementById('export-msg');
+  msg.innerHTML = '';
+
+  let query = db.from('jobs')
+    .select(`id, job_date, status, is_fixed_price, quote_amount, work_order_number, purchase_order_number,
+             accounts!jobs_account_id_fkey(account_name),
+             sub:accounts!jobs_sub_account_id_fkey(account_name),
+             job_types(job_type_name),
+             job_completions(time_in,time_out,payment_type,payment_detail,tech_notes),
+             job_line_items(item_type,item_id,quantity,unit_cost,override_cost,override_reason)`)
+    .order('job_date');
+
+  if (from)   query = query.gte('job_date', from);
+  if (to)     query = query.lte('job_date', to);
+  if (status) query = query.eq('status', status);
+
+  const { data, error } = await query;
+  if (error || !data?.length) { msg.innerHTML = '<div class="msg error">No data found.</div>'; return; }
+
+  const rows = [['Date', 'Customer', 'Sub-Customer', 'Job Type', 'WO', 'PO', 'Item Type', 'Item', 'Qty', 'Unit Cost', 'Override Cost', 'Extended', 'Payment Type', 'Payment Detail', 'Tech Notes', 'Status']];
+  data.forEach(j => {
+    const comp  = j.job_completions?.[0] || {};
+    const items = j.job_line_items || [];
+    const base  = [
+      formatDate(j.job_date),
+      j.accounts?.account_name || '',
+      j.sub?.account_name || '',
+      j.job_types?.job_type_name || '',
+      j.work_order_number || '',
+      j.purchase_order_number || ''
+    ];
+    if (items.length) {
+      items.forEach(i => {
+        let itemName = i.override_reason || '';
+        if (i.item_type === 'Part')  itemName = allParts.find(p => p.id === i.item_id)?.part_name || i.item_id;
+        if (i.item_type === 'Labor') itemName = allLaborTypes.find(l => l.id === i.item_id)?.labor_type_name || i.item_id;
+        const cost = i.override_cost ?? i.unit_cost;
+        rows.push([...base, i.item_type, itemName, i.quantity, i.unit_cost, i.override_cost || '', (cost * i.quantity).toFixed(2),
+          comp.payment_type || '', comp.payment_detail || '', comp.tech_notes || '', j.status]);
+      });
+    } else {
+      rows.push([...base, '', '', '', '', '', '', comp.payment_type || '', comp.payment_detail || '', comp.tech_notes || '', j.status]);
+    }
+  });
+
+  downloadCSV(rows, `faithlock_export_${from}_${to}`);
+  msg.innerHTML = `<div class="msg success">${data.length} jobs exported.</div>`;
+}
+
+
+// ---- REFERENCE DATA MANAGEMENT ----
+// showRefTab: switches between the Parts / Job Types / Labor Types / Techs sub-tabs.
+function showRefTab(tab) {
+  ['parts', 'jobtypes', 'labortypes', 'techs'].forEach(t => {
+    document.getElementById(`ref-${t}`).style.display = t === tab ? '' : 'none';
+  });
+}
+
+function renderPartsRef() {
+  const tbody = document.getElementById('parts-ref-body');
+  if (!tbody) return;
+  tbody.innerHTML = allParts.map(p => `<tr>
+    <td>${p.part_name}</td><td>${p.category || ''}</td><td>${p.unit || ''}</td>
+    <td>$${Number(p.unit_cost).toFixed(2)}</td>
+    <td>${p.active ? 'Yes' : 'No'}</td>
+    <td><button class="btn btn-red" onclick="toggleActive('parts', '${p.id}', ${p.active})">
+      ${p.active ? 'Deactivate' : 'Activate'}</button></td>
+  </tr>`).join('');
+}
+
+async function addPart() {
+  const name = document.getElementById('rp-name').value.trim();
+  if (!name) return;
+  const { error } = await db.from('parts').insert({
+    part_name: name,
+    category:  document.getElementById('rp-category').value || null,
+    unit:      document.getElementById('rp-unit').value     || null,
+    unit_cost: parseFloat(document.getElementById('rp-cost').value) || 0
+  });
+  if (error) {
+    document.getElementById('parts-ref-msg').innerHTML = `<div class="msg error">${error.message}</div>`;
+    return;
+  }
+  ['rp-name', 'rp-category', 'rp-unit', 'rp-cost'].forEach(id => document.getElementById(id).value = '');
+  await loadRefData();
+}
+
+function renderJobTypesRef() {
+  const tbody = document.getElementById('jobtypes-ref-body');
+  if (!tbody) return;
+  tbody.innerHTML = allJobTypes.map(j => `<tr>
+    <td>${j.job_type_name}</td><td>${j.category || ''}</td>
+    <td>${j.flat_rate ? '$' + Number(j.flat_rate).toFixed(2) : '--'}</td>
+    <td>${j.active ? 'Yes' : 'No'}</td>
+    <td><button class="btn btn-red" onclick="toggleActive('job_types', '${j.id}', ${j.active})">
+      ${j.active ? 'Deactivate' : 'Activate'}</button></td>
+  </tr>`).join('');
+}
+
+async function addJobType() {
+  const name = document.getElementById('rjt-name').value.trim();
+  if (!name) return;
+  await db.from('job_types').insert({
+    job_type_name: name,
+    category:      document.getElementById('rjt-category').value || null,
+    flat_rate:     parseFloat(document.getElementById('rjt-rate').value) || null
+  });
+  ['rjt-name', 'rjt-category', 'rjt-rate'].forEach(id => document.getElementById(id).value = '');
+  await loadRefData();
+}
+
+function renderLaborTypesRef() {
+  const tbody = document.getElementById('labortypes-ref-body');
+  if (!tbody) return;
+  tbody.innerHTML = allLaborTypes.map(l => `<tr>
+    <td>${l.labor_type_name}</td><td>$${Number(l.hourly_rate).toFixed(2)}/hr</td>
+    <td><button class="btn btn-red" onclick="deleteLaborType('${l.id}')">Delete</button></td>
+  </tr>`).join('');
+}
+
+async function addLaborType() {
+  const name = document.getElementById('rlt-name').value.trim();
+  if (!name) return;
+  await db.from('labor_types').insert({
+    labor_type_name: name,
+    hourly_rate:     parseFloat(document.getElementById('rlt-rate').value) || 0
+  });
+  ['rlt-name', 'rlt-rate'].forEach(id => document.getElementById(id).value = '');
+  await loadRefData();
+}
+
+async function deleteLaborType(id) {
+  if (!confirm('Delete this labor type? This cannot be undone.')) return;
+  await db.from('labor_types').delete().eq('id', id);
+  await loadRefData();
+}
+
+function renderTechsRef() {
+  const tbody = document.getElementById('techs-ref-body');
+  if (!tbody) return;
+  tbody.innerHTML = allTechs.map(t => `<tr>
+    <td>${t.tech_name}</td><td>${t.active ? 'Yes' : 'No'}</td>
+    <td><button class="btn btn-red" onclick="toggleActive('techs', '${t.id}', ${t.active})">
+      ${t.active ? 'Deactivate' : 'Activate'}</button></td>
+  </tr>`).join('');
+}
+
+async function addTech() {
+  const name = document.getElementById('rt-name').value.trim();
+  if (!name) return;
+  await db.from('techs').insert({ tech_name: name });
+  document.getElementById('rt-name').value = '';
+  await loadRefData();
+}
+
+// toggleActive: flips the active boolean on any reference table row.
+// Used by parts, job types, and techs to deactivate/reactivate records
+// without deleting them (preserves history on existing jobs).
+async function toggleActive(table, id, current) {
+  await db.from(table).update({ active: !current }).eq('id', id);
+  await loadRefData();
+}
+
+
 // ---- CALENDAR ----
-let calWeekOffset = 0;
+let calWeekOffset = 0; // 0 = current week, -1 = last week, +1 = next week, etc.
 let calJobs = [];
 
+// calWeekDates: returns an array of 7 date strings (Mon–Sun) for the week
+// that is `offset` weeks from the current week.
 function calWeekDates(offset) {
-  const now = new Date();
+  const now    = new Date();
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7) + offset * 7);
   const days = [];
@@ -1537,12 +1589,15 @@ function calWeekDates(offset) {
 function calPrevWeek() { calWeekOffset--; loadCalendar(); }
 function calNextWeek() { calWeekOffset++; loadCalendar(); }
 
+// loadCalendar: fetches jobs for the displayed week, then renders the grid.
 async function loadCalendar() {
   const days = calWeekDates(calWeekOffset);
   const from = days[0], to = days[6];
   document.getElementById('cal-week-label').textContent =
-    `${new Date(from+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})} - ${new Date(to+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
+    `${new Date(from + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ` +
+    `${new Date(to   + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
+  // T12:00:00 is used to keep the date display stable across timezones
   const { data } = await db.from('jobs')
     .select(`id,job_date,status,is_fixed_price,assigned_tech_ids,lead_tech_id,
              accounts!jobs_account_id_fkey(account_name),
@@ -1554,56 +1609,64 @@ async function loadCalendar() {
   renderCalendar();
 }
 
+// renderCalendar: draws the weekly grid from the calJobs array already loaded.
+// Called separately from loadCalendar so the tech filter can re-render without a new fetch.
 function renderCalendar() {
-  const techId = document.getElementById('cal-tech').value;
-  const days = calWeekDates(calWeekOffset);
-  const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const grid = document.getElementById('calendar-grid');
+  const techId   = document.getElementById('cal-tech').value;
+  const days     = calWeekDates(calWeekOffset);
+  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const todayStr = today();
 
-  grid.innerHTML = `<table style="table-layout:fixed;min-width:560px">
+  document.getElementById('calendar-grid').innerHTML = `<table style="table-layout:fixed;min-width:560px">
     <thead><tr>${days.map((d, i) => {
-      const label = new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
-      const isToday = d === new Date().toISOString().split('T')[0];
-      return `<th style="width:14.28%;font-size:0.82rem;${isToday?'background:#1a1a1a;color:white;':''}">${dayNames[i]}<br>${label}</th>`;
+      const label   = new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const isToday = d === todayStr;
+      return `<th style="width:14.28%;font-size:0.82rem;${isToday ? 'background:#1a1a1a;color:white;' : ''}">${dayNames[i]}<br>${label}</th>`;
     }).join('')}</tr></thead>
     <tbody><tr>${days.map(d => {
       let jobs = calJobs.filter(j => j.job_date === d);
-      if (techId) jobs = jobs.filter(j => j.assigned_tech_ids && j.assigned_tech_ids.includes(techId));
+      if (techId) jobs = jobs.filter(j => j.assigned_tech_ids?.includes(techId));
       const cells = jobs.map(j => {
-        const statusColor = {
-          'Scheduled':'#e0e8ff','Quoted':'#fff0cc','Awaiting Parts':'#ffe8cc',
-          'Pending Review':'#ffd','Flagged':'#ffe0e0','Approved':'#e0ffe0'
-        }[j.status] || '#eee';
-        return `<div style="background:${statusColor};border:1px solid #ccc;padding:0.3rem;margin-bottom:0.3rem;font-size:0.78rem;border-radius:2px">
-          <strong>${j.accounts?.account_name||''}</strong><br>
-          ${j.job_types?.job_type_name||''}<br>
+        const color = { 'Scheduled': '#e0e8ff', 'Quoted': '#fff0cc', 'Awaiting Parts': '#ffe8cc',
+          'Pending Review': '#ffd', 'Flagged': '#ffe0e0', 'Approved': '#e0ffe0' }[j.status] || '#eee';
+        return `<div style="background:${color};border:1px solid #ccc;padding:0.3rem;margin-bottom:0.3rem;font-size:0.78rem;border-radius:2px">
+          <strong>${j.accounts?.account_name || ''}</strong><br>
+          ${j.job_types?.job_type_name || ''}<br>
           <span style="color:#666">${j.status}</span>
         </div>`;
       }).join('');
-      return `<td style="vertical-align:top;padding:0.3rem;border:1px solid #eee;min-height:80px">${cells||'<span style="color:#ccc;font-size:0.78rem">-</span>'}</td>`;
+      return `<td style="vertical-align:top;padding:0.3rem;border:1px solid #eee;min-height:80px">${cells || '<span style="color:#ccc;font-size:0.78rem">-</span>'}</td>`;
     }).join('')}</tr></tbody>
   </table>`;
 }
 
+
 // ---- SECTION NAVIGATION ----
+// showSection: shows the requested section and hides all others.
+// Also triggers any data loads needed when entering a section.
 function showSection(name) {
-  ['assign','review','search','export','reference','jobslist','calendar'].forEach(s => {
+  ['assign', 'review', 'search', 'export', 'reference', 'jobslist', 'calendar'].forEach(s => {
     document.getElementById(`section-${s}`).style.display = s === name ? 'block' : 'none';
   });
+
+  // Update nav button active state.
+  // navMap indices correspond to nav button positions in the DOM.
+  // The Accounts <a><button> counts as index 4, so reference/search/export are 5/6/7.
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-  const navMap = { assign:0, review:1, jobslist:2, calendar:3, reference:4, search:5, export:6 };
+  const navMap = { assign: 0, review: 1, jobslist: 2, calendar: 3, reference: 5, search: 6, export: 7 };
   const navBtns = document.querySelectorAll('nav button');
-  if (navMap[name] !== undefined && navBtns[navMap[name]]) navBtns[navMap[name]].classList.add('active');
-  if (name === 'review') loadReview();
+  if (navMap[name] !== undefined && navBtns[navMap[name]]) {
+    navBtns[navMap[name]].classList.add('active');
+  }
+
+  // Trigger data loads for sections that need them
+  if (name === 'review')   loadReview();
   if (name === 'calendar') loadCalendar();
-  if (name === 'jobslist') { setScheduleRange('week'); }
+  if (name === 'jobslist') setScheduleRange('week');
 }
 
-async function logout() {
-  await db.auth.signOut();
-  window.location.href = 'index.html';
-}
 
+// ---- BOOT ----
 init();
 </script>
 </body>
