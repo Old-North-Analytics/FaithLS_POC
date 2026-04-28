@@ -40,6 +40,7 @@ tr:hover td { background: #fafafa; }
 .status-Pending-Review { background: #ffd; color: #660; }
 .status-Flagged { background: #ffe0e0; color: #900; }
 .status-Approved { background: #e0ffe0; color: #060; }
+.status-In-Progress { background: #e0ffe0; color: #060; }
 .fixed-banner { background: #ffe0e0; border: 1px solid #f99; color: #900; padding: 0.3rem 0.6rem; margin: 0.4rem 0; font-weight: bold; font-size: 0.82rem; }
 .contact-banner { background: #e8f4ff; border: 1px solid #9bc; color: #135; padding: 0.4rem 0.6rem; margin: 0.4rem 0; font-size: 0.82rem; }
 .form-row { margin-bottom: 0.5rem; }
@@ -69,7 +70,7 @@ select[multiple] { height: 90px; }
     <button class="active" onclick="showSection('assign')">Assign</button>
     <button onclick="showSection('review')">Review</button>
     <span style="border-left:1px solid #555;margin:0 0.6rem;height:1.2rem;display:inline-block"></span>
-    <button onclick="showSection('jobslist')">Jobs List</button>
+    <a href="schedule.html" style="text-decoration:none"><button>Jobs List</button></a>
     <button onclick="showSection('calendar')">Calendar</button>
     <span style="border-left:1px solid #555;margin:0 0.6rem;height:1.2rem;display:inline-block"></span>
     <a href="accounts.html" style="text-decoration:none"><button>Accounts</button></a>
@@ -89,44 +90,69 @@ select[multiple] { height: 90px; }
 <div id="section-assign">
   <div class="card">
     <h3>Assign Job</h3>
+    <div style="display:flex;margin-bottom:0.8rem">
+      <button id="a-mode-existing" class="btn btn-primary" onclick="setAssignMode('existing')" style="margin:0;border-radius:2px 0 0 2px">Existing Account</button>
+      <button id="a-mode-new" class="btn btn-secondary" onclick="setAssignMode('new')" style="margin:0;border-radius:0 2px 2px 0">New Customer</button>
+    </div>
     <div class="two-col">
-      <div class="form-row"><label>Date</label><input type="date" id="a-date"></div>
+      <div class="form-row"><label>Date <span style="color:#c00">*</span></label><input type="date" id="a-date" oninput="this.style.border=''"></div>
       <div class="form-row"><label>Status</label>
         <select id="a-status">
           <option>Scheduled</option><option>Quoted</option><option>Awaiting Parts</option>
         </select>
       </div>
-      <div class="form-row"><label>Account</label>
-        <select id="a-account" onchange="loadSubAccounts('a'); loadAccountContact()"><option value="">-- Select --</option></select>
+    </div>
+
+    <div id="a-existing-account-fields">
+      <div class="two-col">
+        <div class="form-row"><label>Account <span style="color:#c00">*</span></label>
+          <div class="parts-search-wrap">
+            <input type="text" id="a-account" placeholder="Type to search accounts..." oninput="searchAccountTypeahead()" autocomplete="off" style="width:100%;padding:0.4rem;border:1px solid #ccc">
+            <div class="parts-results" id="a-account-results"></div>
+          </div>
+          <input type="hidden" id="a-account-id">
+        </div>
+        <div class="form-row"><label>Sub-Account</label>
+          <select id="a-subaccount"><option value="">-- None --</option></select>
+        </div>
       </div>
-      <div class="form-row"><label>Sub-Account</label>
-        <select id="a-subaccount"><option value="">-- None --</option></select>
+      <!-- Contact info pulled from CRM when account selected -->
+      <div id="a-contact-panel" style="display:none">
+        <div class="section-title">Account Contact <span style="font-weight:normal;font-size:0.82rem;color:#666">(from CRM - edit for this job only)</span></div>
+        <div id="a-contact-banner" class="contact-banner"></div>
+        <div id="a-contact-edit" style="display:none">
+          <div class="two-col">
+            <div class="form-row"><label>Contact Name</label><input type="text" id="ac-name"></div>
+            <div class="form-row"><label>Title</label><input type="text" id="ac-title"></div>
+            <div class="form-row"><label>Work Phone</label><input type="text" id="ac-workphone"></div>
+            <div class="form-row"><label>Cell Phone</label><input type="text" id="ac-cellphone"></div>
+            <div class="form-row"><label>Email</label><input type="text" id="ac-email"></div>
+            <div class="form-row"><label>Company</label><input type="text" id="ac-company"></div>
+          </div>
+          <div class="form-row"><label>Contact Notes</label><textarea id="ac-notes" style="height:40px"></textarea></div>
+          <div class="msg" style="background:#fff8d0;border:1px solid #e0c040;color:#543" id="a-contact-warn"></div>
+        </div>
+        <button class="btn btn-secondary" style="margin-bottom:0.5rem" onclick="toggleContactEdit()">Edit Contact for This Job</button>
       </div>
+    </div>
+
+    <div id="a-new-customer-fields" style="display:none">
+      <div class="two-col">
+        <div class="form-row"><label>Customer Name <span style="color:#c00">*</span></label><input type="text" id="a-nc-name" oninput="this.style.border=''"></div>
+        <div class="form-row"><label>Phone</label><input type="text" id="a-nc-phone"></div>
+      </div>
+      <div class="form-row"><label>Address</label><input type="text" id="a-nc-address"></div>
+      <div class="form-row"><label>Notes</label><textarea id="a-nc-notes"></textarea></div>
+      <div class="form-row"><label><input type="checkbox" id="a-nc-save" checked> Save to accounts list</label></div>
+    </div>
+
+    <div class="two-col">
       <div class="form-row"><label>Job Type</label>
         <select id="a-jobtype"><option value="">-- Select --</option></select>
       </div>
       <div class="form-row"><label>Lead Tech</label>
         <select id="a-leadtech"><option value="">-- Select --</option></select>
       </div>
-    </div>
-
-    <!-- Contact info pulled from CRM when account selected -->
-    <div id="a-contact-panel" style="display:none">
-      <div class="section-title">Account Contact <span style="font-weight:normal;font-size:0.82rem;color:#666">(from CRM - edit for this job only)</span></div>
-      <div id="a-contact-banner" class="contact-banner"></div>
-      <div id="a-contact-edit" style="display:none">
-        <div class="two-col">
-          <div class="form-row"><label>Contact Name</label><input type="text" id="ac-name"></div>
-          <div class="form-row"><label>Title</label><input type="text" id="ac-title"></div>
-          <div class="form-row"><label>Work Phone</label><input type="text" id="ac-workphone"></div>
-          <div class="form-row"><label>Cell Phone</label><input type="text" id="ac-cellphone"></div>
-          <div class="form-row"><label>Email</label><input type="text" id="ac-email"></div>
-          <div class="form-row"><label>Company</label><input type="text" id="ac-company"></div>
-        </div>
-        <div class="form-row"><label>Contact Notes</label><textarea id="ac-notes" style="height:40px"></textarea></div>
-        <div class="msg" style="background:#fff8d0;border:1px solid #e0c040;color:#543" id="a-contact-warn"></div>
-      </div>
-      <button class="btn btn-secondary" style="margin-bottom:0.5rem" onclick="toggleContactEdit()">Edit Contact for This Job</button>
     </div>
 
     <div class="form-row"><label>Assign Techs (hold Ctrl/Cmd for multiple)</label>
@@ -397,6 +423,7 @@ let lastJob             = null; // last-assigned job, used for "Duplicate Last J
 let reopenParts         = [];   // line items in the reopen/edit modal
 let reopenLabor         = [];
 let reopenCharges       = [];
+let reopenVisits        = [];   // job_visits rows for the job open in the modal
 let assignParts         = [];   // line items in the assign form
 let assignLabor         = [];
 let assignCharges       = [];
@@ -466,8 +493,7 @@ async function loadRefData() {
   allParts      = p.data  || [];
   allLaborTypes = lt.data || [];
 
-  // Assign form dropdowns — only master accounts shown (no parent_account_id)
-  populateSelect('a-account', allAccounts.filter(x => !x.parent_account_id), 'id', 'account_name', '-- Select Account --');
+  // Assign form dropdowns — a-account is now a typeahead, not a select
   populateSelect('a-leadtech', allTechs, 'id', 'tech_name', '-- Select Lead --');
   populateMultiSelect('a-techs', allTechs, 'id', 'tech_name');
   populateSelect('a-jobtype', allJobTypes, 'id', 'job_type_name', '-- Select --');
@@ -498,7 +524,8 @@ async function loadRefData() {
 // Called whenever the account dropdown changes (onchange="loadSubAccounts('a')").
 // prefix matches the input ID prefix used in that form section (e.g. 'a' for assign).
 function loadSubAccounts(prefix) {
-  const parentId = document.getElementById(`${prefix}-account`).value;
+  const idEl    = document.getElementById(`${prefix}-account-id`);
+  const parentId = idEl ? idEl.value : document.getElementById(`${prefix}-account`).value;
   const subs = allAccounts.filter(a => a.parent_account_id === parentId);
   populateSelect(`${prefix}-subaccount`, subs, 'id', 'account_name', '-- None --');
 }
@@ -516,7 +543,7 @@ function toggleFixed() {
 // The contact info is shown as a reference — the admin can optionally edit it
 // for this job only (changes do NOT update the CRM).
 async function loadAccountContact() {
-  const accountId = document.getElementById('a-account').value;
+  const accountId = document.getElementById('a-account-id').value;
   const panel     = document.getElementById('a-contact-panel');
   const banner    = document.getElementById('a-contact-banner');
 
@@ -562,6 +589,43 @@ async function loadAccountContact() {
   contactEditMode = false;
 }
 
+// searchAccountTypeahead: filters allAccounts client-side as the admin types.
+// Uses the same .parts-results dropdown pattern as the parts search.
+function searchAccountTypeahead() {
+  const input   = document.getElementById('a-account');
+  const results = document.getElementById('a-account-results');
+  const q       = input.value.toLowerCase().trim();
+  if (!q) {
+    results.style.display = 'none';
+    document.getElementById('a-account-id').value = '';
+    document.getElementById('a-contact-panel').style.display = 'none';
+    populateSelect('a-subaccount', [], 'id', 'account_name', '-- None --');
+    return;
+  }
+  const masters = allAccounts.filter(a => !a.parent_account_id && a.account_name.toLowerCase().includes(q)).slice(0, 12);
+  if (!masters.length) { results.style.display = 'none'; return; }
+  results.innerHTML = masters.map(a =>
+    `<div data-id="${a.id}" data-name="${a.account_name.replace(/"/g, '&quot;')}">${a.account_name}</div>`
+  ).join('');
+  results.style.display = 'block';
+  results.querySelectorAll('div').forEach(div => {
+    div.addEventListener('mousedown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      selectAccount(div.dataset.id, div.dataset.name);
+    });
+  });
+}
+
+function selectAccount(id, name) {
+  document.getElementById('a-account').value    = name;
+  document.getElementById('a-account').style.border = '';
+  document.getElementById('a-account-id').value = id;
+  document.getElementById('a-account-results').style.display = 'none';
+  loadSubAccounts('a');
+  loadAccountContact();
+}
+
 // toggleContactEdit: shows or hides the per-job contact edit fields.
 // WHY this exists: the admin sometimes needs to record a different contact
 // for a specific job (e.g. an on-site person) without changing the CRM record.
@@ -584,17 +648,75 @@ function toggleContactEdit() {
 }
 
 
+// setAssignMode: switches the assign form between Existing Account and New Customer.
+function setAssignMode(mode) {
+  const isExisting = mode === 'existing';
+  document.getElementById('a-existing-account-fields').style.display = isExisting ? '' : 'none';
+  document.getElementById('a-new-customer-fields').style.display     = isExisting ? 'none' : '';
+  document.getElementById('a-mode-existing').className = isExisting ? 'btn btn-primary'   : 'btn btn-secondary';
+  document.getElementById('a-mode-new').className      = isExisting ? 'btn btn-secondary' : 'btn btn-primary';
+  if (isExisting) {
+    ['a-nc-name','a-nc-address','a-nc-phone','a-nc-notes'].forEach(id => {
+      const el = document.getElementById(id); if (el) { el.value = ''; el.style.border = ''; }
+    });
+    document.getElementById('a-nc-save').checked = true;
+  } else {
+    document.getElementById('a-account').value    = '';
+    document.getElementById('a-account-id').value = '';
+    document.getElementById('a-contact-panel').style.display = 'none';
+    populateSelect('a-subaccount', [], 'id', 'account_name', '-- None --');
+  }
+}
+
 // ---- ASSIGN JOB ----
 // assignJob: reads the assign form and creates a new job record in Supabase,
 // including all expected line items (parts, labor, charges).
 async function assignJob() {
   const msg = document.getElementById('a-msg');
   msg.innerHTML = '';
-  const date      = document.getElementById('a-date').value;
-  const accountId = document.getElementById('a-account').value;
-  if (!date || !accountId) {
-    msg.innerHTML = '<div class="msg error">Date and account are required.</div>';
+  const date          = document.getElementById('a-date').value;
+  const isNewCustomer = document.getElementById('a-mode-new').classList.contains('btn-primary');
+  let   accountId     = null;
+
+  if (!date) {
+    msg.innerHTML = '<div class="msg error">Date is required.</div>';
+    document.getElementById('a-date').style.border = '2px solid #c00';
     return;
+  }
+
+  if (isNewCustomer) {
+    const ncName = document.getElementById('a-nc-name').value.trim();
+    if (!ncName) {
+      msg.innerHTML = '<div class="msg error">Customer name is required.</div>';
+      document.getElementById('a-nc-name').style.border = '2px solid #c00';
+      return;
+    }
+    if (document.getElementById('a-nc-save').checked) {
+      const { data: newAcct, error: acctErr } = await db.from('accounts').insert({
+        account_name: ncName,
+        address: document.getElementById('a-nc-address').value.trim() || null,
+        phone:   document.getElementById('a-nc-phone').value.trim()   || null,
+        active:  true
+      }).select('id,account_name,parent_account_id,address').single();
+      if (acctErr) { msg.innerHTML = `<div class="msg error">${acctErr.message}</div>`; return; }
+      accountId = newAcct.id;
+      allAccounts.push(newAcct);
+    } else {
+      await db.from('new_customers').insert({
+        name:         ncName,
+        address:      document.getElementById('a-nc-address').value.trim() || null,
+        phone:        document.getElementById('a-nc-phone').value.trim()   || null,
+        notes:        document.getElementById('a-nc-notes').value.trim()   || null,
+        submitted_by: currentUser.id
+      });
+    }
+  } else {
+    accountId = document.getElementById('a-account-id').value;
+    if (!accountId) {
+      msg.innerHTML = '<div class="msg error">Date and account are required.</div>';
+      document.getElementById('a-account').style.border = '2px solid #c00';
+      return;
+    }
   }
 
   const techEls = document.getElementById('a-techs').selectedOptions;
@@ -653,13 +775,21 @@ async function assignJob() {
   renderAssignParts(); renderAssignLabor(); renderAssignCharges();
   document.getElementById('a-contact-panel').style.display = 'none';
   document.getElementById('a-contact-edit').style.display  = 'none';
+  if (isNewCustomer) {
+    ['a-nc-name','a-nc-address','a-nc-phone','a-nc-notes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('a-nc-save').checked = true;
+  }
 }
 
 // duplicateLast: pre-fills the assign form with values from the last assigned job.
 // Useful when assigning the same account/type job on multiple consecutive days.
 async function duplicateLast() {
   if (!lastJob) { alert('No job assigned this session to duplicate.'); return; }
-  document.getElementById('a-account').value   = lastJob.account_id   || '';
+  const acct = allAccounts.find(a => a.id === lastJob.account_id);
+  if (acct) {
+    document.getElementById('a-account').value    = acct.account_name;
+    document.getElementById('a-account-id').value = acct.id;
+  }
   loadSubAccounts('a');
   await loadAccountContact();
   document.getElementById('a-jobtype').value   = lastJob.job_type_id  || '';
@@ -712,6 +842,7 @@ async function loadSchedule() {
     return;
   }
 
+  const addDayStatuses = ['Scheduled', 'In Progress', 'Awaiting Parts', 'Flagged'];
   el.innerHTML = `<div style="overflow-x:auto"><table>
     <thead><tr><th>Date</th><th>Account</th><th>Type</th><th>WO</th><th>Status</th><th>Scope</th><th></th></tr></thead>
     <tbody>${data.map(j => `<tr>
@@ -723,8 +854,23 @@ async function loadSchedule() {
       <td style="max-width:200px;font-size:0.82rem">${j.scope || ''}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-blue" onclick="openReopen('${j.id}')">Edit</button>
-        ${!['Approved', 'Pending Review'].includes(j.status)
+        ${addDayStatuses.includes(j.status)
+          ? `<button class="btn btn-secondary" onclick="toggleAddDayForm('${j.id}')">Add a Day</button>` : ''}
+        ${!['Approved','Pending Review'].includes(j.status)
           ? `<button class="btn btn-red" onclick="deleteJob('${j.id}')">Delete</button>` : ''}
+      </td>
+    </tr>
+    <tr id="add-day-form-${j.id}" style="display:none">
+      <td colspan="7" style="background:#f9f9f9;padding:0.7rem;border-bottom:2px solid #ccc">
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-end">
+          <div><label style="font-size:0.82rem;font-weight:bold;display:block;margin-bottom:0.2rem">Date</label>
+            <input type="date" id="add-day-date-${j.id}" value="${tomorrow()}" style="padding:0.35rem;border:1px solid #ccc"></div>
+          <div style="flex:2"><label style="font-size:0.82rem;font-weight:bold;display:block;margin-bottom:0.2rem">Notes for this visit</label>
+            <input type="text" id="add-day-notes-${j.id}" style="width:100%;padding:0.35rem;border:1px solid #ccc"></div>
+          <button class="btn btn-primary" onclick="saveAddDay('${j.id}')">Save</button>
+          <button class="btn btn-secondary" onclick="toggleAddDayForm('${j.id}')">Cancel</button>
+        </div>
+        <div id="add-day-msg-${j.id}" style="font-size:0.82rem;margin-top:0.3rem;color:#2a7a2a"></div>
       </td>
     </tr>`).join('')}</tbody>
   </table></div>`;
@@ -776,6 +922,35 @@ async function deleteJob(id) {
   loadSchedule();
 }
 
+function toggleAddDayForm(jobId) {
+  document.querySelectorAll('[id^="add-day-form-"]').forEach(el => {
+    if (el.id !== `add-day-form-${jobId}`) el.style.display = 'none';
+  });
+  const row = document.getElementById(`add-day-form-${jobId}`);
+  if (row) row.style.display = row.style.display === 'none' ? '' : 'none';
+}
+
+async function saveAddDay(jobId) {
+  const date  = document.getElementById(`add-day-date-${jobId}`).value;
+  const notes = document.getElementById(`add-day-notes-${jobId}`).value.trim();
+  const msg   = document.getElementById(`add-day-msg-${jobId}`);
+  if (!date) { msg.textContent = 'Date is required.'; return; }
+
+  const { count } = await db.from('job_visits').select('id', { count: 'exact', head: true }).eq('job_id', jobId);
+  await db.from('job_visits').insert({
+    job_id: jobId, visit_number: (count || 0) + 1,
+    visit_date: date, tech_notes: notes || null
+  });
+
+  const { data: job } = await db.from('jobs').select('status').eq('id', jobId).single();
+  if (job?.status !== 'Scheduled') {
+    await db.from('jobs').update({ status: 'Scheduled', updated_at: new Date().toISOString() }).eq('id', jobId);
+  }
+
+  msg.textContent = 'Visit added.';
+  setTimeout(() => { toggleAddDayForm(jobId); loadSchedule(); }, 800);
+}
+
 
 // ---- REVIEW ----
 // loadReview: fetches jobs filtered by status and renders each as a review card.
@@ -789,6 +964,7 @@ async function loadReview() {
              job_types(job_type_name),
              job_completions(id,time_in,time_out,payment_type,payment_detail,follow_up_flag,tech_notes,submitted_at),
              job_line_items(id,item_type,item_id,quantity,unit_cost,override_cost,override_reason),
+             job_visits(id,visit_number,visit_date,clocked_in_at,clocked_out_at,tech_notes),
              admin_reviews(review_status,review_notes,reviewed_at),
              quote_forms(scope_observed,materials_json,created_at)`)
     .order('job_date', { ascending: false });
@@ -878,10 +1054,20 @@ function reviewCard(j) {
       ${j.scope      ? `<div class="section-title">Scope</div><p style="font-size:0.85rem">${j.scope}</p>` : ''}
       ${j.site_notes ? `<div class="section-title">Site Notes</div><p style="font-size:0.85rem">${j.site_notes}</p>` : ''}
 
+      <div class="section-title">Visits</div>
+      ${(j.job_visits?.length) ? `<div style="overflow-x:auto"><table>
+        <thead><tr><th>Visit</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Notes</th></tr></thead>
+        <tbody>${(j.job_visits||[]).sort((a,b)=>a.visit_number-b.visit_number).map(v=>`<tr>
+          <td>${v.visit_number}</td>
+          <td style="white-space:nowrap">${formatDate(v.visit_date)}</td>
+          <td style="font-size:0.82rem;white-space:nowrap">${v.clocked_in_at  ? new Date(v.clocked_in_at).toLocaleString()  : '--'}</td>
+          <td style="font-size:0.82rem;white-space:nowrap">${v.clocked_out_at ? new Date(v.clocked_out_at).toLocaleString() : '--'}</td>
+          <td style="font-size:0.82rem">${v.tech_notes||''}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>` : '<p class="meta">No visits recorded.</p>'}
+
       <div class="section-title">Completion</div>
       <table><tbody>
-        <tr><td><strong>Time In</strong></td><td>${comp.time_in  ? new Date(comp.time_in).toLocaleString()  : '--'}</td>
-            <td><strong>Time Out</strong></td><td>${comp.time_out ? new Date(comp.time_out).toLocaleString() : '--'}</td></tr>
         <tr><td><strong>Payment</strong></td><td>${comp.payment_type || '--'}</td>
             <td><strong>Detail</strong></td><td>${comp.payment_detail || '--'}</td></tr>
         <tr><td><strong>Follow-up</strong></td><td>${comp.follow_up_flag ? 'YES' : 'No'}</td>
@@ -1024,12 +1210,16 @@ async function loadJobPhotos(jobId) {
 // openReopen: loads a job's current data into the edit modal so the admin
 // can change status, completion details, or line items.
 async function openReopen(jobId) {
-  reopenParts = []; reopenLabor = []; reopenCharges = [];
+  reopenParts = []; reopenLabor = []; reopenCharges = []; reopenVisits = [];
 
-  const { data: job } = await db.from('jobs')
-    .select(`*, accounts!jobs_account_id_fkey(account_name), job_types(job_type_name),
-             job_completions(*), job_line_items(*)`)
-    .eq('id', jobId).single();
+  const [{ data: job }, { data: visits }] = await Promise.all([
+    db.from('jobs')
+      .select(`*, accounts!jobs_account_id_fkey(account_name), job_types(job_type_name),
+               job_completions(*), job_line_items(*)`)
+      .eq('id', jobId).single(),
+    db.from('job_visits').select('*').eq('job_id', jobId).order('visit_number')
+  ]);
+  reopenVisits = visits || [];
 
   const comp      = job.job_completions?.[0] || {};
   const laborOpts = allLaborTypes.map(l => `<option value="${l.id}">${l.labor_type_name}</option>`).join('');
@@ -1077,6 +1267,20 @@ async function openReopen(jobId) {
     <div class="form-row"><label>Tech Notes</label>
       <textarea id="ro-technotes">${comp.tech_notes || ''}</textarea></div>
     <div class="form-row"><label><input type="checkbox" id="ro-followup" ${comp.follow_up_flag ? 'checked' : ''}> Follow-up Flag</label></div>
+
+    <div class="section-title">Visit Times</div>
+    ${reopenVisits.length ? reopenVisits.map(v => `
+      <div style="background:#f9f9f9;border:1px solid #eee;padding:0.5rem;margin-bottom:0.4rem">
+        <div style="font-size:0.82rem;font-weight:bold;margin-bottom:0.3rem">Visit ${v.visit_number} (${formatDate(v.visit_date)})</div>
+        <div class="two-col">
+          <div class="form-row"><label>Visit ${v.visit_number}: Clock In</label>
+            <input type="datetime-local" id="vi-cin-${v.id}" value="${v.clocked_in_at ? v.clocked_in_at.slice(0,16) : ''}">
+          </div>
+          <div class="form-row"><label>Visit ${v.visit_number}: Clock Out</label>
+            <input type="datetime-local" id="vi-cout-${v.id}" value="${v.clocked_out_at ? v.clocked_out_at.slice(0,16) : ''}">
+          </div>
+        </div>
+      </div>`).join('') : '<p class="meta">No clock-in visits on record.</p>'}
 
     <div class="section-title">Parts</div>
     <div class="parts-search-wrap">
@@ -1247,6 +1451,13 @@ async function saveReopen(jobId, compId) {
     }))
   ];
   if (lineItems.length) await db.from('job_line_items').insert(lineItems);
+
+  for (const v of reopenVisits) {
+    await db.from('job_visits').update({
+      clocked_in_at:  document.getElementById(`vi-cin-${v.id}`)?.value  || null,
+      clocked_out_at: document.getElementById(`vi-cout-${v.id}`)?.value || null
+    }).eq('id', v.id);
+  }
 
   msg.innerHTML = '<div class="msg success">Job updated.</div>';
   setTimeout(() => { closeReopenModal(); loadReview(); }, 1000);

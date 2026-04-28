@@ -49,6 +49,14 @@ td { padding: 0.3rem 0.5rem; border-bottom: 1px solid #eee; }
 .msg.error { background: #ffe0e0; border: 1px solid #f99; }
 input[type=checkbox] { width: auto; }
 .section-title { font-weight: bold; margin: 0.8rem 0 0.4rem; font-size: 0.88rem; border-bottom: 1px solid #eee; padding-bottom: 0.2rem; }
+.status-badge { display: inline-block; padding: 0.15rem 0.5rem; font-size: 0.78rem; font-weight: bold; }
+.status-Scheduled { background: #e0e8ff; color: #224; }
+.status-In-Progress { background: #e0ffe0; color: #060; }
+.status-Pending-Review { background: #ffd; color: #660; }
+.status-Approved { background: #e0ffe0; color: #060; }
+.status-Quoted { background: #fff0cc; color: #640; }
+.status-Awaiting-Parts { background: #ffe8cc; color: #640; }
+.status-Flagged { background: #ffe0e0; color: #900; }
 </style>
 </head>
 <body>
@@ -117,7 +125,9 @@ input[type=checkbox] { width: auto; }
         </div>
         <div class="form-row"><label>Tech Notes</label><textarea id="nj-notes"></textarea></div>
         <div class="form-row"><label><input type="checkbox" id="nj-followup"> Flag for Follow-up</label></div>
-        <div class="form-row"><label>Photos</label><input type="file" id="nj-photos" accept="image/*" multiple></div>
+        <div class="form-row"><label>Photos</label><input type="file" id="nj-photos" accept="image/*" multiple onchange="showPhotoPreview('nj-photos','nj-photo-preview')">
+          <div id="nj-photo-preview" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.4rem"></div>
+        </div>
       </div>
       <div id="nj-msg"></div>
       <button class="btn btn-primary" style="width:100%;margin-top:0.5rem" onclick="submitNewJob()">Submit Job</button>
@@ -185,8 +195,10 @@ let allAccounts   = [];
 let allJobTypes   = [];
 
 // Cache of primary contacts keyed by account_id.
-// Populated once per loadJobs() call to avoid N+1 queries (one contact lookup per card).
 let allPrimaryContactsCache = {};
+
+// Open job_visits rows for this tech keyed by job_id.
+let openVisitsByJob = {};
 
 
 // ---- INIT ----
@@ -250,7 +262,8 @@ async function loadJobs() {
                sub:accounts!jobs_sub_account_id_fkey(account_name),
                job_types(job_type_name),
                job_completions(id,tech_notes,follow_up_flag,submitted_at),
-               job_line_items(id,item_type,item_id,quantity)`)
+               job_line_items(id,item_type,item_id,quantity),
+               job_visits(id,visit_number,visit_date)`)
       .not('status', 'in', '("Cancelled","Approved")')
       .contains('assigned_tech_ids', [currentUser.id]); // Only jobs assigned to this tech
 
@@ -275,6 +288,11 @@ async function loadJobs() {
         .in('account_id', accountIds).eq('active', true).eq('is_primary', true);
       (contacts || []).forEach(c => { allPrimaryContactsCache[c.account_id] = c; });
     }
+
+    const { data: openVisits } = await db.from('job_visits')
+      .select('id,job_id').eq('clocked_in_by', currentUser.id).is('clocked_out_at', null);
+    openVisitsByJob = {};
+    (openVisits || []).forEach(v => { openVisitsByJob[v.job_id] = v; });
 
     list.innerHTML = myJobs.map(j => jobCard(j)).join('');
   } catch (err) {
@@ -333,18 +351,36 @@ function jobCard(j) {
     j.purchase_order_number ? `PO: ${j.purchase_order_number}` : ''
   ].filter(Boolean).join(' | ');
 
+  const visits     = j.job_visits || [];
+  const visitCount = visits.length;
+  const visitLine  = visitCount > 1
+    ? `<div style="font-size:0.78rem;color:#888;margin-bottom:0.2rem">Visit ${visitCount} of ${visitCount}</div>`
+    : '';
+
+  const statusSlug = (j.status || '').replace(/ /g, '-');
   return `<div class="card">
-    <h3>${account}${sub}</h3>
-    <div class="meta">${formatDate(j.job_date)} | ${j.job_types?.job_type_name||''} | ${j.status}</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <h3 style="margin:0 0 0.3rem">${account}${sub}</h3>
+      <span class="status-badge status-${statusSlug}">${j.status}</span>
+    </div>
+    <div class="meta">${formatDate(j.job_date)} | ${j.job_types?.job_type_name||''}</div>
+    ${visitLine}
     ${wopo ? `<div class="meta">${wopo}</div>` : ''}
     ${addrHtml}
     ${contactHtml}
     ${fixedBanner}${expHtml}
     ${j.scope      ? `<div style="font-size:0.85rem;margin-bottom:0.4rem"><strong>Scope:</strong> ${j.scope}</div>` : ''}
     ${j.site_notes ? `<div style="font-size:0.85rem;margin-bottom:0.4rem"><strong>Site Notes:</strong> ${j.site_notes}</div>` : ''}
-    ${submitted ? '<div class="msg success" style="margin-bottom:0.4rem">Submitted</div>' : ''}
     <div style="margin-top:0.4rem">
-      <button class="btn btn-primary" onclick="openJobDetail('${j.id}')" style="width:100%">Job Details</button>
+      ${!submitted ? `
+        <div style="display:flex;gap:0.4rem;margin-bottom:0.4rem">
+          ${openVisitsByJob[j.id]
+            ? `<button class="btn btn-warn" onclick="clockOut('${j.id}','${openVisitsByJob[j.id].id}')" style="flex:1">Clock Out</button>`
+            : `<button class="btn btn-green" onclick="clockIn('${j.id}')" style="flex:1">Clock In</button>`}
+          <button class="btn btn-primary" onclick="openJobDetail('${j.id}')" style="flex:2">Job Details</button>
+        </div>
+        <div id="card-clock-msg-${j.id}" style="font-size:0.82rem;color:#a00;display:none"></div>
+      ` : `<button class="btn btn-primary" onclick="openJobDetail('${j.id}')" style="width:100%">Job Details</button>`}
       ${submitted && j.status === 'Pending Review'
         ? `<button class="btn btn-warn" onclick="unsubmit('${j.id}','${comp.id}')" style="width:100%;margin-top:0.4rem">Unsubmit</button>`
         : ''}
@@ -366,6 +402,32 @@ async function unsubmit(jobId, compId) {
   if (!confirm('Remove your submission? The job will return to Scheduled. Only do this if Rich has not yet reviewed it.')) return;
   await db.from('job_completions').delete().eq('id', compId);
   await db.from('job_line_items').delete().eq('job_id', jobId);
+  await db.from('jobs').update({ status: 'Scheduled', updated_at: new Date().toISOString() }).eq('id', jobId);
+  loadJobs();
+}
+
+async function clockIn(jobId) {
+  const msgEl = document.getElementById(`card-clock-msg-${jobId}`);
+  if (msgEl) { msgEl.style.display = 'none'; msgEl.textContent = ''; }
+
+  const { data: open } = await db.from('job_visits')
+    .select('id,job_id').eq('clocked_in_by', currentUser.id).is('clocked_out_at', null);
+  if (open?.length) {
+    if (msgEl) { msgEl.textContent = 'You are already clocked in to another job. Clock out first.'; msgEl.style.display = ''; }
+    return;
+  }
+
+  const { count } = await db.from('job_visits').select('id', { count: 'exact', head: true }).eq('job_id', jobId);
+  await db.from('job_visits').insert({
+    job_id: jobId, visit_number: (count || 0) + 1,
+    visit_date: today(), clocked_in_at: new Date().toISOString(), clocked_in_by: currentUser.id
+  });
+  await db.from('jobs').update({ status: 'In Progress', updated_at: new Date().toISOString() }).eq('id', jobId);
+  loadJobs();
+}
+
+async function clockOut(jobId, visitId) {
+  await db.from('job_visits').update({ clocked_out_at: new Date().toISOString() }).eq('id', visitId);
   await db.from('jobs').update({ status: 'Scheduled', updated_at: new Date().toISOString() }).eq('id', jobId);
   loadJobs();
 }
@@ -519,7 +581,9 @@ async function openJobDetail(jobId) {
       <div class="form-section">
         <div class="form-row"><label>Tech Notes</label><textarea id="m-notes"></textarea></div>
         <div class="form-row"><label><input type="checkbox" id="m-followup"> Flag for Follow-up</label></div>
-        <div class="form-row"><label>Photos</label><input type="file" id="m-photos" accept="image/*" multiple></div>
+        <div class="form-row"><label>Photos</label><input type="file" id="m-photos" accept="image/*" multiple onchange="showPhotoPreview('m-photos','m-photo-preview')">
+          <div id="m-photo-preview" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.4rem"></div>
+        </div>
       </div>
       <div class="form-section">
         <div class="section-title">Quote Form (leave blank if not a quote job)</div>
@@ -527,7 +591,13 @@ async function openJobDetail(jobId) {
         <div class="form-row"><label>Materials / Notes for Rich</label><textarea id="m-quote-materials"></textarea></div>
       </div>
       <div id="m-msg" style="margin-top:0.5rem"></div>
-      <button class="btn btn-green" style="width:100%;margin-top:0.8rem;padding:0.8rem;font-size:1rem" onclick="submitCompletion()">Submit Completion</button>`;
+      <div id="m-confirm-panel" style="display:none;background:#f9f9f9;border:1px solid #ccc;padding:1rem;margin-top:0.8rem">
+        <div style="font-weight:bold;margin-bottom:0.5rem;font-size:0.95rem">Review before submitting</div>
+        <div id="m-confirm-body" style="font-size:0.88rem;margin-bottom:0.8rem"></div>
+        <button class="btn btn-green" style="width:100%;padding:0.7rem;font-size:0.95rem" onclick="submitCompletion()">Confirm and Submit</button>
+        <button class="btn btn-secondary" style="width:100%;margin-top:0.4rem" onclick="closeSubmitConfirm()">Go Back</button>
+      </div>
+      <button id="m-submit-btn" class="btn btn-green" style="width:100%;margin-top:0.8rem;padding:0.8rem;font-size:1rem" onclick="showSubmitConfirm()">Submit Completion</button>`;
   }
 
   document.getElementById('modal-content').innerHTML = `
@@ -695,6 +765,36 @@ function renderLaborTable(prefix) {
 }
 
 
+// ---- SUBMIT CONFIRMATION ----
+
+function showSubmitConfirm() {
+  const timeIn  = document.getElementById('m-timein')?.value;
+  const timeOut = document.getElementById('m-timeout')?.value;
+  const payType = document.getElementById('m-paytype')?.value;
+
+  const warn = (!timeIn || !timeOut)
+    ? '<div style="background:#fff3cd;border:1px solid #e0c040;padding:0.4rem 0.6rem;margin-bottom:0.5rem;font-size:0.85rem">Time in/out not entered -- are you sure?</div>'
+    : '';
+
+  const fmtTime = v => v ? new Date(v).toLocaleString() : '--';
+
+  document.getElementById('m-confirm-body').innerHTML = `
+    ${warn}
+    <div><strong>Time In:</strong> ${fmtTime(timeIn)}</div>
+    <div><strong>Time Out:</strong> ${fmtTime(timeOut)}</div>
+    <div><strong>Parts:</strong> ${modalParts.length} item(s)</div>
+    <div><strong>Labor:</strong> ${modalLabor.length} entr${modalLabor.length === 1 ? 'y' : 'ies'}</div>
+    <div><strong>Payment:</strong> ${payType || '--'}</div>`;
+
+  document.getElementById('m-confirm-panel').style.display = '';
+  document.getElementById('m-submit-btn').style.display    = 'none';
+}
+
+function closeSubmitConfirm() {
+  document.getElementById('m-confirm-panel').style.display = 'none';
+  document.getElementById('m-submit-btn').style.display    = '';
+}
+
 // ---- SUBMIT COMPLETION ----
 // Saves the tech's completion data for a scheduled job.
 // Step 1: Delete any existing line items for this job (they were pre-set by admin;
@@ -749,6 +849,36 @@ async function submitCompletion() {
   setTimeout(() => { closeModal(); loadJobs(); }, 1200);
 }
 
+
+// ---- PHOTO PREVIEW ----
+
+function showPhotoPreview(inputId, previewId) {
+  const input   = document.getElementById(inputId);
+  const preview = document.getElementById(previewId);
+  if (!input || !preview) return;
+  preview.innerHTML = '';
+  Array.from(input.files).forEach((file, idx) => {
+    const reader  = new FileReader();
+    const wrap    = document.createElement('div');
+    wrap.style.cssText = 'position:relative;display:inline-block';
+    reader.onload = e => {
+      wrap.innerHTML =
+        `<img src="${e.target.result}" style="width:80px;height:70px;object-fit:cover;border:1px solid #ccc;display:block">` +
+        `<button onclick="removePhotoFile('${inputId}','${previewId}',${idx})" ` +
+        `style="position:absolute;top:1px;right:1px;background:rgba(0,0,0,0.6);color:white;border:none;cursor:pointer;font-size:0.75rem;padding:0 4px;line-height:1.5">X</button>`;
+    };
+    reader.readAsDataURL(file);
+    preview.appendChild(wrap);
+  });
+}
+
+function removePhotoFile(inputId, previewId, idx) {
+  const input = document.getElementById(inputId);
+  const dt    = new DataTransfer();
+  Array.from(input.files).forEach((f, i) => { if (i !== idx) dt.items.add(f); });
+  input.files = dt.files;
+  showPhotoPreview(inputId, previewId);
+}
 
 // ---- PHOTO UPLOAD ----
 // Resizes each selected image to 1200px wide (via shared resizeImage()) before uploading

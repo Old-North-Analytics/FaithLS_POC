@@ -42,6 +42,13 @@ function today() {
   return new Date().toISOString().split('T')[0];
 }
 
+// tomorrow: returns tomorrow's date as YYYY-MM-DD.
+function tomorrow() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().split('T')[0];
+}
+
 // weekStart: returns the most recent Monday as YYYY-MM-DD.
 // Used by the admin schedule range shortcut and the tech weekly job filter.
 // The formula (day + 6) % 7 maps Sunday=0..Saturday=6 to days-since-Monday.

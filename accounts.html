@@ -14,7 +14,7 @@ header h1 { margin: 0; font-size: 1rem; }
 nav button { background: none; border: 1px solid #aaa; color: #aaa; padding: 0.3rem 0.8rem; cursor: pointer; font-size: 0.85rem; margin-left: 0.3rem; }
 nav button.active { border-color: white; color: white; }
 button.logout { background: none; border: 1px solid #f66; color: #f66; padding: 0.3rem 0.7rem; cursor: pointer; }
-.container { max-width: 1100px; margin: 1rem auto; padding: 0 1rem; }
+.container { max-width: 100%; margin: 1rem auto; padding: 0 1.5rem; }
 .card { background: white; border: 1px solid #ccc; margin-bottom: 0.8rem; padding: 1rem; }
 .card h3 { margin: 0 0 0.4rem; font-size: 1rem; }
 .meta { color: #555; font-size: 0.82rem; margin-bottom: 0.4rem; }
@@ -125,7 +125,6 @@ input[type=checkbox] { width: auto; }
           <th onclick="sortTable('address')">Address</th>
           <th>Phone</th>
           <th>Primary Contact</th>
-          <th>Billing Notes</th>
           <th onclick="sortTable('job_count')">Jobs</th>
           <th onclick="sortTable('last_service')">Last Service</th>
           <th>Active</th>
@@ -133,7 +132,7 @@ input[type=checkbox] { width: auto; }
         </tr>
       </thead>
       <tbody id="accounts-tbody">
-        <tr><td colspan="9">Loading...</td></tr>
+        <tr><td colspan="8">Loading...</td></tr>
       </tbody>
     </table>
     </div>
@@ -155,7 +154,6 @@ input[type=checkbox] { width: auto; }
       <div class="form-row"><label>Address</label><input type="text" id="f-address"></div>
       <div class="form-row"><label>Phone</label><input type="text" id="f-phone"></div>
     </div>
-    <div class="form-row"><label>Billing Notes</label><textarea id="f-billing"></textarea></div>
     <div class="form-row"><label><input type="checkbox" id="f-active" checked> Active</label></div>
     <div id="form-msg"></div>
     <button class="btn btn-primary" onclick="saveAccount()">Save</button>
@@ -313,7 +311,7 @@ async function init() {
     await loadAccounts();
   } catch (err) {
     document.getElementById('accounts-tbody').innerHTML =
-      `<tr><td colspan="9" style="color:#a00;padding:1rem">
+      `<tr><td colspan="8" style="color:#a00;padding:1rem">
         <strong>Load error:</strong> ${err.message || JSON.stringify(err)}<br>
         <span style="font-size:0.82rem">Try signing out and back in.</span>
       </td></tr>`;
@@ -328,7 +326,7 @@ async function init() {
 // without a second DB round-trip when the Instructions tab is opened.
 async function loadAccounts() {
   document.getElementById('accounts-tbody').innerHTML =
-    '<tr><td colspan="9" style="color:#888;padding:0.5rem">Loading...</td></tr>';
+    '<tr><td colspan="8" style="color:#888;padding:0.5rem">Loading...</td></tr>';
   try {
     const { data: accounts, error } = await db.from('accounts')
       .select('id,account_name,parent_account_id,address,phone,billing_notes,active,instructions')
@@ -373,7 +371,7 @@ async function loadAccounts() {
     filterAccounts();
   } catch (err) {
     document.getElementById('accounts-tbody').innerHTML =
-      `<tr><td colspan="9" style="color:#a00;padding:1rem">
+      `<tr><td colspan="8" style="color:#a00;padding:1rem">
         <strong>Error loading accounts:</strong> ${err.message || JSON.stringify(err)}
       </td></tr>`;
     console.error('loadAccounts error:', err);
@@ -447,7 +445,7 @@ function sortAndRender() {
     `<span style="font-size:0.85rem;color:#555">${filteredAccounts.length} of ${allAccounts.length} accounts shown | ${totalMaster} master accounts | ${totalActive} active</span>`;
 
   const tbody = document.getElementById('accounts-tbody');
-  if (!ordered.length) { tbody.innerHTML = '<tr><td colspan="9">No accounts found.</td></tr>'; return; }
+  if (!ordered.length) { tbody.innerHTML = '<tr><td colspan="8">No accounts found.</td></tr>'; return; }
 
   tbody.innerHTML = ordered.map(a => {
     const stats  = allJobsByAccount[a.id] || {};
@@ -470,7 +468,6 @@ function sortAndRender() {
       <td style="font-size:0.82rem">${a.address || ''}</td>
       <td style="font-size:0.82rem">${a.phone   || ''}</td>
       <td style="font-size:0.82rem">${contactDisplay}</td>
-      <td style="font-size:0.82rem;max-width:120px">${a.billing_notes || ''}</td>
       <td style="text-align:center">${stats.count    || 0}</td>
       <td style="font-size:0.82rem;white-space:nowrap">${formatDate(stats.lastDate) || '--'}</td>
       <td style="text-align:center">${a.active ? 'Yes' : 'No'}</td>
@@ -507,7 +504,6 @@ function openEdit(id) {
   document.getElementById('f-parent').value       = a.parent_account_id || '';
   document.getElementById('f-address').value      = a.address           || '';
   document.getElementById('f-phone').value        = a.phone             || '';
-  document.getElementById('f-billing').value      = a.billing_notes     || '';
   document.getElementById('f-active').checked     = a.active;
   showSection('add');
 }
@@ -515,7 +511,7 @@ function openEdit(id) {
 function cancelEdit() {
   document.getElementById('edit-id').value = '';
   document.getElementById('form-title').textContent = 'Add Account';
-  ['f-name','f-address','f-phone','f-billing'].forEach(id => document.getElementById(id).value = '');
+  ['f-name','f-address','f-phone'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-parent').value    = '';
   document.getElementById('f-active').checked  = true;
   showSection('list');
@@ -532,7 +528,6 @@ async function saveAccount() {
     parent_account_id: document.getElementById('f-parent').value  || null,
     address:           document.getElementById('f-address').value || null,
     phone:             document.getElementById('f-phone').value   || null,
-    billing_notes:     document.getElementById('f-billing').value || null,
     active:            document.getElementById('f-active').checked
   };
 
@@ -722,7 +717,7 @@ async function loadAccountJobs() {
           <td style="text-align:center">${comp.follow_up_flag ? 'YES' : ''}</td>
           <td style="font-size:0.82rem;max-width:180px">${comp.tech_notes||''}</td>
         </tr>
-        ${j.scope ? `<tr><td colspan="9" style="font-size:0.8rem;color:#555;padding-left:1rem">Scope: ${j.scope}</td></tr>` : ''}`;
+        ${j.scope ? `<tr><td colspan="8" style="font-size:0.8rem;color:#555;padding-left:1rem">Scope: ${j.scope}</td></tr>` : ''}`;
       }).join('')}
       </tbody>
     </table></div>`;
@@ -970,7 +965,7 @@ async function saveInstructions() {
 
 function exportAccountsCSV() {
   if (!filteredAccounts.length) { alert('No accounts to export.'); return; }
-  const rows = [['Name','Type','Parent Account','Address','Phone','Primary Contact','Billing Notes','Jobs','Last Service','Active']];
+  const rows = [['Name','Type','Parent Account','Address','Phone','Primary Contact','Jobs','Last Service','Active']];
   filteredAccounts.forEach(a => {
     const stats  = allJobsByAccount[a.id] || {};
     const parent = a.parent_account_id ? allAccounts.find(x => x.id === a.parent_account_id)?.account_name||'' : '';
@@ -982,7 +977,6 @@ function exportAccountsCSV() {
       a.address        || '',
       a.phone          || '',
       pc ? `${pc.contact_name}${pc.work_phone ? ' | '+pc.work_phone : ''}` : '',
-      a.billing_notes  || '',
       stats.count      || 0,
       formatDate(stats.lastDate) || '',
       a.active ? 'Yes' : 'No'
