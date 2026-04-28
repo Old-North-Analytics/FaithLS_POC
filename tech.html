@@ -104,8 +104,9 @@ td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #eef0f6; }
 <div class="container">
   <div class="tabs">
     <div class="tab active" onclick="showTab('jobs')">My Jobs</div>
+    <div class="tab" onclick="showTab('quote')">Quote</div>
     <div class="tab" onclick="showTab('newjob')">+ New Job</div>
-    <div class="tab" onclick="showTab('newcustomer')">+ New Customer</div>
+    <div class="tab" onclick="showTab('newcustomer')">+ Customer</div>
   </div>
 
   <!-- ---- MY JOBS TAB ---- -->
@@ -116,6 +117,36 @@ td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #eef0f6; }
       <button class="filter-btn active" onclick="setFilter('open',this)">All Open</button>
     </div>
     <div id="jobs-list"><p style="color:#888">Loading...</p></div>
+  </div>
+
+  <!-- ---- QUOTE TAB ---- -->
+  <div id="tab-quote" style="display:none">
+    <div class="card">
+      <h3>Submit a Quote</h3>
+      <p style="font-size:0.85rem;color:#5a6075;margin-bottom:0.9rem">Use this when Rich has asked you to document a site visit for quoting purposes. This is not a job completion -- no payment or time entry required. Rich will use your notes to write the formal quote.</p>
+      <div class="form-row"><label>Account</label>
+        <select id="qq-account" onchange="loadSubAccounts('qq')"><option value="">Select account...</option></select>
+      </div>
+      <div class="form-row"><label>Sub-Account</label>
+        <select id="qq-subaccount"><option value="">None</option></select>
+      </div>
+      <div class="form-row"><label>Date of Visit</label><input type="date" id="qq-date"></div>
+      <div class="form-row"><label>Scope Observed <span style="font-weight:400;color:#888">(what did you see on site?)</span></label>
+        <textarea id="qq-scope" style="height:90px" placeholder="Describe the situation, existing hardware, access points, any damage or issues observed..."></textarea>
+      </div>
+      <div class="form-row"><label>Materials Needed <span style="font-weight:400;color:#888">(parts, hardware, quantities)</span></label>
+        <textarea id="qq-materials" style="height:80px" placeholder="List parts and approximate quantities needed for the job..."></textarea>
+      </div>
+      <div class="form-row"><label>Additional Notes for Rich</label>
+        <textarea id="qq-notes" style="height:60px" placeholder="Any access issues, customer concerns, or context Rich should know..."></textarea>
+      </div>
+      <div class="form-row"><label>Photos</label>
+        <input type="file" id="qq-photos" accept="image/*" multiple onchange="showPhotoPreview('qq-photos','qq-photo-preview')">
+        <div id="qq-photo-preview" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem"></div>
+      </div>
+      <div id="qq-msg" style="margin-top:0.6rem"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;padding:0.7rem;font-size:0.95rem" onclick="submitQuote()">Submit Quote Form</button>
+    </div>
   </div>
 
   <!-- ---- NEW JOB TAB ---- -->
@@ -257,6 +288,8 @@ async function loadRefData() {
   populateSelect('nj-account',   allAccounts.filter(a => !a.parent_account_id), 'id', 'account_name', 'Select account...');
   populateSelect('nj-jobtype',   allJobTypes,   'id', 'job_type_name',   'Select type...');
   populateSelect('nj-labortype', allLaborTypes, 'id', 'labor_type_name', 'Select type...');
+  populateSelect('qq-account',   allAccounts.filter(a => !a.parent_account_id), 'id', 'account_name', 'Select account...');
+  document.getElementById('qq-date').value = today();
   document.getElementById('nj-date').value = today();
 }
 
@@ -315,10 +348,16 @@ function jobCard(j) {
   const comp      = j.job_completions?.[0];
   const submitted = !!comp;
   const visits    = j.job_visits || [];
+  // Show next scheduled return visit date if one exists beyond today
+  const futureVisits = visits
+    .filter(v => v.visit_date > today())
+    .sort((a, b) => a.visit_date.localeCompare(b.visit_date));
+  const nextVisit = futureVisits[0];
+  const visitBanner = nextVisit
+    ? `<div style="background:#e8f0ff;border:1px solid #b0c4f8;border-radius:4px;padding:0.35rem 0.6rem;margin-bottom:0.4rem;font-size:0.83rem;color:#1a3070">Return visit scheduled: <strong>${formatDate(nextVisit.visit_date)}</strong>${nextVisit.tech_notes ? ' -- ' + nextVisit.tech_notes : ''}</div>`
+    : (visits.length > 1 ? `<div style="font-size:0.82rem;color:#5a6075;margin-bottom:0.3rem">This job has had ${visits.length} visits.</div>` : '');
 
   const statusBadge = `<span class="status-badge status-${j.status.replace(/ /g,'-')}">${j.status}</span>`;
-  const visitLine   = visits.length > 1
-    ? `<div class="meta">Visit ${visits.length} of ${visits.length}</div>` : '';
 
   const fixedBanner = j.is_fixed_price
     ? `<div class="fixed-banner">FIXED PRICE | Quoted: $${Number(j.quote_amount||0).toFixed(2)} | Do not exceed scope without calling Rich.</div>` : '';
@@ -352,7 +391,7 @@ function jobCard(j) {
       ${statusBadge}
     </div>
     <div class="meta">${formatDate(j.job_date)} | ${j.job_types?.job_type_name || ''}</div>
-    ${visitLine}
+    ${visitBanner}
     ${wopo ? `<div class="meta">${wopo}</div>` : ''}
     ${addrLine}
     ${contactLine}
@@ -380,10 +419,10 @@ async function unsubmit(jobId, compId) {
 }
 
 function showTab(name) {
-  ['jobs','newjob','newcustomer'].forEach(t =>
+  ['jobs','quote','newjob','newcustomer'].forEach(t =>
     document.getElementById(`tab-${t}`).style.display = t === name ? '' : 'none');
   document.querySelectorAll('.tab').forEach((t, i) =>
-    t.classList.toggle('active', ['jobs','newjob','newcustomer'][i] === name));
+    t.classList.toggle('active', ['jobs','quote','newjob','newcustomer'][i] === name));
 }
 
 
@@ -907,6 +946,59 @@ async function submitNewCustomer() {
 
   msg.innerHTML = '<div class="msg success">Submitted. Admin will add to the account list.</div>';
   ['nc-name','nc-address','nc-phone','nc-notes'].forEach(id => document.getElementById(id).value = '');
+}
+
+
+// ---- QUOTE FORM ----
+async function submitQuote() {
+  const accountId = document.getElementById('qq-account').value;
+  const date      = document.getElementById('qq-date').value;
+  const scope     = document.getElementById('qq-scope').value.trim();
+  const msg       = document.getElementById('qq-msg');
+  msg.innerHTML   = '';
+
+  if (!accountId || !date) {
+    msg.innerHTML = '<div class="msg error">Account and date are required.</div>';
+    return;
+  }
+  if (!scope) {
+    msg.innerHTML = '<div class="msg error">Scope observed is required -- describe what you saw on site.</div>';
+    return;
+  }
+
+  // Create a job record in Quoted status so photos and the quote form attach to something
+  const { data: job, error: jobErr } = await db.from('jobs').insert({
+    job_date:          date,
+    account_id:        accountId,
+    sub_account_id:    document.getElementById('qq-subaccount').value || null,
+    assigned_tech_ids: [currentUser.id],
+    status:            'Quoted',
+    scope:             scope,
+    created_by:        currentUser.id
+  }).select().single();
+  if (jobErr) { msg.innerHTML = `<div class="msg error">${jobErr.message}</div>`; return; }
+
+  const materials = document.getElementById('qq-materials').value.trim();
+  const notes     = document.getElementById('qq-notes').value.trim();
+
+  await db.from('quote_forms').insert({
+    job_id:         job.id,
+    scope_observed: scope,
+    materials_json: materials ? [{ notes: materials }] : null,
+    admin_notes:    notes || null,
+    locked_at:      new Date().toISOString(),
+    created_by:     currentUser.id
+  });
+
+  await uploadPhotos(document.getElementById('qq-photos').files, job.id);
+
+  msg.innerHTML = '<div class="msg success">Quote submitted. Rich will follow up.</div>';
+  ['qq-scope','qq-materials','qq-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('qq-account').value    = '';
+  document.getElementById('qq-subaccount').value = '';
+  document.getElementById('qq-date').value       = today();
+  document.getElementById('qq-photo-preview').innerHTML = '';
+  document.getElementById('qq-photos').value = '';
 }
 
 

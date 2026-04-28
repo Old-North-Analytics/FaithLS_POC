@@ -17,6 +17,9 @@ nav button { background: transparent; border: 1px solid rgba(255,255,255,0.35); 
 nav button:hover { border-color: white; color: white; }
 button.logout { background: transparent; border: 1px solid rgba(255,100,100,0.6); color: rgba(255,150,150,0.9); padding: 0.3rem 0.75rem; cursor: pointer; font-size: 0.82rem; border-radius: 3px; font-family: inherit; }
 button.logout:hover { border-color: #f88; color: #f88; }
+.tnav { background: transparent; border: 1px solid rgba(255,255,255,0.28); color: rgba(255,255,255,0.72); padding: 0.28rem 0.7rem; cursor: pointer; font-size: 0.81rem; border-radius: 3px; font-family: inherit; transition: all 0.15s; }
+.tnav:hover { border-color: white; color: white; }
+.tnav.active { background: #6b6fa8; border-color: #6b6fa8; color: white; }
 .container { max-width: 980px; margin: 1.2rem auto; padding: 0 1rem; }
 .card { background: white; border: 1px solid #dde1ea; border-radius: 6px; margin-bottom: 1rem; padding: 1.2rem; box-shadow: 0 1px 4px rgba(26,39,68,0.06); }
 .card h3 { margin: 0 0 0.6rem; font-size: 1rem; color: #1a2744; font-weight: 600; }
@@ -77,12 +80,20 @@ tr:hover td { background: #f8f9fc; }
 <body>
 <header>
   <h1>Faith Lock &amp; Safe &nbsp;|&nbsp; Schedule</h1>
-  <nav>
-    <a href="admin.html"><button>Admin</button></a>
-    <a href="accounts.html"><button>Accounts</button></a>
-  </nav>
   <button class="logout" onclick="logout()">Sign Out</button>
 </header>
+<div style="background:#1e3260;border-bottom:1px solid #162248;padding:0.4rem 1.2rem;display:flex;justify-content:flex-end;align-items:center;gap:0.3rem;flex-wrap:wrap">
+  <a href="admin.html" style="text-decoration:none"><button class="tnav">Assign</button></a>
+  <a href="admin.html#review" style="text-decoration:none"><button class="tnav">Review</button></a>
+  <button class="tnav active">Schedule</button>
+  <a href="admin.html#calendar" style="text-decoration:none"><button class="tnav">Calendar</button></a>
+  <a href="accounts.html" style="text-decoration:none"><button class="tnav">Accounts</button></a>
+  <a href="admin.html#reference" style="text-decoration:none"><button class="tnav">Reference</button></a>
+  <a href="admin.html#search" style="text-decoration:none"><button class="tnav">Search</button></a>
+  <a href="admin.html#export" style="text-decoration:none"><button class="tnav">Export</button></a>
+  <span style="width:1px;height:1rem;background:rgba(255,255,255,0.2);margin:0 0.4rem;display:inline-block"></span>
+  <button class="tnav" style="background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.4);color:white" onclick="loadSchedule()">Refresh</button>
+</div>
 
 <div class="container">
 
@@ -225,26 +236,27 @@ async function loadSchedule() {
         <td style="white-space:nowrap">
           <button class="btn btn-blue" onclick="openReopen('${j.id}')">Edit</button>
           ${addDayStatuses.includes(j.status)
-            ? `<button class="btn btn-secondary" onclick="toggleAddDayForm('${j.id}')">Add a Day</button>` : ''}
+            ? `<button class="btn btn-secondary" onclick="toggleAddDayForm('${j.id}')">+ Return Visit</button>` : ''}
           ${!['Approved','Pending Review'].includes(j.status)
             ? `<button class="btn btn-red" onclick="deleteJob('${j.id}')">Delete</button>` : ''}
         </td>
       </tr>
       <tr id="add-day-form-${j.id}" class="add-day-row" style="display:none">
         <td colspan="7">
+          <div style="font-size:0.83rem;font-weight:600;color:#1a2744;margin-bottom:0.45rem">Schedule a return visit -- this keeps the existing job open and adds a new visit date.</div>
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-end">
             <div>
-              <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:0.25rem;color:#4a5070">Visit Date</label>
+              <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:0.25rem;color:#4a5070">Return Visit Date</label>
               <input type="date" id="add-day-date-${j.id}" value="${tomorrow()}"
                 style="padding:0.4rem 0.55rem;border:1px solid #c8cdd8;border-radius:4px;font-size:0.85rem">
             </div>
             <div style="flex:2;min-width:180px">
-              <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:0.25rem;color:#4a5070">Notes for this visit</label>
-              <input type="text" id="add-day-notes-${j.id}" placeholder="Optional..."
+              <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:0.25rem;color:#4a5070">Notes for this visit (optional)</label>
+              <input type="text" id="add-day-notes-${j.id}" placeholder="What needs to happen on this visit..."
                 style="width:100%;padding:0.4rem 0.55rem;border:1px solid #c8cdd8;border-radius:4px;font-size:0.85rem">
             </div>
             <div style="display:flex;gap:0.3rem">
-              <button class="btn btn-primary"   onclick="saveAddDay('${j.id}')">Save</button>
+              <button class="btn btn-primary"   onclick="saveAddDay('${j.id}')">Save Return Visit</button>
               <button class="btn btn-secondary" onclick="toggleAddDayForm('${j.id}')">Cancel</button>
             </div>
           </div>
@@ -417,7 +429,7 @@ async function openReopen(jobId) {
       <button class="btn btn-secondary" onclick="closeReopenModal()">Cancel</button>
     </div>`;
   renderReopenParts(); renderReopenLabor(); renderReopenCharges();
-  document.getElementById('reopen-modal').style.display = '';
+  document.getElementById('reopen-modal').style.display = 'block';
 }
 
 function closeReopenModal() { document.getElementById('reopen-modal').style.display = 'none'; }

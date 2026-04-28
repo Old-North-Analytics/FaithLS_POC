@@ -21,6 +21,13 @@ nav button.active { background: #6b6fa8; border-color: #6b6fa8; color: white; }
 nav .nav-divider { width: 1px; height: 1.2rem; background: rgba(255,255,255,0.2); margin: 0 0.4rem; }
 button.logout { background: transparent; border: 1px solid rgba(255,100,100,0.6); color: rgba(255,150,150,0.9); padding: 0.3rem 0.75rem; cursor: pointer; font-size: 0.82rem; border-radius: 3px; }
 button.logout:hover { border-color: #f88; color: #f88; }
+/* toolbar nav buttons */
+.tnav { background: transparent; border: 1px solid rgba(255,255,255,0.28); color: rgba(255,255,255,0.72); padding: 0.28rem 0.7rem; cursor: pointer; font-size: 0.81rem; border-radius: 3px; font-family: inherit; transition: all 0.15s; }
+.tnav:hover { border-color: white; color: white; }
+.tnav.active { background: #6b6fa8; border-color: #6b6fa8; color: white; }
+.tnav-extra { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.4); color: white; padding: 0.28rem 0.7rem; cursor: pointer; font-size: 0.81rem; border-radius: 3px; font-family: inherit; font-weight: 500; margin-left: 0.4rem; transition: all 0.15s; }
+.tnav-extra:hover { background: rgba(255,255,255,0.22); }
+.toolbar-divider { width: 1px; height: 1rem; background: rgba(255,255,255,0.2); margin: 0 0.4rem; display: inline-block; }
 
 /* ---- LAYOUT ---- */
 .container { max-width: 980px; margin: 1.2rem auto; padding: 0 1rem; }
@@ -126,21 +133,21 @@ tr:hover td { background: #f8f9fc; }
 <body>
 <header>
   <h1>Faith Lock &amp; Safe &nbsp;|&nbsp; Admin</h1>
-  <nav>
-    <button class="active" onclick="showSection('assign')">Assign</button>
-    <button onclick="showSection('review')">Review</button>
-    <span class="nav-divider"></span>
-    <a href="schedule.html" style="text-decoration:none"><button>Schedule</button></a>
-    <button onclick="showSection('calendar')">Calendar</button>
-    <span class="nav-divider"></span>
-    <a href="accounts.html" style="text-decoration:none"><button>Accounts</button></a>
-    <button onclick="showSection('reference')">Reference</button>
-    <span class="nav-divider"></span>
-    <button onclick="showSection('search')">Search</button>
-    <button onclick="showSection('export')">Export</button>
-  </nav>
   <button class="logout" onclick="logout()">Sign Out</button>
 </header>
+<!-- Unified nav toolbar always visible -->
+<div id="admin-toolbar" style="background:#1e3260;border-bottom:1px solid #162248;padding:0.4rem 1.2rem;display:flex;justify-content:flex-end;align-items:center;gap:0.3rem;flex-wrap:wrap">
+  <button class="tnav active" onclick="showSection('assign')">Assign</button>
+  <button class="tnav" onclick="showSection('review')">Review</button>
+  <a href="schedule.html" style="text-decoration:none"><button class="tnav">Schedule</button></a>
+  <button class="tnav" onclick="showSection('calendar')">Calendar</button>
+  <a href="accounts.html" style="text-decoration:none"><button class="tnav">Accounts</button></a>
+  <button class="tnav" onclick="showSection('reference')">Reference</button>
+  <button class="tnav" onclick="showSection('search')">Search</button>
+  <button class="tnav" onclick="showSection('export')">Export</button>
+  <!-- Section-specific extras injected here by showSection() -->
+  <span id="toolbar-extras"></span>
+</div>
 
 <div class="container">
 
@@ -297,10 +304,10 @@ tr:hover td { background: #f8f9fc; }
         <option value="Approved">Approved</option>
       </select>
     </div>
-    <button class="btn btn-primary" onclick="loadReview()">Refresh</button>
-    <button class="btn btn-green" id="bulk-approve-btn" style="display:none" onclick="bulkApprove()">Bulk Approve All Pending</button>
+    <!-- bulk-approve lives in toolbar; hidden anchor here for JS sync -->
+    <button id="bulk-approve-btn" style="display:none" onclick="bulkApprove()"></button>
   </div>
-  <div id="review-list"><p class="meta">Click Refresh to load.</p></div>
+  <div id="review-list"><p class="meta">Loading...</p></div>
 </div>
 
 <!-- ============================================================ -->
@@ -810,7 +817,10 @@ async function loadReview() {
   if (!data?.length) { el.innerHTML = '<p class="meta">No jobs found.</p>'; return; }
 
   const pending = data.filter(j => j.status === 'Pending Review');
-  document.getElementById('bulk-approve-btn').style.display = pending.length > 1 ? '' : 'none';
+  const show = pending.length > 1 ? '' : 'none';
+  document.getElementById('bulk-approve-btn').style.display = show;
+  const tb = document.getElementById('bulk-approve-btn-tb');
+  if (tb) tb.style.display = show;
   el.innerHTML = data.map(j => reviewCard(j)).join('');
 }
 
@@ -1135,7 +1145,7 @@ async function openReopen(jobId) {
   `;
 
   renderReopenParts(); renderReopenLabor(); renderReopenCharges();
-  document.getElementById('reopen-modal').style.display = '';
+  document.getElementById('reopen-modal').style.display = 'block';
 }
 
 function closeReopenModal() { document.getElementById('reopen-modal').style.display = 'none'; }
@@ -1640,14 +1650,31 @@ function showSection(name) {
   ['assign','review','search','export','reference','calendar'].forEach(s => {
     document.getElementById(`section-${s}`).style.display = s === name ? 'block' : 'none';
   });
-  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-  const navMap = { assign:0, review:1, reference:5, search:6, export:7 };
-  const navBtns = document.querySelectorAll('nav button');
-  if (navMap[name] !== undefined && navBtns[navMap[name]]) {
-    navBtns[navMap[name]].classList.add('active');
-  }
-  if (name === 'review')   loadReview();
+  // Update active toolbar button
+  document.querySelectorAll('.tnav').forEach(b => b.classList.remove('active'));
+  const sectionBtnMap = { assign:'Assign', review:'Review', calendar:'Calendar', reference:'Reference', search:'Search', export:'Export' };
+  document.querySelectorAll('.tnav').forEach(b => {
+    if (b.textContent.trim() === (sectionBtnMap[name] || '')) b.classList.add('active');
+  });
+  // Section-specific toolbar extras
+  const extras = document.getElementById('toolbar-extras');
+  const extraMap = {
+    review:    `<span class="toolbar-divider"></span><button class="tnav-extra" onclick="loadReview()">Refresh</button><button class="tnav-extra" id="bulk-approve-btn-tb" style="display:none;background:#2a7a4a;border-color:#2a7a4a" onclick="bulkApprove()">Bulk Approve</button>`,
+    calendar:  `<span class="toolbar-divider"></span><button class="tnav-extra" onclick="calPrevWeek()">Prev Week</button><button class="tnav-extra" onclick="calNextWeek()">Next Week</button>`,
+    search:    `<span class="toolbar-divider"></span><button class="tnav-extra" onclick="runSearch()">Run Search</button>`,
+    export:    `<span class="toolbar-divider"></span><button class="tnav-extra" onclick="runExport()">Generate CSV</button>`,
+    reference: `<span class="toolbar-divider"></span><button class="tnav-extra" onclick="showRefTab('parts')">Parts</button><button class="tnav-extra" onclick="showRefTab('jobtypes')">Job Types</button><button class="tnav-extra" onclick="showRefTab('labortypes')">Labor Types</button><button class="tnav-extra" onclick="showRefTab('techs')">Techs</button>`,
+  };
+  extras.innerHTML = extraMap[name] || '';
+  if (name === 'review')   { loadReview(); syncBulkBtn(); }
   if (name === 'calendar') loadCalendar();
+}
+
+function syncBulkBtn() {
+  // Keep toolbar bulk-approve in sync with review load
+  const tb = document.getElementById('bulk-approve-btn-tb');
+  const main = document.getElementById('bulk-approve-btn');
+  if (tb && main) tb.style.display = main.style.display;
 }
 
 
