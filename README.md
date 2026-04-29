@@ -1,4 +1,4 @@
-# Faith Lock & Safe | Job Management System
+**# Faith Lock & Safe | Job Management System
 
 Web-based job management tool for Faith Lock & Safe Co. (Pegram, TN). Replaces a paper daily sheet workflow with a digital system for job assignment, tech completion forms, admin review, and QuickBooks CSV export.
 
@@ -100,3 +100,4 @@ Full checklist is in `docs/FaithLock_WorkingDoc_v2.1.docx`, Section 9. Short ver
 
 Thomas Johnson | Old North Analytics, LLC
 info@oldnorthanalytics.com | 919-307-1722 | oldnorthanalytics.com
+**
