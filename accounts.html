@@ -72,23 +72,7 @@ input[type=checkbox] { width: auto; accent-color: #1a2744; }
 </style>
 </head>
 <body>
-<header>
-  <h1 style="margin:0;font-size:0.9rem;font-weight:600;letter-spacing:0.02em;white-space:nowrap;padding:0.55rem 1rem 0.55rem 0;border-right:1px solid rgba(255,255,255,0.15)">Faith Lock &amp; Safe &nbsp;|&nbsp; Accounts</h1>
-  <nav style="display:flex;align-items:center;gap:0.2rem;flex-wrap:wrap;flex:1;padding:0.35rem 0.6rem">
-    <a href="admin.html" style="text-decoration:none"><button class="tnav">Assign</button></a>
-    <a href="admin.html" style="text-decoration:none"><button class="tnav">Review</button></a>
-    <a href="schedule.html" style="text-decoration:none"><button class="tnav">Schedule</button></a>
-    <a href="admin.html" style="text-decoration:none"><button class="tnav">Calendar</button></a>
-    <button class="tnav active">Accounts</button>
-    <a href="admin.html" style="text-decoration:none"><button class="tnav">Reference</button></a>
-    <a href="admin.html" style="text-decoration:none"><button class="tnav">Search</button></a>
-    <a href="admin.html" style="text-decoration:none"><button class="tnav">Export</button></a>
-    <span style="width:1px;height:1rem;background:rgba(255,255,255,0.2);margin:0 0.3rem;display:inline-block"></span>
-    <button class="tnav" onclick="showSection('list')">Account List</button>
-    <button class="tnav" onclick="showSection('add')">+ Add Account</button>
-  </nav>
-  <button class="logout" onclick="logout()" style="white-space:nowrap;flex-shrink:0">Sign Out</button>
-</header>
+<header></header>
 
 <div class="container">
 
@@ -291,6 +275,11 @@ async function init() {
       .select('role').eq('id', currentUser.id).single();
     if (profErr) throw profErr;
     if (!profile || profile.role !== 'admin') { window.location.href = 'index.html'; return; }
+
+    renderAdminNav('accounts', `
+      <button onclick="showSection('list')" style="background:transparent;border:1px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75);padding:0.3rem 0.75rem;cursor:pointer;font-size:0.82rem;border-radius:3px">Account List</button>
+      <button onclick="showSection('add')" style="background:transparent;border:1px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75);padding:0.3rem 0.75rem;cursor:pointer;font-size:0.82rem;border-radius:3px">+ Add Account</button>
+    `);
 
     const [p, l] = await Promise.all([
       db.from('parts').select('id,part_name').eq('active', true),

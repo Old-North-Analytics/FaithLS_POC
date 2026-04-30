@@ -128,23 +128,7 @@ tr:hover td { background: #f8f9fc; }
 </style>
 </head>
 <body>
-<header>
-  <h1>Faith Lock &amp; Safe &nbsp;|&nbsp; Admin</h1>
-  <nav>
-    <button class="active" onclick="showSection('assign')">Assign</button>
-    <button onclick="showSection('review')">Review</button>
-    <span class="nav-divider"></span>
-    <a href="schedule.html" style="text-decoration:none"><button>Schedule</button></a>
-    <button onclick="showSection('calendar')">Calendar</button>
-    <span class="nav-divider"></span>
-    <a href="accounts.html" style="text-decoration:none"><button>Accounts</button></a>
-    <button onclick="showSection('reference')">Reference</button>
-    <span class="nav-divider"></span>
-    <button onclick="showSection('search')">Search</button>
-    <button onclick="showSection('export')">Export</button>
-  </nav>
-  <button class="logout" onclick="logout()">Sign Out</button>
-</header>
+<header></header>
 
 <div class="container">
 
@@ -484,6 +468,15 @@ async function init() {
     if (profErr) throw profErr;
     if (!profile || profile.role !== 'admin') { window.location.href = 'index.html'; return; }
 
+    renderAdminNav('admin', `
+      <button onclick="showSection('assign')" style="background:transparent;border:1px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75);padding:0.3rem 0.75rem;cursor:pointer;font-size:0.82rem;border-radius:3px">Assign</button>
+      <button onclick="showSection('review')" style="background:transparent;border:1px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75);padding:0.3rem 0.75rem;cursor:pointer;font-size:0.82rem;border-radius:3px">Review</button>
+      <button onclick="showSection('calendar')" style="background:transparent;border:1px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75);padding:0.3rem 0.75rem;cursor:pointer;font-size:0.82rem;border-radius:3px">Calendar</button>
+      <button onclick="showSection('reference')" style="background:transparent;border:1px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75);padding:0.3rem 0.75rem;cursor:pointer;font-size:0.82rem;border-radius:3px">Reference</button>
+      <button onclick="showSection('search')" style="background:transparent;border:1px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75);padding:0.3rem 0.75rem;cursor:pointer;font-size:0.82rem;border-radius:3px">Search</button>
+      <button onclick="showSection('export')" style="background:transparent;border:1px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75);padding:0.3rem 0.75rem;cursor:pointer;font-size:0.82rem;border-radius:3px">Export</button>
+    `);
+
     await loadRefData();
     setDateDefaults();
   } catch (err) {
@@ -761,7 +754,7 @@ async function assignJob() {
   ];
   if (expItems.length) await db.from('job_line_items').insert(expItems);
 
-  msg.innerHTML = '<div class="msg success">Job assigned successfully.</div>';
+  msg.innerHTML = `<div class="msg success">Job assigned successfully. <button class="btn btn-secondary" style="margin-left:0.5rem;font-size:0.8rem;padding:0.2rem 0.6rem" onclick="printJob('${data.id}')">Print Summary</button></div>`;
   ['a-scope','a-sitenotes','a-wo','a-po'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('a-fixedprice').checked = false;
   document.getElementById('a-quotewrap').style.display = 'none';
