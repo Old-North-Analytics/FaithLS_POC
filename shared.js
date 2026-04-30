@@ -259,7 +259,7 @@ async function printJob(jobId) {
       sub_accounts:accounts!jobs_sub_account_id_fkey(account_name),
       job_types(job_type_name),
       lead_tech:techs!jobs_lead_tech_id_fkey(tech_name),
-      job_line_items(item_type, item_id, quantity, notes, parts(part_name), labor_types(labor_type_name)),
+      job_line_items(id, item_type, item_id, quantity, notes),
       job_visits(visit_number, visit_date, clocked_in_at, clocked_out_at, tech_notes)
     `)
     .eq('id', jobId)
@@ -275,6 +275,17 @@ async function printJob(jobId) {
     techNames = (techRows || []).map(t => t.tech_name).join(', ');
   }
   if (!techNames) techNames = job.lead_tech?.tech_name || '';
+
+  // Resolve part and labor names for line items
+  const lineItems = job.job_line_items || [];
+  const partIds  = lineItems.filter(i => i.item_type === 'Part').map(i => i.item_id);
+  const laborIds = lineItems.filter(i => i.item_type === 'Labor').map(i => i.item_id);
+  const [partsRes, laborRes] = await Promise.all([
+    partIds.length  ? db.from('parts').select('id, part_name').in('id', partIds)         : { data: [] },
+    laborIds.length ? db.from('labor_types').select('id, labor_type_name').in('id', laborIds) : { data: [] }
+  ]);
+  const partsMap = Object.fromEntries((partsRes.data || []).map(p => [p.id, p.part_name]));
+  const laborMap = Object.fromEntries((laborRes.data || []).map(l => [l.id, l.labor_type_name]));
 
   // Fetch contacts -- column is 'notes' not 'contact_notes'
   const { data: contacts } = await db
@@ -292,8 +303,8 @@ async function printJob(jobId) {
   function itemRows(items) {
     if (!items?.length) return '<tr><td colspan="4" style="color:#aaa;font-style:italic;padding:4px 7px">None</td></tr>';
     return items.map(i => {
-      const desc = i.item_type === 'Part'         ? (i.parts?.part_name || '')
-                 : i.item_type === 'Labor'        ? (i.labor_types?.labor_type_name || '')
+      const desc = i.item_type === 'Part'         ? (partsMap[i.item_id] || '')
+                 : i.item_type === 'Labor'        ? (laborMap[i.item_id] || '')
                  : i.item_type === 'Service Call' ? 'Service Call Fee'
                  : 'Other';
       const badge = { Part: '#dbeafe|#1e40af|Part', Labor: '#dcfce7|#166534|Labor',
