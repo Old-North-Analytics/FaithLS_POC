@@ -169,7 +169,7 @@ tr:hover td { background: #f8f9fc; }
         </div>
       </div>
       <div id="a-contact-panel" style="display:none">
-        <div class="section-title">Account Contact <span style="font-weight:400;text-transform:none;font-size:0.78rem;color:#888">(from CRM -- edit for this job only)</span></div>
+        <div class="section-title">Account Contact <span style="font-weight:400;text-transform:none;font-size:0.78rem;color:#888">(from CRM, edit for this job only)</span></div>
         <div id="a-contact-banner" class="contact-banner"></div>
         <div id="a-contact-edit" style="display:none">
           <div class="two-col">
@@ -184,6 +184,15 @@ tr:hover td { background: #f8f9fc; }
           <div class="warn-banner" id="a-contact-warn" style="display:none"></div>
         </div>
         <button class="btn btn-secondary" style="margin-bottom:0.6rem;font-size:0.82rem" onclick="toggleContactEdit()">Edit Contact for This Job</button>
+      </div>
+    </div>
+
+    <!-- Site address: shows CRM address on account select, editable for job-specific override -->
+    <div id="a-address-panel" style="display:none;margin-bottom:0.6rem">
+      <div class="section-title">Site Address <span style="font-weight:400;text-transform:none;font-size:0.78rem;color:#888">(from CRM)</span></div>
+      <div id="a-address-display" style="font-size:0.85rem;color:#444;margin-bottom:0.4rem;padding:0.3rem 0"></div>
+      <div class="form-row"><label>Override Address for This Job <span style="font-weight:400;color:#888">(leave blank to use account address)</span></label>
+        <input type="text" id="a-job-address" placeholder="Enter if different from account address">
       </div>
     </div>
 
@@ -332,7 +341,7 @@ tr:hover td { background: #f8f9fc; }
     <div class="filters">
       <div><label>From Date</label><input type="date" id="ex-from"></div>
       <div><label>To Date</label><input type="date" id="ex-to"></div>
-      <div class="form-row"><label>Status</label>
+      <div><label>Status</label>
         <select id="ex-status" style="padding:0.4rem;border:1px solid #c8cdd8;border-radius:4px">
           <option value="Approved">Approved Only (default)</option>
           <option value="">All Statuses</option>
@@ -468,14 +477,7 @@ async function init() {
     if (profErr) throw profErr;
     if (!profile || profile.role !== 'admin') { window.location.href = 'index.html'; return; }
 
-    renderAdminNav('admin', `
-      <button onclick="showSection('assign')" style="background:transparent;border:1px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75);padding:0.3rem 0.75rem;cursor:pointer;font-size:0.82rem;border-radius:3px">Assign</button>
-      <button onclick="showSection('review')" style="background:transparent;border:1px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75);padding:0.3rem 0.75rem;cursor:pointer;font-size:0.82rem;border-radius:3px">Review</button>
-      <button onclick="showSection('calendar')" style="background:transparent;border:1px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75);padding:0.3rem 0.75rem;cursor:pointer;font-size:0.82rem;border-radius:3px">Calendar</button>
-      <button onclick="showSection('reference')" style="background:transparent;border:1px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75);padding:0.3rem 0.75rem;cursor:pointer;font-size:0.82rem;border-radius:3px">Reference</button>
-      <button onclick="showSection('search')" style="background:transparent;border:1px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75);padding:0.3rem 0.75rem;cursor:pointer;font-size:0.82rem;border-radius:3px">Search</button>
-      <button onclick="showSection('export')" style="background:transparent;border:1px solid rgba(255,255,255,0.35);color:rgba(255,255,255,0.75);padding:0.3rem 0.75rem;cursor:pointer;font-size:0.82rem;border-radius:3px">Export</button>
-    `);
+    renderAdminNav('admin');
 
     await loadRefData();
     setDateDefaults();
@@ -552,7 +554,24 @@ async function loadAccountContact() {
   const accountId = document.getElementById('a-account-id').value;
   const panel     = document.getElementById('a-contact-panel');
   const banner    = document.getElementById('a-contact-banner');
-  if (!accountId) { panel.style.display = 'none'; currentAccountContacts = []; return; }
+  if (!accountId) {
+    panel.style.display = 'none';
+    document.getElementById('a-address-panel').style.display = 'none';
+    currentAccountContacts = [];
+    return;
+  }
+
+  // Show address from CRM
+  const acct = allAccounts.find(a => a.id === accountId);
+  const addrPanel = document.getElementById('a-address-panel');
+  const addrDisplay = document.getElementById('a-address-display');
+  if (acct?.address) {
+    addrDisplay.textContent = acct.address;
+    addrPanel.style.display = '';
+  } else {
+    addrDisplay.textContent = 'No address on file for this account.';
+    addrPanel.style.display = '';
+  }
 
   const { data: contacts } = await db.from('account_contacts')
     .select('*').eq('account_id', accountId).eq('active', true)
@@ -727,6 +746,7 @@ async function assignJob() {
     site_notes:           document.getElementById('a-sitenotes').value     || null,
     work_order_number:    document.getElementById('a-wo').value            || null,
     purchase_order_number: document.getElementById('a-po').value          || null,
+    job_address:          document.getElementById('a-job-address').value  || null,
     is_fixed_price:       document.getElementById('a-fixedprice').checked,
     quote_amount:         document.getElementById('a-fixedprice').checked
                             ? parseFloat(document.getElementById('a-quoteamount').value) || null : null,
@@ -755,7 +775,7 @@ async function assignJob() {
   if (expItems.length) await db.from('job_line_items').insert(expItems);
 
   msg.innerHTML = `<div class="msg success">Job assigned successfully. <button class="btn btn-secondary" style="margin-left:0.5rem;font-size:0.8rem;padding:0.2rem 0.6rem" onclick="printJob('${data.id}')">Print Summary</button></div>`;
-  ['a-scope','a-sitenotes','a-wo','a-po'].forEach(id => document.getElementById(id).value = '');
+  ['a-scope','a-sitenotes','a-wo','a-po','a-job-address'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('a-fixedprice').checked = false;
   document.getElementById('a-quotewrap').style.display = 'none';
   assignParts = []; assignLabor = []; assignCharges = [];
@@ -877,6 +897,7 @@ function reviewCard(j) {
       <button class="btn btn-yellow"    onclick="reviewAction('${j.id}', 'Flagged')">Flag</button>
       <button class="btn btn-secondary" onclick="reviewAction('${j.id}', 'Reset')">Reset</button>
       <button class="btn btn-blue"      onclick="openReopen('${j.id}')">Edit</button>
+      <button class="btn btn-secondary" onclick="printJob('${j.id}')">Print</button>
     </div>
 
     <div id="exp-${j.id}" class="expandable">
@@ -1026,13 +1047,15 @@ async function loadJobPhotos(jobId) {
 async function openReopen(jobId) {
   reopenParts = []; reopenLabor = []; reopenCharges = []; reopenVisits = [];
 
-  const [{ data: job }, { data: visits }] = await Promise.all([
+  try {
+  const [{ data: job, error: jobErr }, { data: visits }] = await Promise.all([
     db.from('jobs')
       .select(`*, accounts!jobs_account_id_fkey(account_name), job_types(job_type_name),
                job_completions(*), job_line_items(*)`)
       .eq('id', jobId).single(),
     db.from('job_visits').select('*').eq('job_id', jobId).order('visit_number')
   ]);
+  if (jobErr) throw jobErr;
   reopenVisits = visits || [];
 
   const comp     = job.job_completions?.[0] || {};
@@ -1133,6 +1156,10 @@ async function openReopen(jobId) {
 
   renderReopenParts(); renderReopenLabor(); renderReopenCharges();
   document.getElementById('reopen-modal').style.display = '';
+  } catch (err) {
+    alert('Error loading job for edit: ' + (err.message || JSON.stringify(err)));
+    console.error('openReopen error:', err);
+  }
 }
 
 function closeReopenModal() { document.getElementById('reopen-modal').style.display = 'none'; }
