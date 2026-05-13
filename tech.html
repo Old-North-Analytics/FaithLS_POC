@@ -215,14 +215,24 @@ td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #eef0f6; }
   <!-- ---- NEW CUSTOMER TAB ---- -->
   <div id="tab-newcustomer" style="display:none">
     <div class="card">
-      <h3>Submit New Customer</h3>
-      <p style="font-size:0.85rem;color:#5a6075;margin-bottom:0.8rem">Admin will add this to the permanent account list.</p>
-      <div class="form-row"><label>Customer Name</label><input type="text" id="nc-name"></div>
-      <div class="form-row"><label>Address</label><input type="text" id="nc-address"></div>
+      <h3>New Customer</h3>
+      <p style="font-size:0.85rem;color:#5a6075;margin-bottom:0.9rem">Fill in what you have. Admin will review and approve before this goes into the permanent account list. Nothing here is live until admin signs off.</p>
+
+      <!-- Account Info -->
+      <div class="section-title">Account Info</div>
+      <div class="form-row"><label>Account Name *</label><input type="text" id="nc-name" placeholder="ABC Property Management"></div>
+      <div class="form-row"><label>Address</label><input type="text" id="nc-address" placeholder="123 Main St, Clarksville, TN"></div>
       <div class="form-row"><label>Phone</label><input type="text" id="nc-phone"></div>
-      <div class="form-row"><label>Notes</label><textarea id="nc-notes"></textarea></div>
-      <div id="nc-msg" style="margin-top:0.5rem"></div>
-      <button class="btn btn-primary" style="width:100%;margin-top:0.4rem;padding:0.7rem;font-size:0.95rem" onclick="submitNewCustomer()">Submit</button>
+      <div class="form-row"><label>Billing Notes</label><textarea id="nc-billing" style="height:56px" placeholder="Invoice only, net 30, etc."></textarea></div>
+
+      <!-- Contacts -->
+      <div class="section-title" style="margin-top:1.1rem">Contacts</div>
+      <p style="font-size:0.82rem;color:#5a6075;margin:0 0 0.7rem">Add as many contacts as you have. Mark the primary billing contact and the on-site rep if different.</p>
+      <div id="nc-contacts-list"></div>
+      <button class="btn btn-secondary" style="width:100%;margin-bottom:0.5rem" onclick="ncAddContact()">+ Add Contact</button>
+
+      <div id="nc-msg" style="margin-top:0.6rem"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:0.4rem;padding:0.7rem;font-size:0.95rem" onclick="submitNewCustomer()">Submit for Review</button>
     </div>
   </div>
 </div>
@@ -929,23 +939,131 @@ async function submitNewJob() {
 
 
 // ---- NEW CUSTOMER ----
+
+// In-memory list of contacts being built on the form
+let ncContacts = [];
+
+function ncAddContact() {
+  const idx = ncContacts.length;
+  ncContacts.push({ name: '', title: '', company: '', work_phone: '', cell_phone: '', email: '', notes: '', is_primary: false, is_secondary: false, is_onsite: false });
+  renderNcContacts();
+  // Focus the name field of the newly added contact
+  setTimeout(() => { const el = document.getElementById(`ncc-name-${idx}`); if (el) el.focus(); }, 50);
+}
+
+function ncRemoveContact(idx) {
+  ncContacts.splice(idx, 1);
+  renderNcContacts();
+}
+
+function ncSyncContact(idx) {
+  const c = ncContacts[idx];
+  c.name       = (document.getElementById(`ncc-name-${idx}`)?.value       || '').trim();
+  c.title      = (document.getElementById(`ncc-title-${idx}`)?.value      || '').trim();
+  c.company    = (document.getElementById(`ncc-company-${idx}`)?.value    || '').trim();
+  c.work_phone = (document.getElementById(`ncc-work-${idx}`)?.value       || '').trim();
+  c.cell_phone = (document.getElementById(`ncc-cell-${idx}`)?.value       || '').trim();
+  c.email      = (document.getElementById(`ncc-email-${idx}`)?.value      || '').trim();
+  c.notes      = (document.getElementById(`ncc-notes-${idx}`)?.value      || '').trim();
+  c.is_primary   = !!document.getElementById(`ncc-primary-${idx}`)?.checked;
+  c.is_secondary = !!document.getElementById(`ncc-secondary-${idx}`)?.checked;
+  c.is_onsite    = !!document.getElementById(`ncc-onsite-${idx}`)?.checked;
+}
+
+function renderNcContacts() {
+  const el = document.getElementById('nc-contacts-list');
+  if (!ncContacts.length) { el.innerHTML = ''; return; }
+  el.innerHTML = ncContacts.map((c, idx) => `
+    <div style="border:1px solid #dde1ea;border-radius:5px;padding:0.8rem;margin-bottom:0.6rem;background:#f8f9fc">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <strong style="font-size:0.85rem;color:#1a2744">Contact ${idx + 1}</strong>
+        <button class="btn btn-secondary" style="padding:0.2rem 0.55rem;font-size:0.8rem" onclick="ncSyncAllAndRemove(${idx})">Remove</button>
+      </div>
+      <div class="form-row"><label>Name *</label><input type="text" id="ncc-name-${idx}" value="${escHtml(c.name)}" placeholder="Ronnie Smith"></div>
+      <div class="form-row"><label>Title</label><input type="text" id="ncc-title-${idx}" value="${escHtml(c.title)}" placeholder="Maintenance Manager"></div>
+      <div class="form-row"><label>Company</label><input type="text" id="ncc-company-${idx}" value="${escHtml(c.company)}"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+        <div class="form-row"><label>Work Phone</label><input type="text" id="ncc-work-${idx}" value="${escHtml(c.work_phone)}"></div>
+        <div class="form-row"><label>Cell Phone</label><input type="text" id="ncc-cell-${idx}" value="${escHtml(c.cell_phone)}"></div>
+      </div>
+      <div class="form-row"><label>Email</label><input type="text" id="ncc-email-${idx}" value="${escHtml(c.email)}"></div>
+      <div class="form-row"><label>Notes</label><textarea id="ncc-notes-${idx}" style="height:48px">${escHtml(c.notes)}</textarea></div>
+      <div style="display:flex;gap:1.2rem;flex-wrap:wrap;font-size:0.85rem;margin-top:0.3rem">
+        <label style="display:flex;align-items:center;gap:0.35rem"><input type="checkbox" id="ncc-primary-${idx}"   ${c.is_primary   ? 'checked' : ''}> Primary</label>
+        <label style="display:flex;align-items:center;gap:0.35rem"><input type="checkbox" id="ncc-secondary-${idx}" ${c.is_secondary ? 'checked' : ''}> Secondary</label>
+        <label style="display:flex;align-items:center;gap:0.35rem"><input type="checkbox" id="ncc-onsite-${idx}"    ${c.is_onsite    ? 'checked' : ''}> On-Site</label>
+      </div>
+    </div>
+  `).join('');
+}
+
+function escHtml(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function ncSyncAllAndRemove(idx) {
+  // Sync all contacts before removing so we don't lose edits
+  ncContacts.forEach((_, i) => ncSyncContact(i));
+  ncRemoveContact(idx);
+}
+
+function ncSyncAll() {
+  ncContacts.forEach((_, i) => ncSyncContact(i));
+}
+
 async function submitNewCustomer() {
+  ncSyncAll();
   const name = document.getElementById('nc-name').value.trim();
   const msg  = document.getElementById('nc-msg');
   msg.innerHTML = '';
-  if (!name) { msg.innerHTML = '<div class="msg error">Name is required.</div>'; return; }
 
-  const { error } = await db.from('new_customers').insert({
-    name,
-    address:      document.getElementById('nc-address').value || null,
-    phone:        document.getElementById('nc-phone').value   || null,
-    notes:        document.getElementById('nc-notes').value   || null,
-    submitted_by: currentUser.id
-  });
-  if (error) { msg.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
+  if (!name) { msg.innerHTML = '<div class="msg error">Account name is required.</div>'; return; }
 
-  msg.innerHTML = '<div class="msg success">Submitted. Admin will add to the account list.</div>';
-  ['nc-name','nc-address','nc-phone','nc-notes'].forEach(id => document.getElementById(id).value = '');
+  // Validate contacts -- each must have a name if the row exists
+  for (let i = 0; i < ncContacts.length; i++) {
+    if (!ncContacts[i].name) {
+      msg.innerHTML = `<div class="msg error">Contact ${i + 1} is missing a name. Fill it in or remove it.</div>`;
+      return;
+    }
+  }
+
+  // Insert the account as pending
+  const { data: acct, error: acctErr } = await db.from('accounts').insert({
+    account_name:  name,
+    address:       document.getElementById('nc-address').value.trim() || null,
+    phone:         document.getElementById('nc-phone').value.trim()   || null,
+    billing_notes: document.getElementById('nc-billing').value.trim() || null,
+    status:        'pending',
+    submitted_by:  currentUser.id,
+    submitted_at:  new Date().toISOString()
+  }).select('id').single();
+
+  if (acctErr) { msg.innerHTML = `<div class="msg error">${acctErr.message}</div>`; return; }
+
+  // Insert contacts if any
+  if (ncContacts.length) {
+    const contactRows = ncContacts.map(c => ({
+      account_id:   acct.id,
+      contact_name: c.name,
+      title:        c.title        || null,
+      company:      c.company      || null,
+      work_phone:   c.work_phone   || null,
+      cell_phone:   c.cell_phone   || null,
+      email:        c.email        || null,
+      notes:        c.notes        || null,
+      is_primary:   c.is_primary,
+      is_secondary: c.is_secondary,
+      is_onsite:    c.is_onsite
+    }));
+    const { error: cErr } = await db.from('account_contacts').insert(contactRows);
+    if (cErr) { msg.innerHTML = `<div class="msg error">Account saved but contacts failed: ${cErr.message}</div>`; return; }
+  }
+
+  msg.innerHTML = '<div class="msg success">Submitted for review. Admin will approve before it goes live.</div>';
+  // Reset form
+  ['nc-name','nc-address','nc-phone','nc-billing'].forEach(id => document.getElementById(id).value = '');
+  ncContacts = [];
+  renderNcContacts();
 }
 
 

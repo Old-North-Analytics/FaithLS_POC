@@ -69,10 +69,6 @@ input[type=checkbox] { width: auto; accent-color: #1a2744; }
 .contact-card .flags span { background: #1a2744; color: white; padding: 0.1rem 0.45rem; margin-right: 0.3rem; border-radius: 20px; font-size: 0.76rem; }
 .contact-card .flags span.secondary { background: #6b6fa8; }
 .contact-card .flags span.onsite { background: #2a7a4a; }
-.addr-block { border: 1px solid #dde1ea; border-radius: 5px; padding: 0.7rem; background: #f8f9fc; }
-.addr-block h4 { margin: 0 0 0.5rem; font-size: 0.85rem; color: #1a2744; font-weight: 600; }
-.addr-grid { display: grid; grid-template-columns: 2fr 1fr 0.8fr; gap: 0.4rem; }
-@media (max-width: 600px) { .addr-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -84,7 +80,7 @@ input[type=checkbox] { width: auto; accent-color: #1a2744; }
 <div id="section-list">
   <div class="card">
     <div class="filters">
-      <div><label>Search</label><input type="text" id="f-search" placeholder="Name, company, address, phone..." oninput="filterAccounts()"></div>
+      <div><label>Search</label><input type="text" id="f-search" placeholder="Name, address, phone..." oninput="filterAccounts()"></div>
       <div><label>Type</label>
         <select id="f-type" onchange="filterAccounts()">
           <option value="">All</option>
@@ -102,15 +98,16 @@ input[type=checkbox] { width: auto; accent-color: #1a2744; }
       <div style="align-self:flex-end">
         <button class="btn btn-primary" onclick="loadAccounts()">Refresh</button>
         <button class="btn btn-secondary" onclick="exportAccountsCSV()">Export CSV</button>
-        <button class="btn btn-yellow" onclick="toggleNewCustomers()">New Customers</button>
+        <button class="btn btn-yellow" id="btn-pending-accounts" onclick="toggleNewCustomers()">Pending Accounts</button>
       </div>
     </div>
 
     <div id="new-customers-panel" style="display:none;border:1px solid #e0cc60;background:#fffbe8;border-radius:5px;padding:0.9rem;margin-bottom:0.9rem">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
-        <strong style="color:#6b4800">Pending New Customer Submissions</strong>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem">
+        <strong style="color:#6b4800">Pending Account Submissions</strong>
         <button class="btn btn-secondary" style="font-size:0.82rem" onclick="toggleNewCustomers()">Close</button>
       </div>
+      <p style="font-size:0.83rem;color:#7a5800;margin:0 0 0.7rem">These accounts were submitted from the field. Review and edit before approving. Nothing here is visible to techs or included in exports until approved.</p>
       <div id="newcustomers-list">Loading...</div>
     </div>
 
@@ -120,7 +117,7 @@ input[type=checkbox] { width: auto; accent-color: #1a2744; }
       <thead>
         <tr>
           <th onclick="sortTable('account_name')">Account</th>
-          <th>Service Address</th>
+          <th onclick="sortTable('address')">Address</th>
           <th>Phone</th>
           <th>Primary Contact</th>
           <th onclick="sortTable('job_count')">Jobs</th>
@@ -143,41 +140,14 @@ input[type=checkbox] { width: auto; accent-color: #1a2744; }
     <h3 id="form-title">Add Account</h3>
     <input type="hidden" id="edit-id">
     <div class="two-col">
-      <div class="form-row"><label>Account Name *</label><input type="text" id="f-name" placeholder="Internal label, e.g. Smith - Main St"></div>
-      <div class="form-row"><label>Company Name</label><input type="text" id="f-company" placeholder="Business name (optional, leave blank for residential)"></div>
+      <div class="form-row"><label>Account Name *</label><input type="text" id="f-name"></div>
       <div class="form-row"><label>Parent Account (if sub-account)</label>
         <select id="f-parent"><option value="">-- Master Account --</option></select>
       </div>
-      <div class="form-row"><label>Account Phone</label><input type="text" id="f-phone" placeholder="Main phone for the account"></div>
+      <div class="form-row"><label>Address</label><input type="text" id="f-address"></div>
+      <div class="form-row"><label>Phone</label><input type="text" id="f-phone"></div>
     </div>
-
-    <div class="section-title" style="margin-top:1rem">Service Address</div>
-    <div class="meta" style="margin-bottom:0.4rem">Where the tech goes for jobs at this account.</div>
-    <div class="addr-block">
-      <div class="form-row"><label>Street</label><input type="text" id="f-svc-street"></div>
-      <div class="addr-grid">
-        <div class="form-row"><label>City</label><input type="text" id="f-svc-city"></div>
-        <div class="form-row"><label>State</label><input type="text" id="f-svc-state" maxlength="2" placeholder="TN"></div>
-        <div class="form-row"><label>ZIP</label><input type="text" id="f-svc-zip"></div>
-      </div>
-    </div>
-
-    <div class="section-title" style="margin-top:1rem">Billing Address</div>
-    <div style="margin-bottom:0.4rem">
-      <label style="font-size:0.83rem;display:flex;align-items:center;gap:0.4rem;color:#4a5070">
-        <input type="checkbox" id="f-bill-same" checked onchange="toggleBillingSame()"> Same as service address
-      </label>
-    </div>
-    <div id="f-billing-block" class="addr-block" style="display:none">
-      <div class="form-row"><label>Street</label><input type="text" id="f-bill-street"></div>
-      <div class="addr-grid">
-        <div class="form-row"><label>City</label><input type="text" id="f-bill-city"></div>
-        <div class="form-row"><label>State</label><input type="text" id="f-bill-state" maxlength="2"></div>
-        <div class="form-row"><label>ZIP</label><input type="text" id="f-bill-zip"></div>
-      </div>
-    </div>
-
-    <div class="form-row" style="margin-top:0.8rem"><label><input type="checkbox" id="f-active" checked> Active</label></div>
+    <div class="form-row"><label><input type="checkbox" id="f-active" checked> Active</label></div>
     <div id="form-msg"></div>
     <div style="margin-top:0.5rem">
       <button class="btn btn-primary" onclick="saveAccount()">Save</button>
@@ -232,25 +202,12 @@ input[type=checkbox] { width: auto; accent-color: #1a2744; }
         <div class="two-col">
           <div class="form-row"><label>Name *</label><input type="text" id="cf-name"></div>
           <div class="form-row"><label>Title</label><input type="text" id="cf-title"></div>
+          <div class="form-row"><label>Work Phone</label><input type="text" id="cf-workphone"></div>
+          <div class="form-row"><label>Cell Phone</label><input type="text" id="cf-cellphone"></div>
+          <div class="form-row"><label>Email</label><input type="text" id="cf-email"></div>
           <div class="form-row"><label>Company</label><input type="text" id="cf-company"></div>
         </div>
-
-        <div class="section-title" style="margin-top:0.6rem">Phones</div>
-        <div class="two-col">
-          <div class="form-row"><label>Main Phone</label><input type="text" id="cf-mainphone"></div>
-          <div class="form-row"><label>Work Phone</label><input type="text" id="cf-workphone"></div>
-          <div class="form-row"><label>Mobile</label><input type="text" id="cf-mobilephone"></div>
-          <div class="form-row"><label>Fax</label><input type="text" id="cf-faxphone"></div>
-        </div>
-
-        <div class="section-title" style="margin-top:0.6rem">Emails</div>
-        <div class="two-col">
-          <div class="form-row"><label>Main Email</label><input type="text" id="cf-mainemail"></div>
-          <div class="form-row"><label>CC Email</label><input type="text" id="cf-ccemail"></div>
-          <div class="form-row"><label>Other Email</label><input type="text" id="cf-otheremail"></div>
-        </div>
-
-        <div class="form-row" style="margin-top:0.6rem"><label>Notes</label><textarea id="cf-notes" style="height:50px"></textarea></div>
+        <div class="form-row"><label>Notes</label><textarea id="cf-notes" style="height:50px"></textarea></div>
         <div style="display:flex;gap:1.2rem;margin-bottom:0.6rem;flex-wrap:wrap">
           <label style="display:flex;align-items:center;gap:0.4rem"><input type="checkbox" id="cf-primary">   Primary Contact</label>
           <label style="display:flex;align-items:center;gap:0.4rem"><input type="checkbox" id="cf-secondary"> Secondary Contact</label>
@@ -292,9 +249,7 @@ input[type=checkbox] { width: auto; accent-color: #1a2744; }
 
 <script>
 // ============================================================
-// accounts.html v2.4 - Faith Lock & Safe Account Management
-// QBD-aligned schema: company_name, service/billing address blocks,
-// typed phone/email contact fields.
+// accounts.html — Faith Lock & Safe Account Management
 // ============================================================
 
 let currentUser            = null;
@@ -307,28 +262,6 @@ let sortDir                = 1;
 let currentDetailAccountId = null;
 let allParts               = [];
 let allLaborTypes          = [];
-
-
-// ---- HELPERS ----
-
-// Compose a single-line address from the new split fields, falling back
-// to the legacy single-line address column if the new fields are empty.
-function composeAddress(streetOrLegacy, city, state, zip) {
-  const parts = [streetOrLegacy, city, state, zip].filter(p => p && String(p).trim() !== '');
-  return parts.join(', ');
-}
-function serviceAddressLine(a) {
-  if (a.service_address || a.service_city || a.service_state || a.service_zip) {
-    return composeAddress(a.service_address, a.service_city, a.service_state, a.service_zip);
-  }
-  return a.address || '';
-}
-function billingAddressLine(a) {
-  if (a.billing_address || a.billing_city || a.billing_state || a.billing_zip) {
-    return composeAddress(a.billing_address, a.billing_city, a.billing_state, a.billing_zip);
-  }
-  return '';
-}
 
 
 // ---- INIT ----
@@ -357,6 +290,7 @@ async function init() {
     allLaborTypes = l.data || [];
 
     await loadAccounts();
+    loadPendingCount();
   } catch (err) {
     document.getElementById('accounts-tbody').innerHTML =
       `<tr><td colspan="8" style="color:#a02020;padding:1rem">
@@ -373,9 +307,8 @@ async function loadAccounts() {
     '<tr><td colspan="8" style="color:#888;padding:0.6rem">Loading...</td></tr>';
   try {
     const { data: accounts, error } = await db.from('accounts')
-      .select(`id,account_name,company_name,parent_account_id,address,phone,billing_notes,active,instructions,
-               service_address,service_city,service_state,service_zip,
-               billing_address,billing_city,billing_state,billing_zip`)
+      .select('id,account_name,parent_account_id,address,phone,billing_notes,active,instructions')
+      .eq('status', 'active')
       .order('account_name');
     if (error) throw error;
     allAccounts = accounts || [];
@@ -395,10 +328,8 @@ async function loadAccounts() {
       if (j.status === 'Approved') s.approvedRevenue += rev;
     });
 
-    // Pull primary contact display fields. Coalesce typed phone fields to a
-    // single "best" phone for the list view (priority: main, mobile, work, cell legacy).
     const { data: contacts } = await db.from('account_contacts')
-      .select('account_id,contact_name,main_phone,mobile_phone,work_phone,cell_phone,is_primary')
+      .select('account_id,contact_name,work_phone,cell_phone,is_primary')
       .eq('active', true).eq('is_primary', true);
     allPrimaryContacts = {};
     (contacts || []).forEach(c => { allPrimaryContacts[c.account_id] = c; });
@@ -426,8 +357,7 @@ function filterAccounts() {
   const activeVal = document.getElementById('f-active').value;
 
   filteredAccounts = allAccounts.filter(a => {
-    const haystack = `${a.account_name} ${a.company_name||''} ${serviceAddressLine(a)} ${a.phone||''}`.toLowerCase();
-    if (q && !haystack.includes(q)) return false;
+    if (q && !`${a.account_name} ${a.address||''} ${a.phone||''}`.toLowerCase().includes(q)) return false;
     if (type === 'master' && a.parent_account_id)  return false;
     if (type === 'sub'    && !a.parent_account_id) return false;
     if (activeVal === 'true'  && !a.active) return false;
@@ -475,19 +405,22 @@ function sortAndRender() {
     const stats  = allJobsByAccount[a.id] || {};
     const isSub  = !!a.parent_account_id;
     const pc     = allPrimaryContacts[a.id];
-    const pcPhone = pc ? (pc.main_phone || pc.mobile_phone || pc.work_phone || pc.cell_phone || '') : '';
     const contactDisplay = pc
-      ? `${pc.contact_name}${pcPhone ? '<br><span style="font-size:0.78rem;color:#5a6075">'+pcPhone+'</span>' : ''}`
+      ? `${pc.contact_name}${pc.work_phone
+          ? '<br><span style="font-size:0.78rem;color:#5a6075">'+pc.work_phone+'</span>'
+          : pc.cell_phone
+            ? '<br><span style="font-size:0.78rem;color:#5a6075">'+pc.cell_phone+'</span>'
+            : ''}`
       : '<span style="color:#bbb;font-size:0.8rem">None</span>';
     const rowBg   = isSub ? 'background:#f8f9fc;' : '';
     const nameCell = isSub
-      ? `<span style="padding-left:1.1rem;color:#5a6075;font-size:0.9rem">&#8627; ${a.account_name}${a.company_name ? ' <span style="color:#888;font-size:0.78rem">('+a.company_name+')</span>' : ''}</span>`
-      : `<strong style="color:#1a2744">${a.account_name}</strong>${a.company_name ? '<br><span style="color:#5a6075;font-size:0.78rem">'+a.company_name+'</span>' : ''}`;
+      ? `<span style="padding-left:1.1rem;color:#5a6075;font-size:0.9rem">&#8627; ${a.account_name}</span>`
+      : `<strong style="color:#1a2744">${a.account_name}</strong>`;
 
     return `<tr class="${a.active ? '' : 'inactive-row'}" style="${rowBg}">
       <td>${nameCell}</td>
-      <td style="font-size:0.83rem">${serviceAddressLine(a)}</td>
-      <td style="font-size:0.83rem">${a.phone || ''}</td>
+      <td style="font-size:0.83rem">${a.address || ''}</td>
+      <td style="font-size:0.83rem">${a.phone   || ''}</td>
       <td style="font-size:0.83rem">${contactDisplay}</td>
       <td style="text-align:center">${stats.count || 0}</td>
       <td style="font-size:0.83rem;white-space:nowrap">${formatDate(stats.lastDate) || '--'}</td>
@@ -513,51 +446,25 @@ function showSection(name) {
 
 
 // ---- ADD / EDIT ACCOUNT ----
-function toggleBillingSame() {
-  const same = document.getElementById('f-bill-same').checked;
-  document.getElementById('f-billing-block').style.display = same ? 'none' : '';
-}
-
 function openEdit(id) {
   const a = allAccounts.find(x => x.id === id);
   if (!a) return;
   document.getElementById('form-title').textContent = 'Edit Account';
-  document.getElementById('edit-id').value      = a.id;
-  document.getElementById('f-name').value       = a.account_name;
-  document.getElementById('f-company').value    = a.company_name || '';
-  document.getElementById('f-parent').value     = a.parent_account_id || '';
-  document.getElementById('f-phone').value      = a.phone || '';
-
-  // Service address: prefer split fields, fall back to legacy single-line
-  document.getElementById('f-svc-street').value = a.service_address || a.address || '';
-  document.getElementById('f-svc-city').value   = a.service_city  || '';
-  document.getElementById('f-svc-state').value  = a.service_state || '';
-  document.getElementById('f-svc-zip').value    = a.service_zip   || '';
-
-  // Billing address: empty means "same as service" by default
-  const hasBilling = !!(a.billing_address || a.billing_city || a.billing_state || a.billing_zip);
-  document.getElementById('f-bill-same').checked  = !hasBilling;
-  document.getElementById('f-bill-street').value = a.billing_address || '';
-  document.getElementById('f-bill-city').value   = a.billing_city  || '';
-  document.getElementById('f-bill-state').value  = a.billing_state || '';
-  document.getElementById('f-bill-zip').value    = a.billing_zip   || '';
-  toggleBillingSame();
-
-  document.getElementById('f-active').checked = a.active;
+  document.getElementById('edit-id').value        = a.id;
+  document.getElementById('f-name').value         = a.account_name;
+  document.getElementById('f-parent').value       = a.parent_account_id || '';
+  document.getElementById('f-address').value      = a.address || '';
+  document.getElementById('f-phone').value        = a.phone   || '';
+  document.getElementById('f-active').checked     = a.active;
   showSection('add');
 }
 
 function cancelEdit() {
   document.getElementById('edit-id').value = '';
   document.getElementById('form-title').textContent = 'Add Account';
-  ['f-name','f-company','f-phone',
-   'f-svc-street','f-svc-city','f-svc-state','f-svc-zip',
-   'f-bill-street','f-bill-city','f-bill-state','f-bill-zip']
-    .forEach(id => document.getElementById(id).value = '');
-  document.getElementById('f-parent').value     = '';
-  document.getElementById('f-active').checked   = true;
-  document.getElementById('f-bill-same').checked = true;
-  toggleBillingSame();
+  ['f-name','f-address','f-phone'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-parent').value   = '';
+  document.getElementById('f-active').checked = true;
   showSection('list');
 }
 
@@ -567,36 +474,11 @@ async function saveAccount() {
   msg.innerHTML = '';
   if (!name) { msg.innerHTML = '<div class="msg error">Account name is required.</div>'; return; }
 
-  const svcStreet = document.getElementById('f-svc-street').value.trim();
-  const svcCity   = document.getElementById('f-svc-city').value.trim();
-  const svcState  = document.getElementById('f-svc-state').value.trim();
-  const svcZip    = document.getElementById('f-svc-zip').value.trim();
-  const billSame  = document.getElementById('f-bill-same').checked;
-
-  // If "same as service" is checked, copy service address into billing fields.
-  const billStreet = billSame ? svcStreet : document.getElementById('f-bill-street').value.trim();
-  const billCity   = billSame ? svcCity   : document.getElementById('f-bill-city').value.trim();
-  const billState  = billSame ? svcState  : document.getElementById('f-bill-state').value.trim();
-  const billZip    = billSame ? svcZip    : document.getElementById('f-bill-zip').value.trim();
-
-  // Keep legacy `address` column populated with the service address single-line
-  // so any other code paths that still read `address` continue to work.
-  const legacyAddress = composeAddress(svcStreet, svcCity, svcState, svcZip) || null;
-
   const payload = {
     account_name:      name,
-    company_name:      document.getElementById('f-company').value.trim() || null,
-    parent_account_id: document.getElementById('f-parent').value || null,
-    address:           legacyAddress,
-    phone:             document.getElementById('f-phone').value.trim() || null,
-    service_address:   svcStreet || null,
-    service_city:      svcCity   || null,
-    service_state:     svcState  || null,
-    service_zip:       svcZip    || null,
-    billing_address:   billStreet || null,
-    billing_city:      billCity   || null,
-    billing_state:     billState  || null,
-    billing_zip:       billZip    || null,
+    parent_account_id: document.getElementById('f-parent').value  || null,
+    address:           document.getElementById('f-address').value || null,
+    phone:             document.getElementById('f-phone').value   || null,
     active:            document.getElementById('f-active').checked
   };
 
@@ -617,7 +499,24 @@ async function toggleAccountActive(id, current) {
 }
 
 
-// ---- NEW CUSTOMERS ----
+// ---- PENDING COUNT BADGE ----
+async function loadPendingCount() {
+  const { count } = await db.from('accounts')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'pending');
+  const btn = document.getElementById('btn-pending-accounts');
+  if (!btn) return;
+  if (count > 0) {
+    btn.textContent = `Pending Accounts (${count})`;
+    btn.style.background = '#a06000';
+  } else {
+    btn.textContent = 'Pending Accounts';
+    btn.style.background = '';
+  }
+}
+
+
+// ---- PENDING ACCOUNT REVIEW ----
 function toggleNewCustomers() {
   const panel   = document.getElementById('new-customers-panel');
   const visible = panel.style.display === 'block';
@@ -626,44 +525,233 @@ function toggleNewCustomers() {
 }
 
 async function loadNewCustomers() {
-  const { data } = await db.from('new_customers').select('*').eq('migrated', false)
-    .order('submitted_at', { ascending: false });
   const el = document.getElementById('newcustomers-list');
-  if (!data?.length) { el.innerHTML = '<p style="margin:0;font-size:0.85rem;color:#888">No pending submissions.</p>'; return; }
-  el.innerHTML = `<div style="overflow-x:auto"><table>
-    <thead><tr><th>Submitted</th><th>Name</th><th>Address</th><th>Phone</th><th>Notes</th><th></th></tr></thead>
-    <tbody>${data.map(c => `<tr>
-      <td style="font-size:0.83rem;white-space:nowrap">${new Date(c.submitted_at).toLocaleDateString('en-US')}</td>
-      <td><strong>${c.name}</strong></td>
-      <td>${c.address||''}</td>
-      <td>${c.phone||''}</td>
-      <td style="font-size:0.83rem">${c.notes||''}</td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-green" style="font-size:0.82rem;padding:0.25rem 0.6rem" onclick="migrateCustomer('${c.id}','${c.name.replace(/'/g,"\\'")}','${(c.address||'').replace(/'/g,"\\'")}','${c.phone||''}')">Add to Accounts</button>
-        <button class="btn btn-secondary" style="font-size:0.82rem;padding:0.25rem 0.6rem" onclick="dismissCustomer('${c.id}')">Dismiss</button>
-      </td>
-    </tr>`).join('')}
-    </tbody>
-  </table></div>`;
-}
+  el.innerHTML = '<p style="font-size:0.85rem;color:#888;margin:0">Loading...</p>';
 
-async function migrateCustomer(id, name, address, phone) {
-  // Migrate the new customer into accounts. Populate both the legacy `address`
-  // column and `service_address` so the record is readable from either path.
-  const { error } = await db.from('accounts').insert({
-    account_name:    name,
-    address:         address || null,
-    service_address: address || null,
-    phone:           phone   || null
+  // Load pending accounts with their contacts
+  const { data: accounts, error } = await db.from('accounts')
+    .select('id,account_name,address,phone,billing_notes,submitted_at,submitted_by')
+    .eq('status', 'pending')
+    .order('submitted_at', { ascending: false });
+
+  if (error) { el.innerHTML = `<div class="msg error">${error.message}</div>`; return; }
+  if (!accounts?.length) {
+    el.innerHTML = '<p style="margin:0;font-size:0.85rem;color:#888">No pending submissions.</p>';
+    return;
+  }
+
+  // Load contacts for all pending accounts in one query
+  const pendingIds = accounts.map(a => a.id);
+  const { data: allContacts } = await db.from('account_contacts')
+    .select('*').in('account_id', pendingIds).order('is_primary', { ascending: false });
+  const contactsByAccount = {};
+  (allContacts || []).forEach(c => {
+    if (!contactsByAccount[c.account_id]) contactsByAccount[c.account_id] = [];
+    contactsByAccount[c.account_id].push(c);
   });
-  if (error) { alert(error.message); return; }
-  await db.from('new_customers').update({ migrated: true }).eq('id', id);
-  loadNewCustomers();
-  await loadAccounts();
+
+  el.innerHTML = accounts.map(a => {
+    const contacts = contactsByAccount[a.id] || [];
+    const submittedDate = a.submitted_at ? new Date(a.submitted_at).toLocaleDateString('en-US') : 'Unknown';
+
+    const contactsHtml = contacts.length ? contacts.map(c => {
+      const flags = [
+        c.is_primary   ? '<span style="background:#1a2744;color:white;padding:0.1rem 0.4rem;border-radius:10px;font-size:0.75rem">Primary</span>'   : '',
+        c.is_secondary ? '<span style="background:#6b6fa8;color:white;padding:0.1rem 0.4rem;border-radius:10px;font-size:0.75rem">Secondary</span>' : '',
+        c.is_onsite    ? '<span style="background:#2a7a4a;color:white;padding:0.1rem 0.4rem;border-radius:10px;font-size:0.75rem">On-Site</span>'   : ''
+      ].filter(Boolean).join(' ');
+      return `<div style="background:white;border:1px solid #dde1ea;border-radius:4px;padding:0.5rem 0.7rem;margin-bottom:0.35rem;font-size:0.83rem">
+        ${flags ? `<div style="margin-bottom:0.25rem">${flags}</div>` : ''}
+        <strong>${c.contact_name}</strong>${c.title ? ` | ${c.title}` : ''}${c.company ? ` | ${c.company}` : ''}
+        ${c.work_phone ? `<br>Work: ${c.work_phone}` : ''}
+        ${c.cell_phone ? `<br>Cell: ${c.cell_phone}` : ''}
+        ${c.email      ? `<br>${c.email}` : ''}
+        ${c.notes      ? `<br><em style="color:#666">${c.notes}</em>` : ''}
+      </div>`;
+    }).join('') : '<p style="font-size:0.83rem;color:#888;margin:0.2rem 0">No contacts submitted.</p>';
+
+    return `
+    <div id="pending-card-${a.id}" style="background:white;border:1px solid #dde1ea;border-radius:5px;padding:1rem;margin-bottom:0.9rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.7rem">
+        <div>
+          <strong style="font-size:1rem;color:#1a2744">${a.account_name}</strong>
+          <span style="font-size:0.8rem;color:#888;margin-left:0.5rem">Submitted ${submittedDate}</span>
+        </div>
+        <div>
+          <button class="btn btn-green" style="font-size:0.82rem" onclick="approvePending('${a.id}')">Approve</button>
+          <button class="btn btn-secondary" style="font-size:0.82rem" onclick="openEditPending('${a.id}')">Edit</button>
+          <button class="btn btn-red" style="font-size:0.82rem" onclick="rejectPending('${a.id}')">Reject</button>
+        </div>
+      </div>
+
+      <!-- Read-only summary (default view) -->
+      <div id="pending-view-${a.id}">
+        ${a.address ? `<div style="font-size:0.85rem;margin-bottom:0.2rem">Address: ${a.address}</div>` : ''}
+        ${a.phone   ? `<div style="font-size:0.85rem;margin-bottom:0.2rem">Phone: ${a.phone}</div>`     : ''}
+        ${a.billing_notes ? `<div style="font-size:0.83rem;color:#555;margin-bottom:0.4rem">Billing: ${a.billing_notes}</div>` : ''}
+        <div style="margin-top:0.5rem">
+          <div style="font-size:0.78rem;font-weight:600;color:#6b6fa8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.3rem">Contacts</div>
+          ${contactsHtml}
+        </div>
+      </div>
+
+      <!-- Edit form (hidden by default) -->
+      <div id="pending-edit-${a.id}" style="display:none">
+        <div style="margin-bottom:0.5rem;font-size:0.82rem;font-weight:600;color:#6b6fa8;text-transform:uppercase;letter-spacing:0.05em">Edit Account</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+          <div class="form-row"><label>Account Name *</label><input type="text" id="pe-name-${a.id}" value="${escHtmlAdmin(a.account_name)}"></div>
+          <div class="form-row"><label>Phone</label><input type="text" id="pe-phone-${a.id}" value="${escHtmlAdmin(a.phone||'')}"></div>
+          <div class="form-row" style="grid-column:1/-1"><label>Address</label><input type="text" id="pe-address-${a.id}" value="${escHtmlAdmin(a.address||'')}"></div>
+          <div class="form-row" style="grid-column:1/-1"><label>Billing Notes</label><textarea id="pe-billing-${a.id}" style="height:48px">${escHtmlAdmin(a.billing_notes||'')}</textarea></div>
+          <div class="form-row" style="grid-column:1/-1">
+            <label>Parent Account (if sub-account)</label>
+            <select id="pe-parent-${a.id}">
+              <option value="">-- Master Account --</option>
+              ${allAccounts.filter(x => x.status === 'active' && !x.parent_account_id).map(x => `<option value="${x.id}">${x.account_name}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-top:0.6rem;margin-bottom:0.4rem;font-size:0.82rem;font-weight:600;color:#6b6fa8;text-transform:uppercase;letter-spacing:0.05em">Contacts</div>
+        <div id="pe-contacts-${a.id}">
+          ${(contactsByAccount[a.id] || []).map((c, idx) => buildPendingContactRow(a.id, c, idx)).join('')}
+        </div>
+        <button class="btn btn-secondary" style="font-size:0.83rem;margin-bottom:0.6rem" onclick="addPendingContactRow('${a.id}')">+ Add Contact</button>
+
+        <div id="pe-msg-${a.id}" style="margin-bottom:0.4rem"></div>
+        <button class="btn btn-primary" style="font-size:0.83rem" onclick="savePendingEdits('${a.id}')">Save Changes</button>
+        <button class="btn btn-secondary" style="font-size:0.83rem" onclick="cancelEditPending('${a.id}')">Cancel</button>
+      </div>
+
+    </div>`;
+  }).join('');
 }
 
-async function dismissCustomer(id) {
-  await db.from('new_customers').update({ migrated: true }).eq('id', id);
+function escHtmlAdmin(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function buildPendingContactRow(accountId, c, idx) {
+  const flags = [
+    c.is_primary   ? '<span style="background:#1a2744;color:white;padding:0.1rem 0.4rem;border-radius:10px;font-size:0.75rem">Primary</span>'   : '',
+    c.is_secondary ? '<span style="background:#6b6fa8;color:white;padding:0.1rem 0.4rem;border-radius:10px;font-size:0.75rem">Secondary</span>' : '',
+    c.is_onsite    ? '<span style="background:#2a7a4a;color:white;padding:0.1rem 0.4rem;border-radius:10px;font-size:0.75rem">On-Site</span>'   : ''
+  ].filter(Boolean).join(' ');
+  const safeId = `${accountId}_${idx}`;
+  return `
+  <div id="pe-contact-row-${safeId}" style="border:1px solid #dde1ea;border-radius:4px;padding:0.6rem;margin-bottom:0.5rem;background:#fafbfc">
+    <input type="hidden" id="pe-cid-${safeId}" value="${c.id||''}">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
+      <div style="font-size:0.82rem;font-weight:600;color:#1a2744">Contact ${idx+1} ${flags}</div>
+      <button class="btn btn-secondary" style="font-size:0.78rem;padding:0.2rem 0.5rem" onclick="removePendingContactRow('${accountId}','${safeId}')">Remove</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem">
+      <div class="form-row"><label>Name *</label><input type="text" id="pe-cname-${safeId}" value="${escHtmlAdmin(c.contact_name||'')}"></div>
+      <div class="form-row"><label>Title</label><input type="text" id="pe-ctitle-${safeId}" value="${escHtmlAdmin(c.title||'')}"></div>
+      <div class="form-row"><label>Work Phone</label><input type="text" id="pe-cwork-${safeId}" value="${escHtmlAdmin(c.work_phone||'')}"></div>
+      <div class="form-row"><label>Cell Phone</label><input type="text" id="pe-ccell-${safeId}" value="${escHtmlAdmin(c.cell_phone||'')}"></div>
+      <div class="form-row" style="grid-column:1/-1"><label>Company</label><input type="text" id="pe-ccompany-${safeId}" value="${escHtmlAdmin(c.company||'')}"></div>
+      <div class="form-row" style="grid-column:1/-1"><label>Email</label><input type="text" id="pe-cemail-${safeId}" value="${escHtmlAdmin(c.email||'')}"></div>
+      <div class="form-row" style="grid-column:1/-1"><label>Notes</label><textarea id="pe-cnotes-${safeId}" style="height:44px">${escHtmlAdmin(c.notes||'')}</textarea></div>
+    </div>
+    <div style="display:flex;gap:1.2rem;flex-wrap:wrap;font-size:0.83rem;margin-top:0.3rem">
+      <label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="pe-cprimary-${safeId}"   ${c.is_primary   ? 'checked' : ''}> Primary</label>
+      <label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="pe-csecondary-${safeId}" ${c.is_secondary ? 'checked' : ''}> Secondary</label>
+      <label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="pe-consite-${safeId}"    ${c.is_onsite    ? 'checked' : ''}> On-Site</label>
+    </div>
+  </div>`;
+}
+
+// Tracks new (unsaved) contact rows added during edit; keyed by accountId
+const pendingNewContacts = {};
+
+function addPendingContactRow(accountId) {
+  if (!pendingNewContacts[accountId]) pendingNewContacts[accountId] = [];
+  const newIdx = 1000 + pendingNewContacts[accountId].length; // avoid collision with existing idx
+  const blankContact = { id: '', contact_name: '', title: '', company: '', work_phone: '', cell_phone: '', email: '', notes: '', is_primary: false, is_secondary: false, is_onsite: false };
+  pendingNewContacts[accountId].push(newIdx);
+  const container = document.getElementById(`pe-contacts-${accountId}`);
+  const div = document.createElement('div');
+  div.innerHTML = buildPendingContactRow(accountId, blankContact, newIdx);
+  container.appendChild(div.firstElementChild);
+}
+
+function removePendingContactRow(accountId, safeId) {
+  const row = document.getElementById(`pe-contact-row-${safeId}`);
+  if (row) row.remove();
+}
+
+function openEditPending(accountId) {
+  document.getElementById(`pending-view-${accountId}`).style.display = 'none';
+  document.getElementById(`pending-edit-${accountId}`).style.display = '';
+}
+
+function cancelEditPending(accountId) {
+  document.getElementById(`pending-edit-${accountId}`).style.display = 'none';
+  document.getElementById(`pending-view-${accountId}`).style.display = '';
+  if (pendingNewContacts[accountId]) delete pendingNewContacts[accountId];
+}
+
+async function savePendingEdits(accountId) {
+  const msg  = document.getElementById(`pe-msg-${accountId}`);
+  msg.innerHTML = '';
+  const name = document.getElementById(`pe-name-${accountId}`).value.trim();
+  if (!name) { msg.innerHTML = '<div class="msg error">Account name is required.</div>'; return; }
+
+  const { error: acctErr } = await db.from('accounts').update({
+    account_name:      name,
+    address:           document.getElementById(`pe-address-${accountId}`).value.trim() || null,
+    phone:             document.getElementById(`pe-phone-${accountId}`).value.trim()   || null,
+    billing_notes:     document.getElementById(`pe-billing-${accountId}`).value.trim() || null,
+    parent_account_id: document.getElementById(`pe-parent-${accountId}`).value         || null
+  }).eq('id', accountId);
+
+  if (acctErr) { msg.innerHTML = `<div class="msg error">${acctErr.message}</div>`; return; }
+
+  // Collect all contact rows currently in the edit form
+  const contactRows = document.querySelectorAll(`#pe-contacts-${accountId} > div[id^='pe-contact-row-']`);
+  for (const row of contactRows) {
+    const safeId    = row.id.replace('pe-contact-row-', '');
+    const contactId = document.getElementById(`pe-cid-${safeId}`)?.value;
+    const cName     = document.getElementById(`pe-cname-${safeId}`)?.value.trim();
+    if (!cName) continue; // skip blank rows
+    const payload = {
+      contact_name: cName,
+      title:        document.getElementById(`pe-ctitle-${safeId}`)?.value.trim()    || null,
+      company:      document.getElementById(`pe-ccompany-${safeId}`)?.value.trim()  || null,
+      work_phone:   document.getElementById(`pe-cwork-${safeId}`)?.value.trim()     || null,
+      cell_phone:   document.getElementById(`pe-ccell-${safeId}`)?.value.trim()     || null,
+      email:        document.getElementById(`pe-cemail-${safeId}`)?.value.trim()    || null,
+      notes:        document.getElementById(`pe-cnotes-${safeId}`)?.value.trim()    || null,
+      is_primary:   !!document.getElementById(`pe-cprimary-${safeId}`)?.checked,
+      is_secondary: !!document.getElementById(`pe-csecondary-${safeId}`)?.checked,
+      is_onsite:    !!document.getElementById(`pe-consite-${safeId}`)?.checked,
+      account_id:   accountId
+    };
+    if (contactId) {
+      await db.from('account_contacts').update(payload).eq('id', contactId);
+    } else {
+      await db.from('account_contacts').insert(payload);
+    }
+  }
+
+  msg.innerHTML = '<div class="msg success">Saved.</div>';
+  if (pendingNewContacts[accountId]) delete pendingNewContacts[accountId];
+  setTimeout(() => loadNewCustomers(), 700);
+}
+
+async function approvePending(accountId) {
+  const { error } = await db.from('accounts')
+    .update({ status: 'active', active: true })
+    .eq('id', accountId);
+  if (error) { alert('Approve failed: ' + error.message); return; }
+  await loadAccounts();
+  loadNewCustomers();
+}
+
+async function rejectPending(accountId) {
+  if (!confirm('Reject and remove this submission? The account and its contacts will be marked rejected.')) return;
+  await db.from('accounts').update({ status: 'rejected' }).eq('id', accountId);
   loadNewCustomers();
 }
 
@@ -679,19 +767,13 @@ async function openDetail(accountId) {
 
   const stats = allJobsByAccount[accountId] || {};
 
-  const svcLine  = serviceAddressLine(a);
-  const billLine = billingAddressLine(a);
-  const billDifferent = billLine && billLine !== svcLine;
-
   document.getElementById('detail-header').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem">
       <div>
         <h3 style="margin:0 0 0.2rem;color:#1a2744">${a.account_name}</h3>
-        ${a.company_name ? `<div style="color:#5a6075;font-size:0.88rem;margin-bottom:0.3rem">${a.company_name}</div>` : ''}
         <div class="meta">${a.parent_account_id ? 'Sub-Account' : 'Master Account'} | ${a.active ? 'Active' : '<span style="color:#a02020">Inactive</span>'}</div>
-        ${svcLine ? `<div class="meta"><strong>Service:</strong> ${mapsLink(svcLine)}</div>` : ''}
-        ${billDifferent ? `<div class="meta"><strong>Billing:</strong> ${billLine}</div>` : ''}
-        ${a.phone   ? `<div class="meta"><strong>Phone:</strong> ${a.phone}</div>` : ''}
+        ${a.address ? `<div class="meta">Address: ${mapsLink(a.address)}</div>` : ''}
+        ${a.phone   ? `<div class="meta">Phone: ${a.phone}</div>` : ''}
         ${a.billing_notes ? `<div style="margin-top:0.4rem;padding:0.4rem 0.6rem;background:#fffbe8;border:1px solid #e0cc60;border-radius:4px;font-size:0.83rem"><strong>Billing Note:</strong> ${a.billing_notes}</div>` : ''}
       </div>
       <button class="btn btn-secondary" onclick="openEdit('${accountId}')">Edit Account</button>
@@ -708,13 +790,12 @@ async function openDetail(accountId) {
     document.getElementById('detail-subs').innerHTML = `
       <div class="section-title">Sub-Accounts (${subs.length})</div>
       <div style="overflow-x:auto"><table>
-        <thead><tr><th>Name</th><th>Service Address</th><th>Phone</th><th>Jobs</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Address</th><th>Phone</th><th>Jobs</th><th></th></tr></thead>
         <tbody>${subs.map(s => {
           const ss = allJobsByAccount[s.id] || {};
-          const sLine = serviceAddressLine(s);
           return `<tr>
-            <td><strong>${s.account_name}</strong>${s.company_name ? `<br><span style="color:#5a6075;font-size:0.78rem">${s.company_name}</span>` : ''}</td>
-            <td style="font-size:0.83rem">${sLine ? mapsLink(sLine) : ''}</td>
+            <td><strong>${s.account_name}</strong></td>
+            <td style="font-size:0.83rem">${s.address ? mapsLink(s.address) : ''}</td>
             <td style="font-size:0.83rem">${s.phone||''}</td>
             <td>${ss.count||0}</td>
             <td><button class="btn btn-blue" onclick="openDetail('${s.id}')" style="padding:0.25rem 0.6rem;font-size:0.82rem">View</button></td>
@@ -798,27 +879,6 @@ async function loadAccountJobs() {
 
 
 // ---- CONTACTS ----
-
-// Coalesce typed phone fields into a display list. Falls back to legacy
-// work_phone/cell_phone if the new typed fields are not yet populated.
-function contactPhones(c) {
-  const out = [];
-  if (c.main_phone)   out.push({ label: 'Main',   value: c.main_phone });
-  if (c.work_phone)   out.push({ label: 'Work',   value: c.work_phone });
-  if (c.mobile_phone) out.push({ label: 'Mobile', value: c.mobile_phone });
-  else if (c.cell_phone) out.push({ label: 'Cell', value: c.cell_phone });
-  if (c.fax_phone)    out.push({ label: 'Fax',    value: c.fax_phone });
-  return out;
-}
-function contactEmails(c) {
-  const out = [];
-  if (c.main_email)  out.push(c.main_email);
-  else if (c.email)  out.push(c.email);
-  if (c.email_cc)    out.push('cc: ' + c.email_cc);
-  if (c.email_other) out.push('other: ' + c.email_other);
-  return out;
-}
-
 async function loadContactsTab() {
   const el = document.getElementById('contacts-list');
   el.innerHTML = 'Loading...';
@@ -838,22 +898,16 @@ async function loadContactsTab() {
       c.is_onsite    ? '<span class="onsite">On-Site</span>'     : ''
     ].filter(Boolean).join('');
 
-    const phones = contactPhones(c);
-    const emails = contactEmails(c);
-    const phoneRow = phones.length
-      ? phones.map(p => `<span style="margin-right:1rem">${p.label}: <strong>${p.value}</strong></span>`).join('')
-      : '';
-    const emailRow = emails.length
-      ? emails.map(e => `<span style="margin-right:1rem">${e}</span>`).join('')
-      : '';
-
     return `<div class="contact-card">
       <div class="flags">${flags || '<span style="background:#6b6fa8">Contact</span>'}</div>
       <strong style="font-size:0.95rem;color:#1a2744">${c.contact_name}</strong>
       ${c.title   ? `<span style="color:#5a6075;font-size:0.85rem"> | ${c.title}</span>`   : ''}
       ${c.company ? `<span style="color:#5a6075;font-size:0.85rem"> | ${c.company}</span>` : ''}
-      ${phoneRow ? `<div style="margin-top:0.35rem;font-size:0.85rem">${phoneRow}</div>` : ''}
-      ${emailRow ? `<div style="margin-top:0.2rem;font-size:0.85rem;color:#5a6075">${emailRow}</div>` : ''}
+      <div style="margin-top:0.35rem;font-size:0.85rem">
+        ${c.work_phone ? `<span style="margin-right:1rem">Work: <strong>${c.work_phone}</strong></span>` : ''}
+        ${c.cell_phone ? `<span style="margin-right:1rem">Cell: <strong>${c.cell_phone}</strong></span>` : ''}
+        ${c.email      ? `<span>${c.email}</span>`                                                       : ''}
+      </div>
       ${c.notes ? `<div style="margin-top:0.35rem;font-size:0.83rem;color:#5a6075;font-style:italic">${c.notes}</div>` : ''}
       <div style="margin-top:0.35rem;font-size:0.78rem;color:#aaa">Added: ${new Date(c.date_added).toLocaleDateString('en-US')}</div>
       <div style="margin-top:0.5rem">
@@ -867,10 +921,7 @@ async function loadContactsTab() {
 function openAddContact() {
   document.getElementById('contact-form-title').textContent = 'Add Contact';
   document.getElementById('cf-id').value = '';
-  ['cf-name','cf-title','cf-company',
-   'cf-mainphone','cf-workphone','cf-mobilephone','cf-faxphone',
-   'cf-mainemail','cf-ccemail','cf-otheremail',
-   'cf-notes']
+  ['cf-name','cf-title','cf-workphone','cf-cellphone','cf-email','cf-company','cf-notes']
     .forEach(id => document.getElementById(id).value = '');
   ['cf-primary','cf-secondary','cf-onsite']
     .forEach(id => document.getElementById(id).checked = false);
@@ -880,23 +931,14 @@ function openAddContact() {
 
 function openEditContact(c) {
   document.getElementById('contact-form-title').textContent = 'Edit Contact';
-  document.getElementById('cf-id').value          = c.id;
-  document.getElementById('cf-name').value        = c.contact_name || '';
-  document.getElementById('cf-title').value       = c.title        || '';
-  document.getElementById('cf-company').value     = c.company      || '';
-
-  // Typed phones with legacy fallback for older records that only have
-  // work_phone and cell_phone populated.
-  document.getElementById('cf-mainphone').value   = c.main_phone   || '';
-  document.getElementById('cf-workphone').value   = c.work_phone   || '';
-  document.getElementById('cf-mobilephone').value = c.mobile_phone || c.cell_phone || '';
-  document.getElementById('cf-faxphone').value    = c.fax_phone    || '';
-
-  document.getElementById('cf-mainemail').value   = c.main_email   || c.email || '';
-  document.getElementById('cf-ccemail').value     = c.email_cc     || '';
-  document.getElementById('cf-otheremail').value  = c.email_other  || '';
-
-  document.getElementById('cf-notes').value       = c.notes        || '';
+  document.getElementById('cf-id').value        = c.id;
+  document.getElementById('cf-name').value      = c.contact_name || '';
+  document.getElementById('cf-title').value     = c.title        || '';
+  document.getElementById('cf-workphone').value = c.work_phone   || '';
+  document.getElementById('cf-cellphone').value = c.cell_phone   || '';
+  document.getElementById('cf-email').value     = c.email        || '';
+  document.getElementById('cf-company').value   = c.company      || '';
+  document.getElementById('cf-notes').value     = c.notes        || '';
   document.getElementById('cf-primary').checked   = c.is_primary   || false;
   document.getElementById('cf-secondary').checked = c.is_secondary || false;
   document.getElementById('cf-onsite').checked    = c.is_onsite    || false;
@@ -930,33 +972,15 @@ async function saveContact() {
       .neq('id', editId || '00000000-0000-0000-0000-000000000000');
   }
 
-  const mainPhone   = document.getElementById('cf-mainphone').value.trim()   || null;
-  const workPhone   = document.getElementById('cf-workphone').value.trim()   || null;
-  const mobilePhone = document.getElementById('cf-mobilephone').value.trim() || null;
-  const faxPhone    = document.getElementById('cf-faxphone').value.trim()    || null;
-  const mainEmail   = document.getElementById('cf-mainemail').value.trim()   || null;
-
   const payload = {
     account_id:   currentDetailAccountId,
     contact_name: name,
-    title:        document.getElementById('cf-title').value.trim()       || null,
-    company:      document.getElementById('cf-company').value.trim()     || null,
-
-    // New typed fields (QBD aligned)
-    main_phone:   mainPhone,
-    mobile_phone: mobilePhone,
-    fax_phone:    faxPhone,
-    main_email:   mainEmail,
-    email_cc:     document.getElementById('cf-ccemail').value.trim()     || null,
-    email_other:  document.getElementById('cf-otheremail').value.trim()  || null,
-
-    // Legacy columns kept in sync so older queries (e.g. admin assign view
-    // that still selects work_phone/cell_phone/email) keep working.
-    work_phone:   workPhone,
-    cell_phone:   mobilePhone,
-    email:        mainEmail,
-
-    notes:        document.getElementById('cf-notes').value.trim() || null,
+    title:        document.getElementById('cf-title').value     || null,
+    work_phone:   document.getElementById('cf-workphone').value || null,
+    cell_phone:   document.getElementById('cf-cellphone').value || null,
+    email:        document.getElementById('cf-email').value     || null,
+    company:      document.getElementById('cf-company').value   || null,
+    notes:        document.getElementById('cf-notes').value     || null,
     is_primary:   isPrimary,
     is_secondary: isSecondary,
     is_onsite:    isOnsite,
@@ -1065,21 +1089,15 @@ async function saveInstructions() {
 // ---- EXPORT CSV ----
 function exportAccountsCSV() {
   if (!filteredAccounts.length) { alert('No accounts to export.'); return; }
-  const rows = [['Name','Company','Type','Parent Account','Service Address','Billing Address','Phone','Primary Contact','Jobs','Last Service','Active']];
+  const rows = [['Name','Type','Parent Account','Address','Phone','Primary Contact','Jobs','Last Service','Active']];
   filteredAccounts.forEach(a => {
     const stats  = allJobsByAccount[a.id] || {};
     const parent = a.parent_account_id ? allAccounts.find(x => x.id === a.parent_account_id)?.account_name||'' : '';
     const pc     = allPrimaryContacts[a.id];
-    const pcPhone = pc ? (pc.main_phone || pc.mobile_phone || pc.work_phone || pc.cell_phone || '') : '';
     rows.push([
-      a.account_name,
-      a.company_name||'',
-      a.parent_account_id ? 'Sub' : 'Master',
-      parent,
-      serviceAddressLine(a),
-      billingAddressLine(a),
-      a.phone||'',
-      pc ? `${pc.contact_name}${pcPhone ? ' | '+pcPhone : ''}` : '',
+      a.account_name, a.parent_account_id ? 'Sub' : 'Master', parent,
+      a.address||'', a.phone||'',
+      pc ? `${pc.contact_name}${pc.work_phone ? ' | '+pc.work_phone : ''}` : '',
       stats.count||0, formatDate(stats.lastDate)||'', a.active ? 'Yes' : 'No'
     ]);
   });
@@ -1101,12 +1119,12 @@ async function exportAccountDetailCSV() {
 
   if (!jobs?.length) { alert('No jobs to export for this account.'); return; }
 
-  const rows = [['Account','Company','Date','Sub-Account','Job Type','WO','PO','Status','Fixed Price','Quote Amount','Payment Type','Payment Detail','Total','Follow-up','Tech Notes','Scope']];
+  const rows = [['Account','Date','Sub-Account','Job Type','WO','PO','Status','Fixed Price','Quote Amount','Payment Type','Payment Detail','Total','Follow-up','Tech Notes','Scope']];
   jobs.forEach(j => {
     const comp  = j.job_completions?.[0] || {};
     const total = (j.job_line_items||[]).reduce((s,i) => s+((i.override_cost??i.unit_cost)*i.quantity), 0);
     rows.push([
-      a.account_name, a.company_name||'', formatDate(j.job_date), j.sub?.account_name||'',
+      a.account_name, formatDate(j.job_date), j.sub?.account_name||'',
       j.job_types?.job_type_name||'', j.work_order_number||'', j.purchase_order_number||'',
       j.status, j.is_fixed_price ? 'Yes' : 'No', j.quote_amount||'',
       comp.payment_type||'', comp.payment_detail||'', total.toFixed(2),
