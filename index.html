@@ -28,7 +28,6 @@ button:hover { background: #333; }
   <button onclick="login()">Sign In</button>
   <div class="err" id="err"></div>
 </div>
-
 <script>
 // ---- INIT ----
 // If the user already has an active session (e.g. they bookmarked the page
@@ -36,20 +35,24 @@ button:hover { background: #333; }
 db.auth.getSession().then(({ data }) => {
   if (data.session) redirectByRole(data.session.user.id);
 });
-
 // ---- LOGIN ----
 async function login() {
   const email    = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
   const err      = document.getElementById('err');
   err.textContent = '';
-
   const { data, error } = await db.auth.signInWithPassword({ email, password });
   if (error) { err.textContent = error.message; return; }
-
+  // Fire-and-forget: log the login event without blocking redirect
+  logLoginEvent(data.user.id, data.user.email);
   redirectByRole(data.user.id);
 }
-
+// ---- LOGIN EVENT LOGGING ----
+// Writes a row to login_events for visibility into who is accessing the app.
+// Non-blocking -- failures are silent and do not affect the user flow.
+function logLoginEvent(userId, email) {
+  db.from('login_events').insert({ user_id: userId, email: email }).then(() => {});
+}
 // redirectByRole: looks up the user's role in user_profiles and sends them
 // to the correct page. Admins go to the full management dashboard;
 // technicians go to the simplified field view.
@@ -59,7 +62,6 @@ async function redirectByRole(uid) {
   if (data.role === 'admin') window.location.href = 'admin.html';
   else window.location.href = 'tech.html';
 }
-
 // Allow Enter key to submit the form (common user expectation on login screens)
 document.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 </script>
