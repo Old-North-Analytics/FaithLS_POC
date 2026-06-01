@@ -859,6 +859,13 @@ async function openReopen(jobId) {
       }
     }
     const siteAddress = job.job_address || job.accounts?.address || '';
+    const subAccounts = (allAccounts || []).filter(a => a.parent_account_id === job.account_id);
+    const techCheckboxes = (allTechs || []).filter(t => t.active).map(t =>
+      `<label style="display:flex;align-items:center;gap:0.3rem;font-weight:normal;font-size:0.88rem">
+         <input type="checkbox" name="ro-tech" value="${t.id}" ${(job.assigned_tech_ids||[]).includes(t.id) ? 'checked' : ''}> ${escHtml(t.tech_name)}
+       </label>`).join('');
+    const leadTechOpts = (allTechs || []).filter(t => t.active).map(t =>
+      `<option value="${t.id}" ${t.id === job.lead_tech_id ? 'selected' : ''}>${escHtml(t.tech_name)}</option>`).join('');
 
     document.getElementById('reopen-content').innerHTML = `
       <h3 style="margin:0 0 0.1rem;color:#1a2744">${job.accounts?.account_name || ''}${job.sub?.account_name ? ' / ' + job.sub.account_name : ''}</h3>
@@ -867,6 +874,21 @@ async function openReopen(jobId) {
       ${contactHtml ? `<div class="contact-banner" style="margin:0.4rem 0 0.6rem;font-size:0.83rem">${contactHtml}</div>` : ''}
 
       <div class="form-row" style="margin-top:0.5rem"><label>Status</label><select id="ro-status">${statusOpts}</select></div>
+      <div class="two-col">
+        <div class="form-row"><label>Job Date</label><input type="date" id="ro-date" value="${job.job_date || ''}"></div>
+        <div class="form-row"><label>Sub-Account</label>
+          <select id="ro-subaccount">
+            <option value="">-- None --</option>
+            ${subAccounts.map(s => `<option value="${s.id}" ${s.id === job.sub_account_id ? 'selected' : ''}>${escHtml(s.account_name)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-row"><label>Assigned Techs</label>
+        <div style="display:flex;flex-wrap:wrap;gap:0.55rem;margin-top:0.2rem">${techCheckboxes}</div>
+      </div>
+      <div class="form-row"><label>Lead Tech</label>
+        <select id="ro-leadtech"><option value="">-- None --</option>${leadTechOpts}</select>
+      </div>
       <div class="two-col">
         <div class="form-row"><label>Work Order No.</label><input type="text" id="ro-wo" value="${escHtml(job.work_order_number||'')}"></div>
         <div class="form-row"><label>Purchase Order No.</label><input type="text" id="ro-po" value="${escHtml(job.purchase_order_number||'')}"></div>
@@ -1017,12 +1039,17 @@ async function saveReopen() {
   const msg = document.getElementById('ro-msg');
   msg.innerHTML = '';
 
+  const assignedTechIds = [...document.querySelectorAll('input[name="ro-tech"]:checked')].map(cb => cb.value);
   await db.from('jobs').update({
     status:                document.getElementById('ro-status').value,
-    scope:                 document.getElementById('ro-scope').value.trim()     || null,
-    site_notes:            document.getElementById('ro-sitenotes').value.trim() || null,
-    work_order_number:     document.getElementById('ro-wo').value.trim()        || null,
-    purchase_order_number: document.getElementById('ro-po').value.trim()        || null,
+    job_date:              document.getElementById('ro-date')?.value              || null,
+    sub_account_id:        document.getElementById('ro-subaccount')?.value        || null,
+    assigned_tech_ids:     assignedTechIds,
+    lead_tech_id:          document.getElementById('ro-leadtech')?.value          || null,
+    scope:                 document.getElementById('ro-scope').value.trim()       || null,
+    site_notes:            document.getElementById('ro-sitenotes').value.trim()   || null,
+    work_order_number:     document.getElementById('ro-wo').value.trim()          || null,
+    purchase_order_number: document.getElementById('ro-po').value.trim()          || null,
     updated_at: new Date().toISOString()
   }).eq('id', reopenJobId);
 

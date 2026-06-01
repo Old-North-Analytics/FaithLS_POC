@@ -176,7 +176,8 @@ function mjJobCard(j) {
     ${contactLine}
     ${visitBanner}
     ${fixedBanner}
-    ${j.scope ? `<p style="font-size:0.85rem;margin:0.3rem 0;color:#333"><strong>Scope:</strong> ${escHtml(j.scope)}</p>` : ''}
+    ${j.scope      ? `<p style="font-size:0.85rem;margin:0.3rem 0;color:#333"><strong>Scope:</strong> ${escHtml(j.scope)}</p>` : ''}
+    ${j.site_notes ? `<p style="font-size:0.85rem;margin:0.3rem 0;color:#1a3070;background:#f0f4ff;border-radius:3px;padding:0.28rem 0.5rem"><strong>Site Notes:</strong> ${escHtml(j.site_notes)}</p>` : ''}
     ${submitted ? '<p style="font-size:0.82rem;color:#2a7a4a;font-weight:600;margin:0.25rem 0">Submitted -- awaiting review.</p>' : ''}
     <div style="margin-top:0.6rem;display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center">
       ${clockBtns}
