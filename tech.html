@@ -346,7 +346,7 @@ async function loadJobs() {
                job_number, work_order_number, purchase_order_number, account_id,
                assigned_tech_ids, lead_tech_id,
                accounts!jobs_account_id_fkey(account_name, account_number, address),
-               sub:accounts!jobs_sub_account_id_fkey(account_name, sub_account_number),
+               sub:accounts!jobs_sub_account_id_fkey(account_name, sub_account_number, address),
                job_types(job_type_name),
                job_completions(id,tech_notes,follow_up_flag,submitted_at),
                job_line_items(id,item_type,item_id,quantity),
@@ -408,8 +408,9 @@ function jobCard(j) {
     ? `<div style="font-size:0.82rem;color:#1a3070;margin-bottom:0.28rem">Contact: <strong>${pc.contact_name}</strong>${pc.work_phone ? ' | Work: '+pc.work_phone : ''}${pc.cell_phone ? ' | Cell: '+pc.cell_phone : ''}</div>`
     : '';
 
-  const addrLine = j.accounts?.address
-    ? `<div style="font-size:0.82rem;margin-bottom:0.28rem">${mapsLink(j.accounts.address)}</div>` : '';
+  const displayAddr = j.sub?.address || j.accounts?.address;
+  const addrLine = displayAddr
+    ? `<div style="font-size:0.82rem;margin-bottom:0.28rem">${mapsLink(displayAddr)}</div>` : '';
 
   const hasExpected = (j.job_line_items||[]).some(i => i.item_type === 'Part' || i.item_type === 'Labor');
   const expectedBanner = hasExpected && !submitted
@@ -550,7 +551,7 @@ async function openJobDetail(jobId) {
 
   const { data: job } = await db.from('jobs')
     .select(`*, accounts!jobs_account_id_fkey(account_name, address, phone),
-             sub:accounts!jobs_sub_account_id_fkey(account_name),
+             sub:accounts!jobs_sub_account_id_fkey(account_name, address),
              job_types(job_type_name),
              job_completions(id,time_in,time_out,payment_type,payment_detail,follow_up_flag,tech_notes,submitted_at),
              job_line_items(id,item_type,item_id,quantity),
@@ -618,7 +619,8 @@ async function openJobDetail(jobId) {
   const fixedBanner = job.is_fixed_price
     ? `<div class="fixed-banner">FIXED PRICE | Quoted: $${Number(job.quote_amount||0).toFixed(2)} | Do not exceed scope without calling Rich.</div>` : '';
   const wopo = [job.work_order_number ? `WO: ${job.work_order_number}` : '', job.purchase_order_number ? `PO: ${job.purchase_order_number}` : ''].filter(Boolean).join(' | ');
-  const addrHtml = job.accounts?.address ? `<div class="address-info"><strong>Address:</strong> ${mapsLink(job.accounts.address)}</div>` : '';
+  const modalAddr = job.sub?.address || job.accounts?.address;
+  const addrHtml = modalAddr ? `<div class="address-info"><strong>Address:</strong> ${mapsLink(modalAddr)}</div>` : '';
   const hasExpected = (job.job_line_items||[]).some(i => i.item_type === 'Part' || i.item_type === 'Labor');
   const preNote = hasExpected
     ? `<p style="font-size:0.82rem;color:#1a3070;margin:0 0 0.45rem;background:#eaf2ff;border-radius:3px;padding:0.38rem 0.55rem">Expected parts and labor are pre-loaded. Adjust quantities or add/remove as needed.</p>`

@@ -67,7 +67,7 @@ async function refreshMyJobs() {
              work_order_number, purchase_order_number, account_id,
              assigned_tech_ids, lead_tech_id,
              accounts!jobs_account_id_fkey(account_name, address),
-             sub:accounts!jobs_sub_account_id_fkey(account_name),
+             sub:accounts!jobs_sub_account_id_fkey(account_name, address),
              job_types(job_type_name),
              job_completions(id,tech_notes,follow_up_flag,submitted_at),
              job_line_items(id,item_type,item_id,quantity),
@@ -132,8 +132,9 @@ function mjJobCard(j) {
     ? `<div class="meta">Contact: <strong>${pc.contact_name}</strong>${pc.work_phone ? ' | Work: '+pc.work_phone : ''}${pc.cell_phone ? ' | Cell: '+pc.cell_phone : ''}</div>`
     : '';
 
-  const addrLine = j.accounts?.address
-    ? `<div class="meta">${mapsLink(j.accounts.address)}</div>` : '';
+  const displayAddr = j.sub?.address || j.accounts?.address;
+  const addrLine = displayAddr
+    ? `<div class="meta">${mapsLink(displayAddr)}</div>` : '';
 
   const wopo = [
     j.work_order_number     ? `WO: ${j.work_order_number}` : '',
@@ -260,7 +261,7 @@ async function mjOpenDetail(jobId) {
 
   const { data: job, error } = await db.from('jobs')
     .select(`*, accounts!jobs_account_id_fkey(account_name, address, phone),
-             sub:accounts!jobs_sub_account_id_fkey(account_name),
+             sub:accounts!jobs_sub_account_id_fkey(account_name, address),
              job_types(job_type_name),
              job_completions(id,time_in,time_out,payment_type,payment_detail,follow_up_flag,tech_notes,submitted_at),
              job_line_items(id,item_type,item_id,quantity),
