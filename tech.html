@@ -3,113 +3,99 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Faith Lock | Field View</title>
+<title>Faith Lock &amp; Safe | Field</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="shared.js"></script>
 <style>
-/* ---- RESET & BASE ---- */
 * { box-sizing: border-box; }
 body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; background: #f2f4f8; font-size: 0.92rem; color: #1a1a2e; }
 
-/* ---- HEADER ---- */
-header { background: #1a2744; color: white; padding: 0.7rem 1.2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
-header h1 { margin: 0; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.02em; }
-button.logout { background: transparent; border: 1px solid rgba(255,100,100,0.6); color: rgba(255,150,150,0.9); padding: 0.3rem 0.75rem; cursor: pointer; font-size: 0.82rem; border-radius: 3px; }
+header { background: #1a2744; color: white; padding: 0.6rem 1.1rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+header h1 { margin: 0; font-size: 0.93rem; font-weight: 600; letter-spacing: 0.02em; }
+button.logout { background: transparent; border: 1px solid rgba(255,100,100,0.55); color: rgba(255,150,150,0.88); padding: 0.28rem 0.65rem; cursor: pointer; font-size: 0.8rem; border-radius: 3px; font-family: inherit; }
 
-/* ---- LAYOUT ---- */
 .container { max-width: 680px; margin: 1rem auto; padding: 0 1rem; }
 
-/* ---- TABS ---- */
 .tabs { display: flex; gap: 0; margin-bottom: 1rem; border-radius: 5px; overflow: hidden; border: 1px solid #c8cdd8; }
-.tab { flex: 1; padding: 0.55rem 0.5rem; border: none; background: white; cursor: pointer; font-size: 0.88rem; font-family: inherit; color: #5a6075; font-weight: 500; transition: background 0.15s; text-align: center; }
+.tab { flex: 1; padding: 0.52rem 0.45rem; border: none; background: white; cursor: pointer; font-size: 0.86rem; font-family: inherit; color: #5a6075; font-weight: 500; transition: background 0.15s; text-align: center; }
 .tab + .tab { border-left: 1px solid #c8cdd8; }
 .tab.active { background: #1a2744; color: white; font-weight: 600; }
 
-/* ---- FILTER BUTTONS ---- */
 .filters { display: flex; gap: 0.4rem; margin-bottom: 1rem; flex-wrap: wrap; }
-.filter-btn { padding: 0.4rem 1rem; border: 1px solid #c8cdd8; background: white; cursor: pointer; font-size: 0.85rem; font-family: inherit; border-radius: 20px; color: #5a6075; transition: all 0.15s; }
+.filter-btn { padding: 0.38rem 0.95rem; border: 1px solid #c8cdd8; background: white; cursor: pointer; font-size: 0.84rem; font-family: inherit; border-radius: 20px; color: #5a6075; transition: all 0.15s; }
 .filter-btn.active { background: #1a2744; color: white; border-color: #1a2744; }
 
-/* ---- CARDS ---- */
-.card { background: white; border: 1px solid #dde1ea; border-radius: 6px; margin-bottom: 0.9rem; padding: 1.1rem; box-shadow: 0 1px 4px rgba(26,39,68,0.07); }
-.card h3 { margin: 0 0 0.25rem; font-size: 1rem; color: #1a2744; font-weight: 600; }
-.card .meta { color: #5a6075; font-size: 0.83rem; margin-bottom: 0.3rem; }
+.card { background: white; border: 1px solid #dde1ea; border-radius: 6px; margin-bottom: 0.85rem; padding: 1.05rem; box-shadow: 0 1px 4px rgba(26,39,68,0.07); }
+.card h3 { margin: 0 0 0.22rem; font-size: 0.98rem; color: #1a2744; font-weight: 600; }
+.meta { color: #5a6075; font-size: 0.82rem; margin-bottom: 0.28rem; }
 
-/* ---- BANNERS ---- */
-.fixed-banner    { background: #ffe8e8; border: 1px solid #f4aaaa; color: #800; padding: 0.45rem 0.7rem; margin-bottom: 0.6rem; font-weight: 600; font-size: 0.85rem; border-radius: 4px; }
-.expected-banner { background: #eaf2ff; border: 1px solid #aacaf8; color: #1a3070; padding: 0.45rem 0.7rem; margin-bottom: 0.6rem; font-size: 0.85rem; border-radius: 4px; }
-.contact-info    { background: #e8f0ff; border: 1px solid #b0c4f8; color: #1a3070; padding: 0.45rem 0.7rem; margin-bottom: 0.6rem; font-size: 0.85rem; border-radius: 4px; line-height: 1.55; }
-.address-info    { background: #f4f6fb; border: 1px solid #dde1ea; padding: 0.4rem 0.7rem; margin-bottom: 0.6rem; font-size: 0.85rem; border-radius: 4px; }
+.fixed-banner    { background: #ffe8e8; border: 1px solid #f4aaaa; color: #800; padding: 0.4rem 0.65rem; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.84rem; border-radius: 4px; }
+.return-banner   { background: #e8f0ff; border: 1px solid #b0c4f8; color: #1a3070; padding: 0.32rem 0.6rem; margin-bottom: 0.4rem; font-size: 0.82rem; border-radius: 4px; }
+.contact-info    { background: #e8f0ff; border: 1px solid #b0c4f8; color: #1a3070; padding: 0.4rem 0.65rem; margin-bottom: 0.5rem; font-size: 0.84rem; border-radius: 4px; line-height: 1.55; }
+.address-info    { background: #f4f6fb; border: 1px solid #dde1ea; padding: 0.38rem 0.65rem; margin-bottom: 0.5rem; font-size: 0.84rem; border-radius: 4px; }
+.expected-banner { background: #eaf2ff; border: 1px solid #aacaf8; color: #1a3070; padding: 0.4rem 0.65rem; margin-bottom: 0.5rem; font-size: 0.84rem; border-radius: 4px; }
 
-/* ---- BUTTONS ---- */
-.btn { padding: 0.48rem 1rem; border: none; cursor: pointer; font-size: 0.9rem; font-family: inherit; font-weight: 500; border-radius: 4px; margin-right: 0.4rem; margin-bottom: 0.3rem; transition: opacity 0.15s; }
+.btn { padding: 0.45rem 0.95rem; border: none; cursor: pointer; font-size: 0.88rem; font-family: inherit; font-weight: 500; border-radius: 4px; margin-right: 0.35rem; margin-bottom: 0.3rem; transition: opacity 0.15s; display: inline-block; }
 .btn:active { opacity: 0.8; }
 .btn-primary   { background: #1a2744; color: white; }
 .btn-secondary { background: #eaecf4; color: #333; }
 .btn-green     { background: #2a7a4a; color: white; }
 .btn-warn      { background: #b86c00; color: white; }
 
-/* ---- FORM ELEMENTS ---- */
-.form-section { margin-top: 1rem; border-top: 1px solid #eef0f6; padding-top: 0.9rem; }
-.form-row { margin-bottom: 0.65rem; }
-.form-row label { display: block; font-weight: 600; font-size: 0.82rem; color: #4a5070; margin-bottom: 0.25rem; }
-.form-row input, .form-row select, .form-row textarea { width: 100%; padding: 0.5rem 0.6rem; border: 1px solid #c8cdd8; border-radius: 4px; font-size: 0.9rem; font-family: inherit; transition: border-color 0.15s; }
-.form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline: none; border-color: #6b6fa8; box-shadow: 0 0 0 2px rgba(107,111,168,0.12); }
-.form-row textarea { height: 72px; resize: vertical; }
+.form-section { margin-top: 0.95rem; border-top: 1px solid #eef0f6; padding-top: 0.85rem; }
+.form-row { margin-bottom: 0.6rem; }
+.form-row label { display: block; font-weight: 600; font-size: 0.81rem; color: #4a5070; margin-bottom: 0.22rem; }
+.form-row input, .form-row select, .form-row textarea { width: 100%; padding: 0.48rem 0.6rem; border: 1px solid #c8cdd8; border-radius: 4px; font-size: 0.88rem; font-family: inherit; transition: border-color 0.15s; }
+.form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline: none; border-color: #6b6fa8; box-shadow: 0 0 0 2px rgba(107,111,168,0.11); }
+.form-row textarea { height: 70px; resize: vertical; }
 input[type=checkbox] { width: auto; accent-color: #1a2744; }
 
-/* ---- PARTS AUTOCOMPLETE ---- */
-.parts-wrap { position: relative; margin-bottom: 0.5rem; }
-.parts-wrap input { width: 100%; padding: 0.5rem 0.6rem; border: 1px solid #c8cdd8; border-radius: 4px; font-size: 0.9rem; font-family: inherit; }
+.parts-wrap { position: relative; margin-bottom: 0.45rem; }
+.parts-wrap input { width: 100%; padding: 0.48rem 0.6rem; border: 1px solid #c8cdd8; border-radius: 4px; font-size: 0.88rem; font-family: inherit; }
 .parts-results { border: 1px solid #c8cdd8; background: white; max-height: 200px; overflow-y: auto; position: absolute; z-index: 50; width: 100%; top: 100%; left: 0; box-shadow: 0 4px 14px rgba(26,39,68,0.14); border-radius: 0 0 4px 4px; }
-.parts-results div { padding: 0.55rem 0.6rem; cursor: pointer; border-bottom: 1px solid #eef0f6; font-size: 0.9rem; }
+.parts-results div { padding: 0.52rem 0.6rem; cursor: pointer; border-bottom: 1px solid #eef0f6; font-size: 0.88rem; }
 .parts-results div:hover, .parts-results div:active { background: #e8eaf8; }
 
-/* ---- TABLES ---- */
-table { width: 100%; border-collapse: collapse; font-size: 0.87rem; margin-top: 0.4rem; }
-th { background: #f2f4f8; text-align: left; padding: 0.4rem 0.5rem; font-weight: 600; color: #4a5070; font-size: 0.8rem; border-bottom: 2px solid #dde1ea; }
-td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #eef0f6; }
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; margin-top: 0.35rem; }
+th { background: #f2f4f8; text-align: left; padding: 0.38rem 0.5rem; font-weight: 600; color: #4a5070; font-size: 0.79rem; border-bottom: 2px solid #dde1ea; }
+td { padding: 0.38rem 0.5rem; border-bottom: 1px solid #eef0f6; }
 
-/* ---- MESSAGES ---- */
-.msg { padding: 0.5rem 0.7rem; margin-bottom: 0.5rem; font-size: 0.87rem; border-radius: 4px; }
+.msg { padding: 0.45rem 0.65rem; margin-bottom: 0.45rem; font-size: 0.86rem; border-radius: 4px; }
 .msg.success { background: #d6f2e0; border: 1px solid #8cd8aa; color: #1a5c30; }
 .msg.error   { background: #ffe0e0; border: 1px solid #f4aaaa; color: #800; }
 
-/* ---- SECTION TITLE ---- */
-.section-title { font-weight: 600; font-size: 0.82rem; color: #6b6fa8; text-transform: uppercase; letter-spacing: 0.05em; margin: 0.9rem 0 0.45rem; border-bottom: 1px solid #eef0f6; padding-bottom: 0.3rem; }
+.section-title { font-weight: 600; font-size: 0.81rem; color: #6b6fa8; text-transform: uppercase; letter-spacing: 0.05em; margin: 0.85rem 0 0.42rem; border-bottom: 1px solid #eef0f6; padding-bottom: 0.28rem; }
 
-/* ---- STATUS BADGES ---- */
-.status-badge { display: inline-block; padding: 0.18rem 0.55rem; font-size: 0.76rem; font-weight: 600; border-radius: 20px; }
+.status-badge { display: inline-block; padding: 0.15rem 0.48rem; font-size: 0.73rem; font-weight: 600; border-radius: 20px; }
 .status-Scheduled      { background: #e4eaf8; color: #1a2744; }
-.status-In-Progress    { background: #d6f2e0; color: #1a5c30; }
+.status-In-Progress    { background: #c8f0d8; color: #0e4a24; }
 .status-Pending-Review { background: #fff8c0; color: #6b5a00; }
 .status-Approved       { background: #d6f2e0; color: #1a5c30; }
 .status-Quoted         { background: #fff3d6; color: #7a4800; }
 .status-Awaiting-Parts { background: #ffe8cc; color: #7a3800; }
 .status-Flagged        { background: #ffe0e0; color: #900; }
 
-/* ---- CONFIRM PANEL ---- */
-.confirm-panel { background: #f8f9fc; border: 1px solid #dde1ea; border-radius: 5px; padding: 1rem; margin-top: 0.8rem; }
-.confirm-panel .confirm-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.6rem; color: #1a2744; }
-.confirm-row { display: flex; justify-content: space-between; font-size: 0.88rem; padding: 0.2rem 0; border-bottom: 1px solid #eef0f6; }
+.confirm-panel { background: #f8f9fc; border: 1px solid #dde1ea; border-radius: 5px; padding: 0.95rem; margin-top: 0.75rem; }
+.confirm-panel .confirm-title { font-weight: 600; font-size: 0.94rem; margin-bottom: 0.55rem; color: #1a2744; }
+.confirm-row { display: flex; justify-content: space-between; font-size: 0.87rem; padding: 0.18rem 0; border-bottom: 1px solid #eef0f6; }
 .confirm-row:last-of-type { border-bottom: none; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Faith Lock &amp; Safe &nbsp;|&nbsp; Field View</h1>
+  <h1 id="header-title">Faith Lock &amp; Safe | Field</h1>
   <button class="logout" onclick="logout()">Sign Out</button>
 </header>
 
 <div class="container">
   <div class="tabs">
-    <div class="tab active" onclick="showTab('jobs')">My Jobs</div>
-    <div class="tab" onclick="showTab('quote')">Quote</div>
-    <div class="tab" onclick="showTab('newjob')">+ New Job</div>
-    <div class="tab" onclick="showTab('newcustomer')">+ Customer</div>
+    <button class="tab active" onclick="showTab('jobs')">My Jobs</button>
+    <button class="tab" onclick="showTab('quote')">Quote</button>
+    <button class="tab" onclick="showTab('newjob')">+ New Job</button>
+    <button class="tab" onclick="showTab('newcustomer')">+ Customer</button>
   </div>
 
-  <!-- ---- MY JOBS TAB ---- -->
+  <!-- MY JOBS TAB -->
   <div id="tab-jobs">
     <div class="filters">
       <button class="filter-btn" onclick="setFilter('today',this)">Today</button>
@@ -119,175 +105,218 @@ td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #eef0f6; }
     <div id="jobs-list"><p style="color:#888">Loading...</p></div>
   </div>
 
-  <!-- ---- QUOTE TAB ---- -->
+  <!-- QUOTE TAB -->
   <div id="tab-quote" style="display:none">
     <div class="card">
       <h3>Submit a Quote</h3>
-      <p style="font-size:0.85rem;color:#5a6075;margin-bottom:0.9rem">Use this when Rich has asked you to document a site visit for quoting purposes. This is not a job completion -- no payment or time entry required. Rich will use your notes to write the formal quote.</p>
-      <div class="form-row"><label>Account</label>
+      <p style="font-size:0.84rem;color:#5a6075;margin-bottom:0.85rem">Use this when Rich has asked you to document a site visit for quoting purposes. This is not a job completion -- no payment or time entry required. Rich will use your notes to write the formal quote.</p>
+      <div class="form-row">
+        <label>Account</label>
         <select id="qq-account" onchange="loadSubAccounts('qq')"><option value="">Select account...</option></select>
       </div>
-      <div class="form-row"><label>Sub-Account</label>
+      <div class="form-row">
+        <label>Sub-Account</label>
         <select id="qq-subaccount"><option value="">None</option></select>
       </div>
       <div class="form-row"><label>Date of Visit</label><input type="date" id="qq-date"></div>
-      <div class="form-row"><label>Scope Observed <span style="font-weight:400;color:#888">(what did you see on site?)</span></label>
-        <textarea id="qq-scope" style="height:90px" placeholder="Describe the situation, existing hardware, access points, any damage or issues observed..."></textarea>
+      <div class="form-row">
+        <label>Scope Observed <span style="font-weight:400;color:#888">(what did you see on site?)</span></label>
+        <textarea id="qq-scope" style="height:88px" placeholder="Describe the situation, existing hardware, access points, any damage or issues observed..."></textarea>
       </div>
-      <div class="form-row"><label>Materials Needed <span style="font-weight:400;color:#888">(parts, hardware, quantities)</span></label>
-        <textarea id="qq-materials" style="height:80px" placeholder="List parts and approximate quantities needed for the job..."></textarea>
+      <div class="form-row">
+        <label>Materials Needed <span style="font-weight:400;color:#888">(parts, hardware, quantities)</span></label>
+        <textarea id="qq-materials" style="height:76px" placeholder="List parts and approximate quantities needed..."></textarea>
       </div>
-      <div class="form-row"><label>Additional Notes for Rich</label>
-        <textarea id="qq-notes" style="height:60px" placeholder="Any access issues, customer concerns, or context Rich should know..."></textarea>
+      <div class="form-row">
+        <label>Additional Notes for Rich</label>
+        <textarea id="qq-notes" style="height:58px" placeholder="Any access issues, customer concerns, or context Rich should know..."></textarea>
       </div>
-      <div class="form-row"><label>Photos</label>
+      <div class="form-row">
+        <label>Photos</label>
         <input type="file" id="qq-photos" accept="image/*" multiple onchange="showPhotoPreview('qq-photos','qq-photo-preview')">
-        <div id="qq-photo-preview" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem"></div>
+        <div id="qq-photo-preview" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.45rem"></div>
       </div>
-      <div id="qq-msg" style="margin-top:0.6rem"></div>
-      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;padding:0.7rem;font-size:0.95rem" onclick="submitQuote()">Submit Quote Form</button>
+      <div id="qq-msg" style="margin-top:0.55rem"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:0.45rem;padding:0.65rem;font-size:0.94rem" onclick="submitQuote()">Submit Quote Form</button>
     </div>
   </div>
 
-  <!-- ---- NEW JOB TAB ---- -->
+  <!-- NEW JOB TAB -->
   <div id="tab-newjob" style="display:none">
     <div class="card">
       <h3>Log Unscheduled Job</h3>
-      <div class="form-row"><label>Account</label>
+      <div class="form-row">
+        <label>Account</label>
         <select id="nj-account" onchange="loadSubAccounts('nj')"><option value="">Select account...</option></select>
       </div>
-      <div class="form-row"><label>Sub-Account</label>
-        <select id="nj-subaccount"><option value="">None</option></select>
-      </div>
-      <div class="form-row"><label>Job Type</label>
-        <select id="nj-jobtype"><option value="">Select type...</option></select>
-      </div>
+      <div class="form-row"><label>Sub-Account</label><select id="nj-subaccount"><option value="">None</option></select></div>
+      <div class="form-row"><label>Job Type</label><select id="nj-jobtype"><option value="">Select type...</option></select></div>
       <div class="form-row"><label>Date</label><input type="date" id="nj-date"></div>
       <div class="form-row"><label>Scope</label><textarea id="nj-scope"></textarea></div>
       <div class="form-section">
         <div class="section-title">Completion Details</div>
-        <div class="form-row"><label>Time In</label>
+        <div class="form-row">
+          <label>Time In</label>
           <div style="display:flex;gap:0.4rem">
             <input type="datetime-local" id="nj-timein" style="flex:1">
-            <button type="button" class="btn btn-secondary" onclick="document.getElementById('nj-timein').value=nowLocal()" style="white-space:nowrap;padding:0.4rem 0.7rem">Now</button>
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('nj-timein').value=nowLocal()" style="white-space:nowrap;padding:0.38rem 0.65rem">Now</button>
           </div>
         </div>
-        <div class="form-row"><label>Time Out</label>
+        <div class="form-row">
+          <label>Time Out</label>
           <div style="display:flex;gap:0.4rem">
             <input type="datetime-local" id="nj-timeout" style="flex:1">
-            <button type="button" class="btn btn-secondary" onclick="document.getElementById('nj-timeout').value=nowLocal()" style="white-space:nowrap;padding:0.4rem 0.7rem">Now</button>
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('nj-timeout').value=nowLocal()" style="white-space:nowrap;padding:0.38rem 0.65rem">Now</button>
           </div>
         </div>
-        <div class="form-row"><label>Payment Type</label>
+        <div class="form-row">
+          <label>Payment Type</label>
           <select id="nj-paytype">
-            <option value="">Select...</option>
-            <option>Cash</option><option>Check</option><option>Card</option><option>Invoice</option>
+            <option value="">Select...</option><option>Cash</option><option>Check</option><option>Card</option><option>Invoice</option>
           </select>
         </div>
         <div class="form-row"><label>Payment Detail</label><input type="text" id="nj-paydetail"></div>
-        <div class="form-row"><label>Parts Used</label>
+        <div class="form-row">
+          <label>Parts Used</label>
           <div class="parts-wrap">
             <input type="text" id="nj-partsearch" placeholder="Type to search parts..." oninput="searchParts('nj')" autocomplete="off">
             <div class="parts-results" id="nj-parts-results" style="display:none"></div>
           </div>
           <table id="nj-parts-table"><thead><tr><th>Part</th><th>Qty</th><th></th></tr></thead><tbody></tbody></table>
         </div>
-        <div class="form-row"><label>Labor</label>
-          <div style="display:flex;gap:0.4rem;margin-bottom:0.4rem;flex-wrap:wrap">
-            <select id="nj-labortype" style="flex:2;padding:0.5rem;border:1px solid #c8cdd8;border-radius:4px"><option value="">Select type...</option></select>
-            <input type="number" id="nj-laborhours" placeholder="Hrs" style="width:70px;padding:0.5rem;border:1px solid #c8cdd8;border-radius:4px">
+        <div class="form-row">
+          <label>Labor</label>
+          <div style="display:flex;gap:0.4rem;margin-bottom:0.38rem;flex-wrap:wrap">
+            <select id="nj-labortype" style="flex:2;padding:0.48rem;border:1px solid #c8cdd8;border-radius:4px"><option value="">Select type...</option></select>
+            <input type="number" id="nj-laborhours" placeholder="Hrs" style="width:68px;padding:0.48rem;border:1px solid #c8cdd8;border-radius:4px">
             <button class="btn btn-secondary" onclick="addLabor('nj')">Add</button>
           </div>
           <table id="nj-labor-table"><thead><tr><th>Type</th><th>Hours</th><th></th></tr></thead><tbody></tbody></table>
         </div>
+        <div class="form-row">
+          <label>Additional Charges (Service Call, Other)</label>
+          <div style="display:flex;gap:0.4rem;margin-bottom:0.38rem;flex-wrap:wrap;align-items:flex-end">
+            <select id="nj-chargetype" style="padding:0.4rem;border:1px solid #c8cdd8;border-radius:4px">
+              <option value="Service Call">Service Call</option><option value="Other">Other</option>
+            </select>
+            <input type="text" id="nj-chargedesc" placeholder="Description" style="flex:2;padding:0.4rem;border:1px solid #c8cdd8;border-radius:4px">
+            <input type="number" id="nj-chargeamt" placeholder="$" step="0.01" style="width:78px;padding:0.4rem;border:1px solid #c8cdd8;border-radius:4px">
+            <button class="btn btn-secondary" onclick="addCharge('nj')">Add</button>
+          </div>
+          <table id="nj-charges-table"><thead><tr><th>Type</th><th>Description</th><th>Amt</th><th></th></tr></thead><tbody></tbody></table>
+        </div>
         <div class="form-row"><label>Tech Notes</label><textarea id="nj-notes"></textarea></div>
         <div class="form-row"><label><input type="checkbox" id="nj-followup"> Flag for Follow-up</label></div>
-        <div class="form-row"><label>Photos</label>
+        <div class="form-row">
+          <label>Photos</label>
           <input type="file" id="nj-photos" accept="image/*" multiple onchange="showPhotoPreview('nj-photos','nj-photo-preview')">
-          <div id="nj-photo-preview" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem"></div>
+          <div id="nj-photo-preview" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.45rem"></div>
         </div>
       </div>
-      <div id="nj-msg" style="margin-top:0.6rem"></div>
-      <button class="btn btn-primary" style="width:100%;margin-top:0.5rem;padding:0.7rem;font-size:0.95rem" onclick="submitNewJob()">Submit Job</button>
+      <div id="nj-msg" style="margin-top:0.55rem"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:0.45rem;padding:0.65rem;font-size:0.94rem" onclick="submitNewJob()">Submit Job</button>
     </div>
   </div>
 
-  <!-- ---- NEW CUSTOMER TAB ---- -->
+  <!-- NEW CUSTOMER TAB -->
   <div id="tab-newcustomer" style="display:none">
     <div class="card">
       <h3>New Customer</h3>
-      <p style="font-size:0.85rem;color:#5a6075;margin-bottom:0.9rem">Fill in what you have. Admin will review and approve before this goes into the permanent account list. Nothing here is live until admin signs off.</p>
-
-      <!-- Account Info -->
+      <p style="font-size:0.84rem;color:#5a6075;margin-bottom:0.85rem">Fill in what you have. Admin will review and approve before this goes into the permanent account list.</p>
       <div class="section-title">Account Info</div>
       <div class="form-row"><label>Account Name *</label><input type="text" id="nc-name" placeholder="ABC Property Management"></div>
       <div class="form-row"><label>Address</label><input type="text" id="nc-address" placeholder="123 Main St, Clarksville, TN"></div>
       <div class="form-row"><label>Phone</label><input type="text" id="nc-phone"></div>
-      <div class="form-row"><label>Billing Notes</label><textarea id="nc-billing" style="height:56px" placeholder="Invoice only, net 30, etc."></textarea></div>
-
-      <!-- Contacts -->
-      <div class="section-title" style="margin-top:1.1rem">Contacts</div>
-      <p style="font-size:0.82rem;color:#5a6075;margin:0 0 0.7rem">Add as many contacts as you have. Mark the primary billing contact and the on-site rep if different.</p>
+      <div class="form-row"><label>Billing Notes</label><textarea id="nc-billing" style="height:52px" placeholder="Invoice only, net 30, etc."></textarea></div>
+      <div class="section-title" style="margin-top:1rem">Contacts</div>
+      <p style="font-size:0.81rem;color:#5a6075;margin:0 0 0.65rem">Mark the primary billing contact and on-site rep if different.</p>
       <div id="nc-contacts-list"></div>
-      <button class="btn btn-secondary" style="width:100%;margin-bottom:0.5rem" onclick="ncAddContact()">+ Add Contact</button>
-
-      <div id="nc-msg" style="margin-top:0.6rem"></div>
-      <button class="btn btn-primary" style="width:100%;margin-top:0.4rem;padding:0.7rem;font-size:0.95rem" onclick="submitNewCustomer()">Submit for Review</button>
+      <button class="btn btn-secondary" style="width:100%;margin-bottom:0.45rem" onclick="ncAddContact()">+ Add Contact</button>
+      <div id="nc-msg" style="margin-top:0.55rem"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:0.38rem;padding:0.65rem;font-size:0.94rem" onclick="submitNewCustomer()">Submit for Review</button>
     </div>
   </div>
 </div>
 
-<!-- ---- JOB DETAIL MODAL ---- -->
+<!-- JOB DETAIL MODAL -->
 <div id="modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:100;overflow-y:auto">
-  <div style="background:white;max-width:640px;margin:0 auto;padding:1.4rem 1.2rem;position:relative;min-height:100vh">
-    <button onclick="closeModal()" style="position:absolute;top:0.75rem;right:0.75rem;background:#eaecf4;border:none;font-size:0.9rem;cursor:pointer;border-radius:3px;padding:0.3rem 0.7rem;color:#333">Close</button>
+  <div style="background:white;max-width:640px;margin:0 auto;padding:1.3rem 1.1rem;position:relative;min-height:100vh">
+    <button onclick="closeModal()" style="position:absolute;top:0.7rem;right:0.7rem;background:#eaecf4;border:none;font-size:0.88rem;cursor:pointer;border-radius:3px;padding:0.28rem 0.65rem;color:#333">Close</button>
     <div id="modal-content"></div>
   </div>
 </div>
 
 <script>
 // ============================================================
-// tech.html — Faith Lock & Safe Field View
+// STATE
 // ============================================================
-
 let currentUser  = null;
+let currentTechId = null; // techs.id for the logged-in user
 let currentFilter = 'open';
-let modalJobId   = null;
-
-let modalParts = [], modalLabor = [];
-let njParts    = [], njLabor    = [];
+let modalJobId    = null;
 
 let allParts      = [];
 let allLaborTypes = [];
 let allAccounts   = [];
 let allJobTypes   = [];
 
+let modalParts   = [], modalLabor   = [], modalCharges   = [];
+let njParts      = [], njLabor      = [], njCharges      = [];
+let ncContacts   = [];
+
 let allPrimaryContactsCache = {};
 
 
-// ---- INIT ----
+// ============================================================
+// INIT & AUTH
+// ============================================================
 async function init() {
   try {
     const { data: { session }, error: sessErr } = await db.auth.getSession();
     if (sessErr) throw sessErr;
-    if (!session) { window.location.href = 'index.html'; return; }
+    if (!session) {
+      await db.auth.signOut();
+      window.location.href = 'index.html';
+      return;
+    }
     currentUser = session.user;
-    await Promise.all([loadRefData(), loadJobs()]);
+
+    const { data: profile } = await db.from('user_profiles')
+      .select('role, display_name').eq('id', currentUser.id).single();
+    if (!profile) {
+      await db.auth.signOut();
+      window.location.href = 'index.html';
+      return;
+    }
+    if (profile.role === 'admin') { window.location.href = 'app.html'; return; }
+
+    if (profile.display_name) {
+      document.getElementById('header-title').textContent = `Faith Lock & Safe | ${profile.display_name}`;
+    }
+
+    const { data: techRow } = await db.from('techs')
+      .select('id').eq('user_id', currentUser.id).maybeSingle();
+    currentTechId = techRow?.id || null;
+
+    await loadRefData();
+    await loadJobs();
   } catch (err) {
     document.getElementById('jobs-list').innerHTML =
       `<div class="msg error"><strong>Load error:</strong> ${err.message || JSON.stringify(err)}<br>
-       <span style="font-size:0.82rem">Try signing out and back in.</span></div>`;
+       <span style="font-size:0.81rem">Try signing out and back in.</span></div>`;
     console.error('tech init error:', err);
   }
 }
 
 
-// ---- REFERENCE DATA ----
+// ============================================================
+// REFERENCE DATA
+// ============================================================
 async function loadRefData() {
   const [p, l, a, jt] = await Promise.all([
     db.from('parts').select('id,part_name,category,unit').eq('active', true).order('part_name'),
     db.from('labor_types').select('id,labor_type_name,hourly_rate').order('labor_type_name'),
-    db.from('accounts').select('id,account_name,parent_account_id').eq('active', true).order('account_name'),
+    db.from('accounts').select('id,account_name,parent_account_id').eq('active', true).eq('status','active').order('account_name'),
     db.from('job_types').select('id,job_type_name,category').eq('active', true).order('job_type_name')
   ]);
   allParts      = p.data  || [];
@@ -295,37 +324,38 @@ async function loadRefData() {
   allAccounts   = a.data  || [];
   allJobTypes   = jt.data || [];
 
-  populateSelect('nj-account',   allAccounts.filter(a => !a.parent_account_id), 'id', 'account_name', 'Select account...');
-  populateSelect('nj-jobtype',   allJobTypes,   'id', 'job_type_name',   'Select type...');
-  populateSelect('nj-labortype', allLaborTypes, 'id', 'labor_type_name', 'Select type...');
-  populateSelect('qq-account',   allAccounts.filter(a => !a.parent_account_id), 'id', 'account_name', 'Select account...');
+  const masters = allAccounts.filter(a => !a.parent_account_id);
+  populateSelect('nj-account',   masters,   'id', 'account_name',   'Select account...');
+  populateSelect('nj-jobtype',   allJobTypes,'id', 'job_type_name',   'Select type...');
+  populateSelect('nj-labortype', allLaborTypes,'id','labor_type_name','Select type...');
+  populateSelect('qq-account',   masters,   'id', 'account_name',   'Select account...');
   document.getElementById('qq-date').value = today();
   document.getElementById('nj-date').value = today();
 }
 
 
-// ---- JOB LIST ----
+// ============================================================
+// JOB LIST
+// ============================================================
 async function loadJobs() {
   const list = document.getElementById('jobs-list');
   list.innerHTML = '<p style="color:#888">Loading...</p>';
   try {
-    const { data: techRow } = await db.from('techs').select('id').eq('user_id', currentUser.id).maybeSingle();
-    const techRowId = techRow?.id || null;
-
     let query = db.from('jobs')
       .select(`id, job_date, status, scope, site_notes, is_fixed_price, quote_amount,
-               work_order_number, purchase_order_number, account_id,
+               job_number, work_order_number, purchase_order_number, account_id,
                assigned_tech_ids, lead_tech_id,
-               accounts!jobs_account_id_fkey(account_name, address),
-               sub:accounts!jobs_sub_account_id_fkey(account_name),
+               accounts!jobs_account_id_fkey(account_name, account_number, address),
+               sub:accounts!jobs_sub_account_id_fkey(account_name, sub_account_number),
                job_types(job_type_name),
                job_completions(id,tech_notes,follow_up_flag,submitted_at),
                job_line_items(id,item_type,item_id,quantity),
-               job_visits(id,visit_number,visit_date)`)
+               job_visits(id,visit_number,visit_date,tech_notes)`)
       .not('status', 'in', '("Cancelled","Approved")');
 
-    if (techRowId) query = query.contains('assigned_tech_ids', [techRowId]);
-
+    if (currentTechId) {
+      query = query.contains('assigned_tech_ids', [currentTechId]);
+    }
     if (currentFilter === 'today') query = query.eq('job_date', today());
     else if (currentFilter === 'week') query = query.gte('job_date', weekStart());
 
@@ -333,9 +363,12 @@ async function loadJobs() {
     if (error) throw error;
 
     const myJobs = data || [];
-    if (!myJobs.length) { list.innerHTML = '<p style="color:#888">No jobs found for this period.</p>'; return; }
+    if (!myJobs.length) {
+      list.innerHTML = '<p style="color:#888">No jobs found for this filter.</p>';
+      return;
+    }
 
-    // Pre-fetch primary contacts in a single batch query to avoid N+1 problem
+    // Batch-fetch primary contacts
     const accountIds = [...new Set(myJobs.map(j => j.account_id).filter(Boolean))];
     allPrimaryContactsCache = {};
     if (accountIds.length) {
@@ -358,58 +391,77 @@ function jobCard(j) {
   const comp      = j.job_completions?.[0];
   const submitted = !!comp;
   const visits    = j.job_visits || [];
-  // Show next scheduled return visit date if one exists beyond today
-  const futureVisits = visits
-    .filter(v => v.visit_date > today())
+
+  const futureVisits = visits.filter(v => v.visit_date > today())
     .sort((a, b) => a.visit_date.localeCompare(b.visit_date));
   const nextVisit = futureVisits[0];
-  const visitBanner = nextVisit
-    ? `<div style="background:#e8f0ff;border:1px solid #b0c4f8;border-radius:4px;padding:0.35rem 0.6rem;margin-bottom:0.4rem;font-size:0.83rem;color:#1a3070">Return visit scheduled: <strong>${formatDate(nextVisit.visit_date)}</strong>${nextVisit.tech_notes ? ' -- ' + nextVisit.tech_notes : ''}</div>`
-    : (visits.length > 1 ? `<div style="font-size:0.82rem;color:#5a6075;margin-bottom:0.3rem">This job has had ${visits.length} visits.</div>` : '');
 
-  const statusBadge = `<span class="status-badge status-${j.status.replace(/ /g,'-')}">${j.status}</span>`;
+  const visitBanner = nextVisit
+    ? `<div class="return-banner">Return visit scheduled: <strong>${formatDate(nextVisit.visit_date)}</strong>${nextVisit.tech_notes ? ' -- ' + nextVisit.tech_notes : ''}</div>`
+    : (visits.length > 1 ? `<div style="font-size:0.81rem;color:#5a6075;margin-bottom:0.28rem">This job has had ${visits.length} visits.</div>` : '');
 
   const fixedBanner = j.is_fixed_price
     ? `<div class="fixed-banner">FIXED PRICE | Quoted: $${Number(j.quote_amount||0).toFixed(2)} | Do not exceed scope without calling Rich.</div>` : '';
 
   const pc = allPrimaryContactsCache[j.account_id];
   const contactLine = pc
-    ? `<div style="font-size:0.83rem;color:#1a3070;margin-bottom:0.3rem">
-         Contact: <strong>${pc.contact_name}</strong>
-         ${pc.work_phone ? ` | Work: ${pc.work_phone}` : ''}
-         ${pc.cell_phone ? ` | Cell: ${pc.cell_phone}` : ''}
-       </div>` : '';
+    ? `<div style="font-size:0.82rem;color:#1a3070;margin-bottom:0.28rem">Contact: <strong>${pc.contact_name}</strong>${pc.work_phone ? ' | Work: '+pc.work_phone : ''}${pc.cell_phone ? ' | Cell: '+pc.cell_phone : ''}</div>`
+    : '';
 
   const addrLine = j.accounts?.address
-    ? `<div style="font-size:0.83rem;margin-bottom:0.3rem">${mapsLink(j.accounts.address)}</div>` : '';
+    ? `<div style="font-size:0.82rem;margin-bottom:0.28rem">${mapsLink(j.accounts.address)}</div>` : '';
 
-  const expectedParts  = (j.job_line_items||[]).filter(i => i.item_type === 'Part');
-  const expectedLabor  = (j.job_line_items||[]).filter(i => i.item_type === 'Labor');
-  const expectedBanner = (expectedParts.length || expectedLabor.length) && !submitted
-    ? `<div class="expected-banner">Expected: ${expectedParts.length} part type(s), ${expectedLabor.length} labor entry(ies) pre-loaded in the form.</div>` : '';
+  const hasExpected = (j.job_line_items||[]).some(i => i.item_type === 'Part' || i.item_type === 'Labor');
+  const expectedBanner = hasExpected && !submitted
+    ? `<div class="expected-banner">Expected parts and/or labor are pre-loaded in the form.</div>` : '';
 
-  const wopo = [j.work_order_number ? `WO: ${j.work_order_number}` : '', j.purchase_order_number ? `PO: ${j.purchase_order_number}` : ''].filter(Boolean).join(' | ');
+  const wopo = [
+    j.work_order_number     ? `WO: ${j.work_order_number}`     : '',
+    j.purchase_order_number ? `PO: ${j.purchase_order_number}` : ''
+  ].filter(Boolean).join(' | ');
+
+  // Clock in/out state from today's visit
+  const todayVisit = visits
+    .filter(v => v.visit_date === today())
+    .sort((a, b) => b.visit_number - a.visit_number)[0];
+
+  let clockBtns = '';
+  if (!submitted) {
+    if (!todayVisit || (!todayVisit.clocked_in_at && !todayVisit.clocked_out_at)) {
+      clockBtns = `<button class="btn btn-green" onclick="clockIn('${j.id}')">Clock In</button>`;
+    } else if (todayVisit.clocked_in_at && !todayVisit.clocked_out_at) {
+      const inLabel = new Date(todayVisit.clocked_in_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+      clockBtns = `<span style="font-size:0.81rem;color:#2a7a4a;font-weight:600;align-self:center">Clocked in ${inLabel}</span>
+                   <button class="btn btn-warn" onclick="clockOut('${j.id}','${todayVisit.id}')">Clock Out</button>`;
+    } else if (todayVisit.clocked_in_at && todayVisit.clocked_out_at) {
+      clockBtns = `<span style="font-size:0.81rem;color:#5a6075;align-self:center">Clocked out today</span>`;
+    }
+  }
 
   const actionBtn = submitted
     ? `<button class="btn btn-secondary" onclick="openJobDetail('${j.id}')">View / Add Photos</button>
        <button class="btn btn-warn" onclick="unsubmit('${j.id}','${comp.id}')">Unsubmit</button>`
-    : `<button class="btn btn-primary" style="padding:0.55rem 1.2rem" onclick="openJobDetail('${j.id}')">Job Details</button>`;
+    : `<button class="btn btn-primary" style="padding:0.52rem 1.15rem" onclick="openJobDetail('${j.id}')">Job Details</button>`;
 
+  const ref = jobRef(j.accounts?.account_number, j.sub?.sub_account_number, j.job_number);
   return `<div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.4rem">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.35rem">
       <h3>${account}${sub}</h3>
-      ${statusBadge}
+      <span class="status-badge status-${j.status.replace(/ /g,'-')}">${j.status}</span>
     </div>
-    <div class="meta">${formatDate(j.job_date)} | ${j.job_types?.job_type_name || ''}</div>
+    <div class="meta">${formatDate(j.job_date)} | ${j.job_types?.job_type_name || ''}${ref ? ` | <span style="font-family:monospace;color:#6b6fa8;font-size:0.77rem">${ref}</span>` : ''}</div>
     ${visitBanner}
     ${wopo ? `<div class="meta">${wopo}</div>` : ''}
     ${addrLine}
     ${contactLine}
     ${fixedBanner}
     ${expectedBanner}
-    ${j.scope ? `<p style="font-size:0.85rem;margin:0.4rem 0;color:#333"><strong>Scope:</strong> ${j.scope}</p>` : ''}
-    ${submitted ? '<p style="font-size:0.83rem;color:#2a7a4a;font-weight:600;margin:0.3rem 0">Submitted -- awaiting review.</p>' : ''}
-    <div style="margin-top:0.7rem">${actionBtn}</div>
+    ${j.scope ? `<p style="font-size:0.84rem;margin:0.38rem 0;color:#333"><strong>Scope:</strong> ${j.scope}</p>` : ''}
+    ${submitted ? '<p style="font-size:0.82rem;color:#2a7a4a;font-weight:600;margin:0.28rem 0">Submitted -- awaiting review.</p>' : ''}
+    <div style="margin-top:0.65rem;display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center">
+      ${clockBtns}
+      ${actionBtn}
+    </div>
   </div>`;
 }
 
@@ -428,84 +480,148 @@ async function unsubmit(jobId, compId) {
   loadJobs();
 }
 
-function showTab(name) {
-  ['jobs','quote','newjob','newcustomer'].forEach(t =>
-    document.getElementById(`tab-${t}`).style.display = t === name ? '' : 'none');
-  document.querySelectorAll('.tab').forEach((t, i) =>
-    t.classList.toggle('active', ['jobs','quote','newjob','newcustomer'][i] === name));
+
+// ============================================================
+// CLOCK IN / OUT
+// ============================================================
+async function clockIn(jobId) {
+  if (!currentTechId) {
+    alert('Your account is not linked to a tech record. Contact an admin.');
+    return;
+  }
+
+  // One active job per tech enforcement
+  const { data: active } = await db.from('jobs')
+    .select('id,accounts!jobs_account_id_fkey(account_name)')
+    .eq('status', 'In Progress')
+    .contains('assigned_tech_ids', [currentTechId]);
+
+  if (active?.length) {
+    const name = active[0].accounts?.account_name || 'another job';
+    if (!confirm(`You appear to already be clocked in on "${name}". Clock in here anyway?`)) return;
+  }
+
+  const now = new Date().toISOString();
+
+  // Find or create today's visit
+  const { data: existing } = await db.from('job_visits')
+    .select('id').eq('job_id', jobId).eq('visit_date', today()).maybeSingle();
+
+  if (existing) {
+    await db.from('job_visits').update({
+      clocked_in_at: now,
+      clocked_in_by: currentUser.id
+    }).eq('id', existing.id);
+  } else {
+    const { data: allVisits } = await db.from('job_visits')
+      .select('visit_number').eq('job_id', jobId);
+    const maxNum = (allVisits || []).reduce((m, v) => Math.max(m, v.visit_number || 1), 0);
+    await db.from('job_visits').insert({
+      job_id:        jobId,
+      visit_number:  maxNum + 1,
+      visit_date:    today(),
+      clocked_in_at: now,
+      clocked_in_by: currentUser.id
+    });
+  }
+
+  await db.from('jobs').update({
+    status:     'In Progress',
+    updated_at: now
+  }).eq('id', jobId);
+
+  await loadJobs();
+}
+
+async function clockOut(jobId, visitId) {
+  const now = new Date().toISOString();
+  await db.from('job_visits').update({ clocked_out_at: now }).eq('id', visitId);
+  // Status stays In Progress until tech submits completion
+  await loadJobs();
 }
 
 
-// ---- JOB DETAIL MODAL ----
+// ============================================================
+// JOB DETAIL MODAL
+// ============================================================
 async function openJobDetail(jobId) {
-  modalJobId = jobId;
-  modalParts = [];
-  modalLabor = [];
+  modalJobId    = jobId;
+  modalParts    = []; modalLabor = []; modalCharges = [];
 
   const { data: job } = await db.from('jobs')
-    .select(`*, accounts!jobs_account_id_fkey(account_name, address, phone, instructions),
+    .select(`*, accounts!jobs_account_id_fkey(account_name, address, phone),
              sub:accounts!jobs_sub_account_id_fkey(account_name),
              job_types(job_type_name),
              job_completions(id,time_in,time_out,payment_type,payment_detail,follow_up_flag,tech_notes,submitted_at),
-             job_line_items(id,item_type,item_id,quantity)`)
+             job_line_items(id,item_type,item_id,quantity),
+             job_visits(id,visit_number,visit_date,clocked_in_at,clocked_out_at)`)
     .eq('id', jobId).single();
 
+  // Contacts (read-only to tech)
   let contactHtml = '';
   if (job.account_id) {
     const { data: contacts } = await db.from('account_contacts')
-      .select('*').eq('account_id', job.account_id).eq('active', true)
+      .select('contact_name,title,company,work_phone,cell_phone,email,notes,is_primary,is_secondary,is_onsite')
+      .eq('account_id', job.account_id).eq('active', true)
       .order('is_primary', { ascending: false });
-
     if (contacts?.length) {
       const primary   = contacts.find(c => c.is_primary) || contacts[0];
-      const secondary = contacts.find(c => !c.is_primary);
-      let ch = `<div class="contact-info"><strong>Contact:</strong> ${primary.contact_name}`;
+      const secondary = contacts.find(c => c.is_secondary && !c.is_primary);
+      const onsite    = contacts.find(c => c.is_onsite && !c.is_primary && !c.is_secondary);
+      let ch = `<div class="contact-info"><strong>Primary:</strong> ${primary.contact_name}`;
       if (primary.title)      ch += ` | ${primary.title}`;
       if (primary.company)    ch += ` | ${primary.company}`;
       ch += '<br>';
       if (primary.work_phone) ch += `Work: ${primary.work_phone} &nbsp;`;
       if (primary.cell_phone) ch += `Cell: ${primary.cell_phone} &nbsp;`;
       if (primary.email)      ch += primary.email;
-      if (primary.notes)      ch += `<br><em style="font-size:0.82rem">${primary.notes}</em>`;
+      if (primary.notes)      ch += `<br><em style="font-size:0.81rem">${primary.notes}</em>`;
       if (secondary) {
-        ch += `<br><span style="font-size:0.83rem"><strong>Secondary:</strong> ${secondary.contact_name}`;
-        if (secondary.work_phone) ch += ` | Work: ${secondary.work_phone}`;
-        if (secondary.cell_phone) ch += ` | Cell: ${secondary.cell_phone}`;
+        ch += `<br><span style="font-size:0.82rem"><strong>Secondary:</strong> ${secondary.contact_name}`;
+        if (secondary.work_phone) ch += ` | ${secondary.work_phone}`;
+        if (secondary.cell_phone) ch += ` / ${secondary.cell_phone}`;
+        ch += '</span>';
+      }
+      if (onsite) {
+        ch += `<br><span style="font-size:0.82rem"><strong>On-Site:</strong> ${onsite.contact_name}`;
+        if (onsite.work_phone) ch += ` | ${onsite.work_phone}`;
+        if (onsite.cell_phone) ch += ` / ${onsite.cell_phone}`;
         ch += '</span>';
       }
       ch += '</div>';
       contactHtml = ch;
-    } else if (job.accounts?.phone) {
-      contactHtml = `<div class="contact-info"><strong>Phone:</strong> ${job.accounts.phone}</div>`;
     }
   }
 
   const comp      = job.job_completions?.[0];
   const submitted = !!comp;
 
+  // Pre-fill time from today's clock-in/out if available
+  const todayVisit = (job.job_visits || [])
+    .filter(v => v.visit_date === today())
+    .sort((a, b) => b.visit_number - a.visit_number)[0];
+  const clockInPrefill  = todayVisit?.clocked_in_at  ? new Date(todayVisit.clocked_in_at).toISOString().slice(0,16)  : '';
+  const clockOutPrefill = todayVisit?.clocked_out_at ? new Date(todayVisit.clocked_out_at).toISOString().slice(0,16) : '';
+
+  // Pre-load expected items
   (job.job_line_items || []).forEach(i => {
     if (i.item_type === 'Part') {
       const p = allParts.find(x => x.id === i.item_id);
-      if (p) modalParts.push({ id: p.id, name: p.part_name, unit: p.unit||'', qty: i.quantity });
+      if (p) modalParts.push({ id: p.id, name: p.part_name, qty: i.quantity });
     } else if (i.item_type === 'Labor') {
       const l = allLaborTypes.find(x => x.id === i.item_id);
       if (l) modalLabor.push({ id: l.id, name: l.labor_type_name, hours: i.quantity });
     }
   });
 
-  const laborOpts = allLaborTypes.map(l => `<option value="${l.id}">${l.labor_type_name}</option>`).join('');
-
+  const laborOpts  = allLaborTypes.map(l => `<option value="${l.id}">${l.labor_type_name}</option>`).join('');
   const fixedBanner = job.is_fixed_price
     ? `<div class="fixed-banner">FIXED PRICE | Quoted: $${Number(job.quote_amount||0).toFixed(2)} | Do not exceed scope without calling Rich.</div>` : '';
-
   const wopo = [job.work_order_number ? `WO: ${job.work_order_number}` : '', job.purchase_order_number ? `PO: ${job.purchase_order_number}` : ''].filter(Boolean).join(' | ');
-
-  const addrHtml = job.accounts?.address
-    ? `<div class="address-info"><strong>Address:</strong> ${mapsLink(job.accounts.address)}</div>` : '';
-
+  const addrHtml = job.accounts?.address ? `<div class="address-info"><strong>Address:</strong> ${mapsLink(job.accounts.address)}</div>` : '';
   const hasExpected = (job.job_line_items||[]).some(i => i.item_type === 'Part' || i.item_type === 'Labor');
   const preNote = hasExpected
-    ? `<p style="font-size:0.83rem;color:#1a3070;margin:0 0 0.5rem;background:#eaf2ff;border-radius:3px;padding:0.4rem 0.6rem">Expected parts and labor are pre-loaded. Adjust quantities or add/remove as needed.</p>`
+    ? `<p style="font-size:0.82rem;color:#1a3070;margin:0 0 0.45rem;background:#eaf2ff;border-radius:3px;padding:0.38rem 0.55rem">Expected parts and labor are pre-loaded. Adjust quantities or add/remove as needed.</p>`
     : '';
 
   let completionSection = '';
@@ -513,37 +629,35 @@ async function openJobDetail(jobId) {
     completionSection = `
       <div class="form-section">
         <div class="section-title">Submitted Details</div>
-        <div class="meta">Time In: ${comp.time_in ? new Date(comp.time_in).toLocaleString() : '--'}</div>
-        <div class="meta">Time Out: ${comp.time_out ? new Date(comp.time_out).toLocaleString() : '--'}</div>
+        <div class="meta">Time In: ${fmtDateTime(comp.time_in)}</div>
+        <div class="meta">Time Out: ${fmtDateTime(comp.time_out)}</div>
         <div class="meta">Payment: ${comp.payment_type || '--'} ${comp.payment_detail || ''}</div>
         ${comp.tech_notes ? `<div class="meta">Notes: ${comp.tech_notes}</div>` : ''}
-        <button class="btn btn-secondary" style="width:100%;margin-top:0.8rem" onclick="openAddNote('${jobId}')">Add Note</button>
+        <button class="btn btn-secondary" style="width:100%;margin-top:0.65rem" onclick="openAddNote('${jobId}')">Add Note</button>
       </div>
       <div class="form-section">
         <div class="section-title">Photos</div>
-        <div id="tech-job-photos-${jobId}" style="margin-bottom:0.6rem">
-          <span style="font-size:0.83rem;color:#aaa">Loading photos...</span>
+        <div id="tech-job-photos-${jobId}" style="margin-bottom:0.55rem">
+          <span style="font-size:0.82rem;color:#aaa">Loading photos...</span>
         </div>
-        <div class="form-row"><label>Add Photos</label>
-          <input type="file" id="extra-photos-${jobId}" accept="image/*" multiple>
-        </div>
+        <div class="form-row"><label>Add Photos</label><input type="file" id="extra-photos-${jobId}" accept="image/*" multiple></div>
         <button class="btn btn-secondary" style="width:100%" onclick="uploadExtraPhotos('${jobId}')">Upload More Photos</button>
-        <div id="extra-photo-msg-${jobId}" style="font-size:0.83rem;color:#2a7a4a;margin-top:0.3rem"></div>
+        <div id="extra-photo-msg-${jobId}" style="font-size:0.82rem;color:#2a7a4a;margin-top:0.28rem"></div>
       </div>`;
   } else {
     completionSection = `
       <div class="form-section">
-        <div class="section-title">Complete This Job</div>
+        <div class="section-title">Time</div>
         <div class="form-row"><label>Time In</label>
           <div style="display:flex;gap:0.4rem">
-            <input type="datetime-local" id="m-timein" style="flex:1">
-            <button type="button" class="btn btn-secondary" onclick="document.getElementById('m-timein').value=nowLocal()" style="white-space:nowrap;padding:0.4rem 0.7rem">Now</button>
+            <input type="datetime-local" id="m-timein" value="${clockInPrefill}" style="flex:1">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('m-timein').value=nowLocal()" style="white-space:nowrap;padding:0.38rem 0.65rem">Now</button>
           </div>
         </div>
         <div class="form-row"><label>Time Out</label>
           <div style="display:flex;gap:0.4rem">
-            <input type="datetime-local" id="m-timeout" style="flex:1">
-            <button type="button" class="btn btn-secondary" onclick="document.getElementById('m-timeout').value=nowLocal()" style="white-space:nowrap;padding:0.4rem 0.7rem">Now</button>
+            <input type="datetime-local" id="m-timeout" value="${clockOutPrefill}" style="flex:1">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('m-timeout').value=nowLocal()" style="white-space:nowrap;padding:0.38rem 0.65rem">Now</button>
           </div>
         </div>
       </div>
@@ -558,12 +672,24 @@ async function openJobDetail(jobId) {
       </div>
       <div class="form-section">
         <div class="section-title">Labor</div>
-        <div style="display:flex;gap:0.4rem;margin-bottom:0.4rem;flex-wrap:wrap">
-          <select id="m-labortype" style="flex:2;padding:0.5rem;border:1px solid #c8cdd8;border-radius:4px;min-width:150px"><option value="">Select type...</option>${laborOpts}</select>
-          <input type="number" id="m-laborhours" placeholder="Hrs" style="width:70px;padding:0.5rem;border:1px solid #c8cdd8;border-radius:4px">
+        <div style="display:flex;gap:0.4rem;margin-bottom:0.38rem;flex-wrap:wrap">
+          <select id="m-labortype" style="flex:2;padding:0.48rem;border:1px solid #c8cdd8;border-radius:4px;min-width:140px"><option value="">Select type...</option>${laborOpts}</select>
+          <input type="number" id="m-laborhours" placeholder="Hrs" style="width:68px;padding:0.48rem;border:1px solid #c8cdd8;border-radius:4px">
           <button class="btn btn-secondary" onclick="addLabor('m')">Add</button>
         </div>
         <table id="m-labor-table"><thead><tr><th>Type</th><th>Hours</th><th></th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="form-section">
+        <div class="section-title">Additional Charges</div>
+        <div style="display:flex;gap:0.4rem;margin-bottom:0.38rem;flex-wrap:wrap;align-items:flex-end">
+          <select id="m-chargetype" style="padding:0.4rem;border:1px solid #c8cdd8;border-radius:4px">
+            <option value="Service Call">Service Call</option><option value="Other">Other</option>
+          </select>
+          <input type="text" id="m-chargedesc" placeholder="Description" style="flex:2;padding:0.4rem;border:1px solid #c8cdd8;border-radius:4px">
+          <input type="number" id="m-chargeamt" placeholder="$" step="0.01" style="width:78px;padding:0.4rem;border:1px solid #c8cdd8;border-radius:4px">
+          <button class="btn btn-secondary" onclick="addCharge('m')">Add</button>
+        </div>
+        <table id="m-charges-table"><thead><tr><th>Type</th><th>Desc</th><th>Amt</th><th></th></tr></thead><tbody></tbody></table>
       </div>
       <div class="form-section">
         <div class="form-row"><label>Payment Type</label>
@@ -574,43 +700,41 @@ async function openJobDetail(jobId) {
       <div class="form-section">
         <div class="form-row"><label>Tech Notes</label><textarea id="m-notes"></textarea></div>
         <div class="form-row"><label><input type="checkbox" id="m-followup"> Flag for Follow-up</label></div>
-        <div class="form-row"><label>Photos</label>
+        <div class="form-row">
+          <label>Photos</label>
           <input type="file" id="m-photos" accept="image/*" multiple onchange="showPhotoPreview('m-photos','m-photo-preview')">
-          <div id="m-photo-preview" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem"></div>
+          <div id="m-photo-preview" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.45rem"></div>
         </div>
       </div>
-      <div class="form-section">
-        <div class="section-title">Quote Form <span style="font-weight:400;text-transform:none;font-size:0.78rem;color:#888">(leave blank if not a quote job)</span></div>
-        <div class="form-row"><label>Scope Observed</label><textarea id="m-quote-scope"></textarea></div>
-        <div class="form-row"><label>Materials / Notes for Rich</label><textarea id="m-quote-materials"></textarea></div>
-      </div>
-      <div id="m-msg" style="margin-top:0.6rem"></div>
+      <div id="m-msg" style="margin-top:0.55rem"></div>
       <div id="m-confirm-panel" style="display:none" class="confirm-panel">
         <div class="confirm-title">Review before submitting</div>
-        <div id="m-confirm-body" style="margin-bottom:0.8rem"></div>
-        <button class="btn btn-green" style="width:100%;padding:0.7rem;font-size:0.95rem" onclick="submitCompletion()">Confirm and Submit</button>
-        <button class="btn btn-secondary" style="width:100%;margin-top:0.4rem" onclick="closeSubmitConfirm()">Go Back</button>
+        <div id="m-confirm-body" style="margin-bottom:0.75rem"></div>
+        <button class="btn btn-green" style="width:100%;padding:0.65rem;font-size:0.93rem" onclick="submitCompletion()">Confirm and Submit</button>
+        <button class="btn btn-secondary" style="width:100%;margin-top:0.38rem" onclick="closeSubmitConfirm()">Go Back</button>
       </div>
-      <button id="m-submit-btn" class="btn btn-green" style="width:100%;margin-top:0.9rem;padding:0.85rem;font-size:1rem" onclick="showSubmitConfirm()">Submit Completion</button>`;
+      <button id="m-submit-btn" class="btn btn-green" style="width:100%;margin-top:0.85rem;padding:0.8rem;font-size:0.98rem" onclick="showSubmitConfirm()">Submit Completion</button>`;
   }
 
   document.getElementById('modal-content').innerHTML = `
-    <h3 style="margin:0.3rem 0 0.2rem;color:#1a2744">${job.accounts?.account_name||''}${job.sub?.account_name ? ' / '+job.sub.account_name : ''}</h3>
+    <h3 style="margin:0.25rem 0 0.18rem;color:#1a2744">${job.accounts?.account_name||''}${job.sub?.account_name ? ' / '+job.sub.account_name : ''}</h3>
     <div class="meta">${formatDate(job.job_date)} | ${job.job_types?.job_type_name||''}</div>
     ${wopo ? `<div class="meta">${wopo}</div>` : ''}
     ${addrHtml}
     ${contactHtml}
     ${fixedBanner}
-    ${job.scope      ? `<p style="font-size:0.87rem;margin:0.4rem 0"><strong>Scope:</strong> ${job.scope}</p>` : ''}
-    ${job.site_notes ? `<p style="font-size:0.87rem;margin:0.4rem 0"><strong>Site Notes:</strong> ${job.site_notes}</p>` : ''}
+    ${job.scope      ? `<p style="font-size:0.86rem;margin:0.38rem 0"><strong>Scope:</strong> ${job.scope}</p>` : ''}
+    ${job.site_notes ? `<p style="font-size:0.86rem;margin:0.38rem 0"><strong>Site Notes:</strong> ${job.site_notes}</p>` : ''}
     ${submitted ? '<div class="msg success">Job submitted. Awaiting admin review.</div>' : ''}
-    ${completionSection}
-  `;
+    ${completionSection}`;
 
   if (!submitted) {
     renderPartsTable('m');
     renderLaborTable('m');
-    document.getElementById('m-timein').value = nowLocal();
+    renderChargesTable('m');
+    // Only auto-fill time-in if not pre-filled from clock-in
+    const timeInEl = document.getElementById('m-timein');
+    if (timeInEl && !timeInEl.value) timeInEl.value = nowLocal();
   } else {
     loadTechJobPhotos(jobId);
   }
@@ -619,16 +743,16 @@ async function openJobDetail(jobId) {
   window.scrollTo(0, 0);
 }
 
-function closeModal() {
-  document.getElementById('modal').style.display = 'none';
-}
+function closeModal() { document.getElementById('modal').style.display = 'none'; }
 
 
-// ---- PHOTOS ----
+// ============================================================
+// PHOTOS
+// ============================================================
 async function loadTechJobPhotos(jobId) {
   const grid = document.getElementById(`tech-job-photos-${jobId}`);
   if (!grid) return;
-  grid.innerHTML = '<span style="font-size:0.83rem;color:#aaa">Loading...</span>';
+  grid.innerHTML = '<span style="font-size:0.82rem;color:#aaa">Loading...</span>';
   const { data: photos } = await db.from('job_photos')
     .select('id,storage_path,file_name,uploaded_at').eq('job_id', jobId)
     .order('uploaded_at', { ascending: false });
@@ -647,8 +771,56 @@ async function uploadExtraPhotos(jobId) {
   await loadTechJobPhotos(jobId);
 }
 
+async function uploadPhotos(files, jobId) {
+  if (!files || !files.length) return;
+  const { data: job } = await db.from('jobs').select('account_id').eq('id', jobId).single();
+  for (const file of files) {
+    const path    = `${jobId}/${Date.now()}_${file.name}`;
+    const resized = await resizeImage(file, 1200);
+    const { error } = await db.storage.from('job-photos').upload(path, resized);
+    if (error) continue;
+    await db.from('job_photos').insert({
+      job_id:       jobId,
+      account_id:   job?.account_id || null,
+      storage_path: path,
+      file_name:    file.name,
+      uploaded_by:  currentUser.id
+    });
+  }
+}
 
-// ---- PARTS SEARCH ----
+function showPhotoPreview(inputId, previewId) {
+  const input   = document.getElementById(inputId);
+  const preview = document.getElementById(previewId);
+  if (!input || !preview) return;
+  preview.innerHTML = '';
+  Array.from(input.files).forEach((file, idx) => {
+    const reader = new FileReader();
+    const wrap   = document.createElement('div');
+    wrap.style.cssText = 'position:relative;display:inline-block';
+    reader.onload = e => {
+      wrap.innerHTML =
+        `<img src="${e.target.result}" style="width:78px;height:66px;object-fit:cover;border:1px solid #c8cdd8;border-radius:3px;display:block">` +
+        `<button onclick="removePhotoFile('${inputId}','${previewId}',${idx})"
+          style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);color:white;border:none;cursor:pointer;font-size:0.73rem;padding:0 4px;line-height:1.5;border-radius:2px">X</button>`;
+    };
+    reader.readAsDataURL(file);
+    preview.appendChild(wrap);
+  });
+}
+
+function removePhotoFile(inputId, previewId, idx) {
+  const input = document.getElementById(inputId);
+  const dt    = new DataTransfer();
+  Array.from(input.files).forEach((f, i) => { if (i !== idx) dt.items.add(f); });
+  input.files = dt.files;
+  showPhotoPreview(inputId, previewId);
+}
+
+
+// ============================================================
+// PARTS
+// ============================================================
 function searchParts(prefix) {
   const input   = document.getElementById(`${prefix}-partsearch`);
   const results = document.getElementById(`${prefix}-parts-results`);
@@ -658,16 +830,13 @@ function searchParts(prefix) {
   const matches = allParts.filter(p => p.part_name.toLowerCase().includes(q)).slice(0, 12);
   if (!matches.length) { results.style.display = 'none'; return; }
   results.innerHTML = matches.map(p =>
-    `<div data-id="${p.id}"
-          data-name="${p.part_name.replace(/"/g,'&quot;')}"
-          data-unit="${(p.unit||'').replace(/"/g,'&quot;')}">
-      ${p.part_name}${p.unit ? ` (${p.unit})` : ''}${p.category ? ` | ${p.category}` : ''}
-    </div>`).join('');
+    `<div data-id="${p.id}" data-name="${escHtml(p.part_name)}">${p.part_name}${p.unit ? ' ('+p.unit+')' : ''}${p.category ? ' | '+p.category : ''}</div>`
+  ).join('');
   results.style.display = 'block';
   results.querySelectorAll('div').forEach(div => {
     div.addEventListener('mousedown', e => {
       e.preventDefault(); e.stopPropagation();
-      addPart(prefix, div.dataset.id, div.dataset.name, div.dataset.unit);
+      addPart(prefix, div.dataset.id, div.dataset.name);
     });
   });
 }
@@ -677,38 +846,42 @@ document.addEventListener('click', e => {
     document.querySelectorAll('.parts-results').forEach(el => el.style.display = 'none');
 });
 
-function addPart(prefix, id, name, unit) {
-  const store = prefix === 'm' ? modalParts : njParts;
+function storeFor(prefix) {
+  if (prefix === 'm')  return modalParts;
+  if (prefix === 'nj') return njParts;
+  return [];
+}
+
+function addPart(prefix, id, name) {
+  const store = storeFor(prefix);
   const ex = store.find(p => p.id === id);
-  if (ex) ex.qty += 1; else store.push({ id, name, unit, qty: 1 });
+  if (ex) ex.qty += 1; else store.push({ id, name, qty: 1 });
   renderPartsTable(prefix);
   document.getElementById(`${prefix}-parts-results`).style.display = 'none';
   document.getElementById(`${prefix}-partsearch`).value = '';
 }
 
-function removePart(prefix, idx) {
-  (prefix === 'm' ? modalParts : njParts).splice(idx, 1);
-  renderPartsTable(prefix);
-}
+function removePart(prefix, idx) { storeFor(prefix).splice(idx, 1); renderPartsTable(prefix); }
 
 function renderPartsTable(prefix) {
-  const store = prefix === 'm' ? modalParts : njParts;
+  const store = storeFor(prefix);
   const tbody = document.querySelector(`#${prefix}-parts-table tbody`);
   if (!tbody) return;
   tbody.innerHTML = store.map((p, i) =>
     `<tr>
-       <td>${p.name}</td>
-       <td><input type="number" min="0.1" step="0.1" value="${p.qty}"
-             style="width:65px;padding:0.3rem;border:1px solid #c8cdd8;border-radius:3px;font-size:0.9rem"
-             onchange="${prefix === 'm' ? 'modalParts' : 'njParts'}[${i}].qty=parseFloat(this.value)||1"></td>
-       <td><button onclick="removePart('${prefix}',${i})"
-             style="border:none;background:none;cursor:pointer;color:#a02020;font-weight:bold;font-size:1rem;padding:0.2rem 0.4rem">X</button></td>
-     </tr>`
-  ).join('') || '<tr><td colspan="3" style="color:#aaa;font-style:italic;font-size:0.83rem">None added</td></tr>';
+      <td>${p.name}</td>
+      <td><input type="number" min="0.1" step="0.1" value="${p.qty}"
+            style="width:62px;padding:0.28rem;border:1px solid #c8cdd8;border-radius:3px;font-size:0.88rem"
+            onchange="${prefix==='m'?'modalParts':'njParts'}[${i}].qty=parseFloat(this.value)||1"></td>
+      <td><button onclick="removePart('${prefix}',${i})" style="border:none;background:none;cursor:pointer;color:#a02020;font-weight:700;font-size:0.95rem;padding:0.1rem 0.3rem">X</button></td>
+    </tr>`
+  ).join('') || '<tr><td colspan="3" style="color:#aaa;font-style:italic;font-size:0.82rem">None added</td></tr>';
 }
 
 
-// ---- LABOR ----
+// ============================================================
+// LABOR
+// ============================================================
 function addLabor(prefix) {
   const typeId = document.getElementById(`${prefix}-labortype`).value;
   const hours  = parseFloat(document.getElementById(`${prefix}-laborhours`).value);
@@ -732,35 +905,65 @@ function renderLaborTable(prefix) {
   if (!tbody) return;
   tbody.innerHTML = store.map((l, i) =>
     `<tr>
-       <td>${l.name}</td>
-       <td>${l.hours} hr</td>
-       <td><button onclick="removeLabor('${prefix}',${i})"
-             style="border:none;background:none;cursor:pointer;color:#a02020;font-weight:bold;font-size:1rem;padding:0.2rem 0.4rem">X</button></td>
-     </tr>`
-  ).join('') || '<tr><td colspan="3" style="color:#aaa;font-style:italic;font-size:0.83rem">None added</td></tr>';
+      <td>${l.name}</td><td>${l.hours} hr</td>
+      <td><button onclick="removeLabor('${prefix}',${i})" style="border:none;background:none;cursor:pointer;color:#a02020;font-weight:700;font-size:0.95rem;padding:0.1rem 0.3rem">X</button></td>
+    </tr>`
+  ).join('') || '<tr><td colspan="3" style="color:#aaa;font-style:italic;font-size:0.82rem">None added</td></tr>';
 }
 
 
-// ---- SUBMIT CONFIRM ----
+// ============================================================
+// CHARGES
+// ============================================================
+function addCharge(prefix) {
+  const type = document.getElementById(`${prefix}-chargetype`).value;
+  const desc = document.getElementById(`${prefix}-chargedesc`).value.trim();
+  const amt  = parseFloat(document.getElementById(`${prefix}-chargeamt`).value);
+  if (isNaN(amt) || amt < 0) return;
+  const store = prefix === 'm' ? modalCharges : njCharges;
+  store.push({ type, description: desc, amount: amt });
+  renderChargesTable(prefix);
+  document.getElementById(`${prefix}-chargedesc`).value = '';
+  document.getElementById(`${prefix}-chargeamt`).value  = '';
+}
+
+function removeCharge(prefix, idx) {
+  (prefix === 'm' ? modalCharges : njCharges).splice(idx, 1);
+  renderChargesTable(prefix);
+}
+
+function renderChargesTable(prefix) {
+  const store = prefix === 'm' ? modalCharges : njCharges;
+  const tbody = document.querySelector(`#${prefix}-charges-table tbody`);
+  if (!tbody) return;
+  tbody.innerHTML = store.map((c, i) =>
+    `<tr>
+      <td>${c.type}</td><td>${c.description}</td><td>$${Number(c.amount).toFixed(2)}</td>
+      <td><button onclick="removeCharge('${prefix}',${i})" style="border:none;background:none;cursor:pointer;color:#a02020;font-weight:700;font-size:0.95rem;padding:0.1rem 0.3rem">X</button></td>
+    </tr>`
+  ).join('') || '<tr><td colspan="4" style="color:#aaa;font-style:italic;font-size:0.82rem">None added</td></tr>';
+}
+
+
+// ============================================================
+// CONFIRM AND SUBMIT
+// ============================================================
 function showSubmitConfirm() {
   const timeIn  = document.getElementById('m-timein')?.value;
   const timeOut = document.getElementById('m-timeout')?.value;
   const payType = document.getElementById('m-paytype')?.value;
-
-  const warn = (!timeIn || !timeOut)
-    ? '<div style="background:#fff3d6;border:1px solid #e0c060;padding:0.4rem 0.6rem;margin-bottom:0.6rem;font-size:0.85rem;border-radius:4px;color:#7a4800">Time in/out not entered -- are you sure?</div>'
+  const warn    = (!timeIn || !timeOut)
+    ? '<div style="background:#fff3d6;border:1px solid #e0c060;padding:0.38rem 0.55rem;margin-bottom:0.55rem;font-size:0.84rem;border-radius:4px;color:#7a4800">Time in/out not entered -- are you sure?</div>'
     : '';
-
-  const fmtTime = v => v ? new Date(v).toLocaleString() : '--';
-
+  const fmtT = v => v ? new Date(v).toLocaleString() : '--';
   document.getElementById('m-confirm-body').innerHTML = `
     ${warn}
-    <div class="confirm-row"><span>Time In</span><span>${fmtTime(timeIn)}</span></div>
-    <div class="confirm-row"><span>Time Out</span><span>${fmtTime(timeOut)}</span></div>
+    <div class="confirm-row"><span>Time In</span><span>${fmtT(timeIn)}</span></div>
+    <div class="confirm-row"><span>Time Out</span><span>${fmtT(timeOut)}</span></div>
     <div class="confirm-row"><span>Parts</span><span>${modalParts.length} item(s)</span></div>
     <div class="confirm-row"><span>Labor</span><span>${modalLabor.length} entr${modalLabor.length === 1 ? 'y' : 'ies'}</span></div>
+    <div class="confirm-row"><span>Charges</span><span>${modalCharges.length} item(s)</span></div>
     <div class="confirm-row"><span>Payment</span><span>${payType || '--'}</span></div>`;
-
   document.getElementById('m-confirm-panel').style.display = '';
   document.getElementById('m-submit-btn').style.display    = 'none';
 }
@@ -770,8 +973,6 @@ function closeSubmitConfirm() {
   document.getElementById('m-submit-btn').style.display    = '';
 }
 
-
-// ---- SUBMIT COMPLETION ----
 async function submitCompletion() {
   const msg = document.getElementById('m-msg');
   msg.innerHTML = '';
@@ -791,80 +992,23 @@ async function submitCompletion() {
   if (ce) { msg.innerHTML = `<div class="msg error">${ce.message}</div>`; return; }
 
   const lineItems = [
-    ...modalParts.map(p => ({ job_id: modalJobId, item_type: 'Part',  item_id: p.id, quantity: p.qty,   unit_cost: 0 })),
-    ...modalLabor.map(l => ({ job_id: modalJobId, item_type: 'Labor', item_id: l.id, quantity: l.hours, unit_cost: 0 }))
+    ...modalParts.map(p   => ({ job_id: modalJobId, item_type: 'Part',  item_id: p.id, quantity: p.qty,    unit_cost: 0 })),
+    ...modalLabor.map(l   => ({ job_id: modalJobId, item_type: 'Labor', item_id: l.id, quantity: l.hours,  unit_cost: 0 })),
+    ...modalCharges.map(c => ({ job_id: modalJobId, item_type: c.type, item_id: '00000000-0000-0000-0000-000000000000', quantity: 1, unit_cost: c.amount, override_reason: c.description }))
   ];
   if (lineItems.length) await db.from('job_line_items').insert(lineItems);
 
   await db.from('jobs').update({ status: 'Pending Review', updated_at: new Date().toISOString() }).eq('id', modalJobId);
   await uploadPhotos(document.getElementById('m-photos').files, modalJobId);
 
-  const qScope = document.getElementById('m-quote-scope').value;
-  const qMat   = document.getElementById('m-quote-materials').value;
-  if (qScope || qMat) {
-    await db.from('quote_forms').insert({
-      job_id:         modalJobId,
-      scope_observed: qScope || null,
-      materials_json: qMat ? [{ notes: qMat }] : null,
-      locked_at:      new Date().toISOString(),
-      created_by:     currentUser.id
-    });
-  }
-
   msg.innerHTML = '<div class="msg success">Job submitted successfully.</div>';
-  setTimeout(() => { closeModal(); loadJobs(); }, 1200);
+  setTimeout(() => { closeModal(); loadJobs(); }, 1100);
 }
 
 
-// ---- PHOTO PREVIEW ----
-function showPhotoPreview(inputId, previewId) {
-  const input   = document.getElementById(inputId);
-  const preview = document.getElementById(previewId);
-  if (!input || !preview) return;
-  preview.innerHTML = '';
-  Array.from(input.files).forEach((file, idx) => {
-    const reader = new FileReader();
-    const wrap   = document.createElement('div');
-    wrap.style.cssText = 'position:relative;display:inline-block';
-    reader.onload = e => {
-      wrap.innerHTML =
-        `<img src="${e.target.result}" style="width:80px;height:68px;object-fit:cover;border:1px solid #c8cdd8;border-radius:3px;display:block">` +
-        `<button onclick="removePhotoFile('${inputId}','${previewId}',${idx})"
-          style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);color:white;border:none;cursor:pointer;font-size:0.75rem;padding:0 5px;line-height:1.6;border-radius:2px">X</button>`;
-    };
-    reader.readAsDataURL(file);
-    preview.appendChild(wrap);
-  });
-}
-
-function removePhotoFile(inputId, previewId, idx) {
-  const input = document.getElementById(inputId);
-  const dt    = new DataTransfer();
-  Array.from(input.files).forEach((f, i) => { if (i !== idx) dt.items.add(f); });
-  input.files = dt.files;
-  showPhotoPreview(inputId, previewId);
-}
-
-async function uploadPhotos(files, jobId) {
-  if (!files || !files.length) return;
-  const { data: job } = await db.from('jobs').select('account_id').eq('id', jobId).single();
-  for (const file of files) {
-    const path    = `${jobId}/${Date.now()}_${file.name}`;
-    const resized = await resizeImage(file, 1200);
-    const { error } = await db.storage.from('job-photos').upload(path, resized);
-    if (error) continue;
-    await db.from('job_photos').insert({
-      job_id:       jobId,
-      account_id:   job?.account_id || null,
-      storage_path: path,
-      file_name:    file.name,
-      uploaded_by:  currentUser.id
-    });
-  }
-}
-
-
-// ---- ADD NOTE ----
+// ============================================================
+// ADD NOTE (post-submit)
+// ============================================================
 async function openAddNote(jobId) {
   const note = prompt('Add a note to this job:');
   if (!note) return;
@@ -882,7 +1026,9 @@ async function openAddNote(jobId) {
 }
 
 
-// ---- SUB-ACCOUNTS ----
+// ============================================================
+// SUB-ACCOUNTS
+// ============================================================
 function loadSubAccounts(prefix) {
   const parentId = document.getElementById(`${prefix}-account`).value;
   const subs     = allAccounts.filter(a => a.parent_account_id === parentId);
@@ -890,7 +1036,9 @@ function loadSubAccounts(prefix) {
 }
 
 
-// ---- NEW JOB ----
+// ============================================================
+// NEW JOB
+// ============================================================
 async function submitNewJob() {
   const accountId = document.getElementById('nj-account').value;
   const date      = document.getElementById('nj-date').value;
@@ -906,7 +1054,7 @@ async function submitNewJob() {
     account_id:        accountId,
     sub_account_id:    document.getElementById('nj-subaccount').value || null,
     job_type_id:       document.getElementById('nj-jobtype').value    || null,
-    assigned_tech_ids: [currentUser.id],
+    assigned_tech_ids: currentTechId ? [currentTechId] : [],
     status:            'Pending Review',
     scope:             document.getElementById('nj-scope').value || null,
     created_by:        currentUser.id
@@ -925,36 +1073,31 @@ async function submitNewJob() {
   });
 
   const lineItems = [
-    ...njParts.map(p => ({ job_id: job.id, item_type: 'Part',  item_id: p.id, quantity: p.qty,   unit_cost: 0 })),
-    ...njLabor.map(l => ({ job_id: job.id, item_type: 'Labor', item_id: l.id, quantity: l.hours, unit_cost: 0 }))
+    ...njParts.map(p   => ({ job_id: job.id, item_type: 'Part',  item_id: p.id, quantity: p.qty,   unit_cost: 0 })),
+    ...njLabor.map(l   => ({ job_id: job.id, item_type: 'Labor', item_id: l.id, quantity: l.hours, unit_cost: 0 })),
+    ...njCharges.map(c => ({ job_id: job.id, item_type: c.type, item_id: '00000000-0000-0000-0000-000000000000', quantity: 1, unit_cost: c.amount, override_reason: c.description }))
   ];
   if (lineItems.length) await db.from('job_line_items').insert(lineItems);
   await uploadPhotos(document.getElementById('nj-photos').files, job.id);
 
   msg.innerHTML = '<div class="msg success">Job submitted.</div>';
-  njParts = []; njLabor = [];
-  renderPartsTable('nj'); renderLaborTable('nj');
-  setTimeout(() => { showTab('jobs'); loadJobs(); }, 1200);
+  njParts = []; njLabor = []; njCharges = [];
+  renderPartsTable('nj'); renderLaborTable('nj'); renderChargesTable('nj');
+  setTimeout(() => { showTab('jobs'); loadJobs(); }, 1100);
 }
 
 
-// ---- NEW CUSTOMER ----
-
-// In-memory list of contacts being built on the form
-let ncContacts = [];
-
+// ============================================================
+// NEW CUSTOMER
+// ============================================================
 function ncAddContact() {
-  const idx = ncContacts.length;
-  ncContacts.push({ name: '', title: '', company: '', work_phone: '', cell_phone: '', email: '', notes: '', is_primary: false, is_secondary: false, is_onsite: false });
+  ncContacts.push({ name:'', title:'', company:'', work_phone:'', cell_phone:'', email:'', notes:'', is_primary:false, is_secondary:false, is_onsite:false });
   renderNcContacts();
-  // Focus the name field of the newly added contact
+  const idx = ncContacts.length - 1;
   setTimeout(() => { const el = document.getElementById(`ncc-name-${idx}`); if (el) el.focus(); }, 50);
 }
 
-function ncRemoveContact(idx) {
-  ncContacts.splice(idx, 1);
-  renderNcContacts();
-}
+function ncRemoveContact(idx) { ncContacts.splice(idx, 1); renderNcContacts(); }
 
 function ncSyncContact(idx) {
   const c = ncContacts[idx];
@@ -970,45 +1113,32 @@ function ncSyncContact(idx) {
   c.is_onsite    = !!document.getElementById(`ncc-onsite-${idx}`)?.checked;
 }
 
+function ncSyncAll() { ncContacts.forEach((_, i) => ncSyncContact(i)); }
+
 function renderNcContacts() {
   const el = document.getElementById('nc-contacts-list');
   if (!ncContacts.length) { el.innerHTML = ''; return; }
   el.innerHTML = ncContacts.map((c, idx) => `
-    <div style="border:1px solid #dde1ea;border-radius:5px;padding:0.8rem;margin-bottom:0.6rem;background:#f8f9fc">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
-        <strong style="font-size:0.85rem;color:#1a2744">Contact ${idx + 1}</strong>
-        <button class="btn btn-secondary" style="padding:0.2rem 0.55rem;font-size:0.8rem" onclick="ncSyncAllAndRemove(${idx})">Remove</button>
+    <div style="border:1px solid #dde1ea;border-radius:5px;padding:0.75rem;margin-bottom:0.55rem;background:#f8f9fc">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.45rem">
+        <strong style="font-size:0.84rem;color:#1a2744">Contact ${idx + 1}</strong>
+        <button class="btn btn-secondary" style="padding:0.2rem 0.52rem;font-size:0.79rem" onclick="ncSyncAll();ncRemoveContact(${idx})">Remove</button>
       </div>
       <div class="form-row"><label>Name *</label><input type="text" id="ncc-name-${idx}" value="${escHtml(c.name)}" placeholder="Ronnie Smith"></div>
-      <div class="form-row"><label>Title</label><input type="text" id="ncc-title-${idx}" value="${escHtml(c.title)}" placeholder="Maintenance Manager"></div>
+      <div class="form-row"><label>Title</label><input type="text" id="ncc-title-${idx}" value="${escHtml(c.title)}"></div>
       <div class="form-row"><label>Company</label><input type="text" id="ncc-company-${idx}" value="${escHtml(c.company)}"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem">
         <div class="form-row"><label>Work Phone</label><input type="text" id="ncc-work-${idx}" value="${escHtml(c.work_phone)}"></div>
         <div class="form-row"><label>Cell Phone</label><input type="text" id="ncc-cell-${idx}" value="${escHtml(c.cell_phone)}"></div>
       </div>
       <div class="form-row"><label>Email</label><input type="text" id="ncc-email-${idx}" value="${escHtml(c.email)}"></div>
-      <div class="form-row"><label>Notes</label><textarea id="ncc-notes-${idx}" style="height:48px">${escHtml(c.notes)}</textarea></div>
-      <div style="display:flex;gap:1.2rem;flex-wrap:wrap;font-size:0.85rem;margin-top:0.3rem">
-        <label style="display:flex;align-items:center;gap:0.35rem"><input type="checkbox" id="ncc-primary-${idx}"   ${c.is_primary   ? 'checked' : ''}> Primary</label>
-        <label style="display:flex;align-items:center;gap:0.35rem"><input type="checkbox" id="ncc-secondary-${idx}" ${c.is_secondary ? 'checked' : ''}> Secondary</label>
-        <label style="display:flex;align-items:center;gap:0.35rem"><input type="checkbox" id="ncc-onsite-${idx}"    ${c.is_onsite    ? 'checked' : ''}> On-Site</label>
+      <div class="form-row"><label>Notes</label><textarea id="ncc-notes-${idx}" style="height:44px">${escHtml(c.notes)}</textarea></div>
+      <div style="display:flex;gap:1.1rem;flex-wrap:wrap;font-size:0.84rem;margin-top:0.28rem">
+        <label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="ncc-primary-${idx}"   ${c.is_primary   ? 'checked' : ''}> Primary</label>
+        <label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="ncc-secondary-${idx}" ${c.is_secondary ? 'checked' : ''}> Secondary</label>
+        <label style="display:flex;align-items:center;gap:0.3rem"><input type="checkbox" id="ncc-onsite-${idx}"    ${c.is_onsite    ? 'checked' : ''}> On-Site</label>
       </div>
-    </div>
-  `).join('');
-}
-
-function escHtml(str) {
-  return (str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-function ncSyncAllAndRemove(idx) {
-  // Sync all contacts before removing so we don't lose edits
-  ncContacts.forEach((_, i) => ncSyncContact(i));
-  ncRemoveContact(idx);
-}
-
-function ncSyncAll() {
-  ncContacts.forEach((_, i) => ncSyncContact(i));
+    </div>`).join('');
 }
 
 async function submitNewCustomer() {
@@ -1016,18 +1146,14 @@ async function submitNewCustomer() {
   const name = document.getElementById('nc-name').value.trim();
   const msg  = document.getElementById('nc-msg');
   msg.innerHTML = '';
-
   if (!name) { msg.innerHTML = '<div class="msg error">Account name is required.</div>'; return; }
-
-  // Validate contacts -- each must have a name if the row exists
   for (let i = 0; i < ncContacts.length; i++) {
     if (!ncContacts[i].name) {
-      msg.innerHTML = `<div class="msg error">Contact ${i + 1} is missing a name. Fill it in or remove it.</div>`;
+      msg.innerHTML = `<div class="msg error">Contact ${i+1} is missing a name.</div>`;
       return;
     }
   }
 
-  // Insert the account as pending
   const { data: acct, error: acctErr } = await db.from('accounts').insert({
     account_name:  name,
     address:       document.getElementById('nc-address').value.trim() || null,
@@ -1037,10 +1163,8 @@ async function submitNewCustomer() {
     submitted_by:  currentUser.id,
     submitted_at:  new Date().toISOString()
   }).select('id').single();
-
   if (acctErr) { msg.innerHTML = `<div class="msg error">${acctErr.message}</div>`; return; }
 
-  // Insert contacts if any
   if (ncContacts.length) {
     const contactRows = ncContacts.map(c => ({
       account_id:   acct.id,
@@ -1060,14 +1184,15 @@ async function submitNewCustomer() {
   }
 
   msg.innerHTML = '<div class="msg success">Submitted for review. Admin will approve before it goes live.</div>';
-  // Reset form
   ['nc-name','nc-address','nc-phone','nc-billing'].forEach(id => document.getElementById(id).value = '');
   ncContacts = [];
   renderNcContacts();
 }
 
 
-// ---- QUOTE FORM ----
+// ============================================================
+// QUOTE
+// ============================================================
 async function submitQuote() {
   const accountId = document.getElementById('qq-account').value;
   const date      = document.getElementById('qq-date').value;
@@ -1075,30 +1200,22 @@ async function submitQuote() {
   const msg       = document.getElementById('qq-msg');
   msg.innerHTML   = '';
 
-  if (!accountId || !date) {
-    msg.innerHTML = '<div class="msg error">Account and date are required.</div>';
-    return;
-  }
-  if (!scope) {
-    msg.innerHTML = '<div class="msg error">Scope observed is required -- describe what you saw on site.</div>';
-    return;
-  }
+  if (!accountId || !date) { msg.innerHTML = '<div class="msg error">Account and date are required.</div>'; return; }
+  if (!scope) { msg.innerHTML = '<div class="msg error">Scope observed is required -- describe what you saw on site.</div>'; return; }
 
-  // Create a job record in Quoted status so photos and the quote form attach to something
   const { data: job, error: jobErr } = await db.from('jobs').insert({
     job_date:          date,
     account_id:        accountId,
     sub_account_id:    document.getElementById('qq-subaccount').value || null,
-    assigned_tech_ids: [currentUser.id],
+    assigned_tech_ids: currentTechId ? [currentTechId] : [],
     status:            'Quoted',
-    scope:             scope,
-    created_by:        currentUser.id
+    scope,
+    created_by: currentUser.id
   }).select().single();
   if (jobErr) { msg.innerHTML = `<div class="msg error">${jobErr.message}</div>`; return; }
 
   const materials = document.getElementById('qq-materials').value.trim();
   const notes     = document.getElementById('qq-notes').value.trim();
-
   await db.from('quote_forms').insert({
     job_id:         job.id,
     scope_observed: scope,
@@ -1107,7 +1224,6 @@ async function submitQuote() {
     locked_at:      new Date().toISOString(),
     created_by:     currentUser.id
   });
-
   await uploadPhotos(document.getElementById('qq-photos').files, job.id);
 
   msg.innerHTML = '<div class="msg success">Quote submitted. Rich will follow up.</div>';
@@ -1116,9 +1232,19 @@ async function submitQuote() {
   document.getElementById('qq-subaccount').value = '';
   document.getElementById('qq-date').value       = today();
   document.getElementById('qq-photo-preview').innerHTML = '';
-  document.getElementById('qq-photos').value = '';
+  document.getElementById('qq-photos').value     = '';
 }
 
+
+// ============================================================
+// TAB SWITCHER
+// ============================================================
+function showTab(name) {
+  ['jobs','quote','newjob','newcustomer'].forEach(t =>
+    document.getElementById(`tab-${t}`).style.display = t === name ? '' : 'none');
+  document.querySelectorAll('.tab').forEach((t, i) =>
+    t.classList.toggle('active', ['jobs','quote','newjob','newcustomer'][i] === name));
+}
 
 init();
 </script>

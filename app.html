@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faith Lock &amp; Safe | Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="shared.js"></script>
+<script src="export-config.js"></script>
+<style>
+/* ---- RESET & BASE ---- */
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; background: #f2f4f8; font-size: 0.9rem; color: #1a1a2e; }
+
+/* ---- HEADER ---- */
+header {
+  background: #1a2744; color: white;
+  padding: 0 1rem;
+  display: flex; align-items: center; gap: 0.5rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  flex-wrap: wrap; min-height: 44px;
+  position: sticky; top: 0; z-index: 50;
+}
+header .brand {
+  font-size: 0.93rem; font-weight: 600; letter-spacing: 0.02em;
+  white-space: nowrap; margin-right: 0.4rem; padding: 0.55rem 0;
+}
+nav { display: flex; gap: 0.25rem; flex-wrap: wrap; align-items: center; flex: 1; padding: 0.4rem 0; }
+nav button {
+  background: transparent; border: 1px solid rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.72); padding: 0.28rem 0.65rem;
+  cursor: pointer; font-size: 0.8rem; border-radius: 3px;
+  font-family: inherit; transition: all 0.15s; white-space: nowrap;
+}
+nav button:hover { border-color: white; color: white; }
+nav button.active { background: #6b6fa8; border-color: #6b6fa8; color: white; }
+.badge {
+  display: inline-block; background: #a02020; color: white;
+  font-size: 0.65rem; font-weight: 700; border-radius: 10px;
+  padding: 0 5px; margin-left: 4px; min-width: 16px; text-align: center;
+  line-height: 15px; vertical-align: middle;
+}
+button.logout {
+  background: transparent; border: 1px solid rgba(255,100,100,0.55);
+  color: rgba(255,150,150,0.88); padding: 0.28rem 0.65rem;
+  cursor: pointer; font-size: 0.8rem; border-radius: 3px;
+  font-family: inherit; margin-left: auto;
+}
+button.logout:hover { border-color: #f88; color: #f88; }
+@media (max-width: 640px) {
+  header .brand { display: none; }
+}
+
+/* ---- LAYOUT ---- */
+.container { max-width: 1020px; margin: 1.2rem auto; padding: 0 1rem; }
+
+/* ---- CARDS ---- */
+.card { background: white; border: 1px solid #dde1ea; border-radius: 6px; margin-bottom: 1rem; padding: 1.2rem; box-shadow: 0 1px 4px rgba(26,39,68,0.06); }
+.card h3 { margin: 0 0 0.6rem; font-size: 1rem; color: #1a2744; font-weight: 600; }
+
+/* ---- SECTION / FORM ELEMENTS ---- */
+.section-title { font-weight: 600; font-size: 0.8rem; color: #6b6fa8; text-transform: uppercase; letter-spacing: 0.05em; margin: 0.9rem 0 0.45rem; border-bottom: 1px solid #eef0f6; padding-bottom: 0.28rem; }
+.form-row { margin-bottom: 0.6rem; }
+.form-row label { display: block; font-weight: 600; font-size: 0.79rem; color: #4a5070; margin-bottom: 0.22rem; }
+.form-row input, .form-row select, .form-row textarea,
+.filters input, .filters select {
+  padding: 0.42rem 0.6rem; border: 1px solid #c8cdd8; border-radius: 4px;
+  font-size: 0.87rem; font-family: inherit; width: 100%;
+  background: white; transition: border-color 0.15s;
+}
+.form-row input:focus, .form-row select:focus, .form-row textarea:focus,
+.filters input:focus, .filters select:focus {
+  outline: none; border-color: #6b6fa8; box-shadow: 0 0 0 2px rgba(107,111,168,0.11);
+}
+.form-row textarea { height: 64px; resize: vertical; }
+input[type=checkbox] { width: auto; accent-color: #1a2744; }
+select[multiple] { height: 88px; }
+
+/* ---- FILTERS BAR ---- */
+.filters { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: flex-end; }
+.filters label { font-size: 0.79rem; font-weight: 600; color: #4a5070; display: block; margin-bottom: 0.22rem; }
+.filters input, .filters select { width: auto; }
+
+/* ---- BUTTONS ---- */
+.btn { padding: 0.36rem 0.85rem; border: none; cursor: pointer; font-size: 0.83rem; border-radius: 4px; font-family: inherit; font-weight: 500; transition: opacity 0.15s; margin-right: 0.25rem; margin-top: 0.2rem; display: inline-block; }
+.btn:active { opacity: 0.8; }
+.btn-primary   { background: #1a2744; color: white; }
+.btn-primary:hover   { background: #243560; }
+.btn-accent    { background: #6b6fa8; color: white; }
+.btn-accent:hover    { background: #5c6096; }
+.btn-green     { background: #2a7a4a; color: white; }
+.btn-green:hover     { background: #236040; }
+.btn-yellow    { background: #b86c00; color: white; }
+.btn-yellow:hover    { background: #9e5c00; }
+.btn-red       { background: #a02020; color: white; }
+.btn-red:hover       { background: #8a1a1a; }
+.btn-secondary { background: #eaecf4; color: #333; }
+.btn-secondary:hover { background: #d8dcea; }
+.btn-blue      { background: #1a4a8a; color: white; }
+.btn-blue:hover      { background: #153d75; }
+.btn-sm { padding: 0.22rem 0.6rem; font-size: 0.79rem; }
+
+/* ---- TOGGLE PAIR ---- */
+.toggle-pair { display: inline-flex; border: 1px solid #c8cdd8; border-radius: 4px; overflow: hidden; margin-bottom: 0.7rem; }
+.toggle-pair button { border: none; padding: 0.38rem 1rem; cursor: pointer; font-size: 0.84rem; font-family: inherit; background: #f2f4f8; color: #555; }
+.toggle-pair button.active { background: #1a2744; color: white; }
+
+/* ---- TABLES ---- */
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th { background: #f2f4f8; text-align: left; padding: 0.48rem 0.6rem; white-space: nowrap; font-weight: 600; color: #4a5070; font-size: 0.79rem; border-bottom: 2px solid #dde1ea; }
+td { padding: 0.42rem 0.6rem; border-bottom: 1px solid #eef0f6; vertical-align: top; }
+tr:hover td { background: #f8f9fc; }
+
+/* ---- STATUS BADGES ---- */
+.status-badge { display: inline-block; padding: 0.16rem 0.5rem; font-size: 0.74rem; font-weight: 600; border-radius: 20px; letter-spacing: 0.02em; white-space: nowrap; }
+.status-Scheduled      { background: #e4eaf8; color: #1a2744; }
+.status-Quoted         { background: #fff3d6; color: #7a4800; }
+.status-Awaiting-Parts { background: #ffe8cc; color: #7a3800; }
+.status-Pending-Review { background: #fff8c0; color: #6b5a00; }
+.status-Flagged        { background: #ffe0e0; color: #900; }
+.status-Approved       { background: #d6f2e0; color: #1a5c30; }
+.status-In-Progress    { background: #c8f0d8; color: #0e4a24; }
+.status-Cancelled      { background: #eee; color: #666; }
+
+/* ---- BANNERS ---- */
+.fixed-banner    { background: #ffe8e8; border: 1px solid #f4aaaa; color: #800; padding: 0.38rem 0.65rem; margin: 0.35rem 0; font-weight: 600; font-size: 0.82rem; border-radius: 4px; }
+.contact-banner  { background: #e8f0ff; border: 1px solid #b0c4f8; color: #1a3070; padding: 0.45rem 0.65rem; margin: 0.35rem 0; font-size: 0.84rem; border-radius: 4px; line-height: 1.5; }
+.warn-banner     { background: #fff8d0; border: 1px solid #e0cc50; color: #604800; padding: 0.38rem 0.65rem; margin: 0.35rem 0; font-size: 0.82rem; border-radius: 4px; }
+.info-banner     { background: #eaf2ff; border: 1px solid #aacaf8; color: #1a3070; padding: 0.38rem 0.65rem; margin: 0.35rem 0; font-size: 0.82rem; border-radius: 4px; }
+
+/* ---- MESSAGES ---- */
+.msg { padding: 0.45rem 0.65rem; margin: 0.35rem 0; font-size: 0.84rem; border-radius: 4px; }
+.msg.success { background: #d6f2e0; border: 1px solid #8cd8aa; color: #1a5c30; }
+.msg.error   { background: #ffe0e0; border: 1px solid #f4aaaa; color: #800; }
+
+/* ---- PARTS AUTOCOMPLETE ---- */
+.parts-search-wrap { position: relative; }
+.parts-results {
+  border: 1px solid #c8cdd8; background: white; max-height: 160px;
+  overflow-y: auto; display: none; position: absolute; z-index: 20;
+  width: 100%; box-shadow: 0 4px 12px rgba(26,39,68,0.13);
+  border-radius: 0 0 4px 4px;
+}
+.parts-results div { padding: 0.38rem 0.6rem; cursor: pointer; border-bottom: 1px solid #eef0f6; font-size: 0.84rem; }
+.parts-results div:hover { background: #e8eaf8; }
+
+/* ---- LAYOUT HELPERS ---- */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; }
+@media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+.expandable { display: none; border-top: 1px solid #eef0f6; margin-top: 0.7rem; padding-top: 0.7rem; }
+.stat-box { display: inline-block; background: #f2f4f8; border: 1px solid #dde1ea; border-radius: 5px; padding: 0.48rem 0.85rem; margin-right: 0.45rem; margin-bottom: 0.45rem; text-align: center; min-width: 95px; }
+.stat-box .val { font-size: 1.2rem; font-weight: 700; color: #1a2744; }
+.stat-box .lbl { font-size: 0.74rem; color: #5a6075; margin-top: 0.1rem; }
+.contact-card { border: 1px solid #dde1ea; border-radius: 5px; padding: 0.65rem 0.85rem; margin-bottom: 0.55rem; background: white; }
+.contact-card .flags span { background: #1a2744; color: white; padding: 0.1rem 0.42rem; margin-right: 0.25rem; border-radius: 20px; font-size: 0.73rem; font-weight: 600; }
+.contact-card .flags span.secondary { background: #6b6fa8; }
+.contact-card .flags span.onsite { background: #2a7a4a; }
+.meta { color: #5a6075; font-size: 0.82rem; margin-bottom: 0.3rem; }
+
+/* ---- DISPATCH SUB-NAV ---- */
+.sub-nav { display: flex; gap: 0.3rem; margin-bottom: 1rem; padding-bottom: 0.7rem; border-bottom: 1px solid #dde1ea; flex-wrap: wrap; }
+.sub-nav button { background: #f2f4f8; border: 1px solid #c8cdd8; color: #4a5070; padding: 0.3rem 0.75rem; cursor: pointer; font-size: 0.82rem; border-radius: 3px; font-family: inherit; }
+.sub-nav button.active { background: #1a2744; border-color: #1a2744; color: white; }
+
+/* ---- REFERENCE TABS ---- */
+.ref-tabs { display: flex; gap: 0.3rem; margin-bottom: 1rem; flex-wrap: wrap; }
+
+/* ---- MODAL ---- */
+#reopen-modal {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.45); z-index: 100; overflow-y: auto;
+}
+#reopen-modal > div {
+  background: white; max-width: 740px; margin: 1.5rem auto;
+  padding: 1.5rem; position: relative; border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+}
+#reopen-modal .close-btn {
+  position: absolute; top: 0.75rem; right: 0.75rem;
+  background: #eaecf4; border: none; font-size: 0.9rem;
+  cursor: pointer; border-radius: 3px; padding: 0.22rem 0.55rem; color: #333;
+}
+
+/* ---- INACTIVE ROW ---- */
+.inactive-row td { color: #b0b8c8; }
+
+/* ---- STUB PLACEHOLDER ---- */
+.stub {
+  text-align: center; padding: 3rem 1rem; color: #8a9ab8;
+  border: 2px dashed #dde1ea; border-radius: 6px; margin-top: 0.5rem;
+}
+.stub h2 { font-size: 1rem; margin: 0 0 0.4rem; color: #1a2744; }
+.stub p  { font-size: 0.85rem; margin: 0; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Faith Lock &amp; Safe | Admin</div>
+  <nav id="main-nav">
+    <button data-section="dashboard" onclick="nav('dashboard')">
+      Dashboard
+    </button>
+    <button data-section="dispatch" onclick="nav('dispatch')">
+      Dispatch
+    </button>
+    <button data-section="stockprep" onclick="nav('stockprep')">
+      Stock Prep
+    </button>
+    <button data-section="review" onclick="nav('review')">
+      Review <span class="badge" id="badge-review" style="display:none"></span>
+    </button>
+    <button data-section="quotes" onclick="nav('quotes')">
+      Quotes <span class="badge" id="badge-quotes" style="display:none"></span>
+    </button>
+    <button data-section="accounts" onclick="nav('accounts')">
+      Accounts <span class="badge" id="badge-accounts" style="display:none"></span>
+    </button>
+    <button data-section="reference" onclick="nav('reference')">
+      Settings
+    </button>
+    <button data-section="export" onclick="nav('export')">
+      Export
+    </button>
+    <button data-section="activitylog" onclick="nav('activitylog')">
+      Activity Log
+    </button>
+    <button data-section="myjobs" onclick="nav('myjobs')" id="nav-myjobs" style="display:none">
+      My Jobs
+    </button>
+  </nav>
+  <button class="logout" onclick="logout()">Sign Out</button>
+</header>
+
+<div class="container" id="main-container">
+
+  <!-- ============================================================ -->
+  <!-- DASHBOARD -->
+  <!-- ============================================================ -->
+  <div id="section-dashboard" style="display:none">
+    <p class="meta">Loading...</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DISPATCH BOARD -->
+  <!-- ============================================================ -->
+  <div id="section-dispatch" style="display:none">
+    <div class="sub-nav">
+      <button id="dp-btn-board"    onclick="showDispatchPanel('board')"    class="active">Board</button>
+      <button id="dp-btn-calendar" onclick="showDispatchPanel('calendar')">Calendar</button>
+      <button id="dp-btn-assign"   onclick="showDispatchPanel('assign')">+ Assign Job</button>
+    </div>
+
+    <!-- CALENDAR PANEL -->
+    <div id="dp-calendar" style="display:none">
+      <p class="meta">Loading calendar...</p>
+    </div>
+
+    <!-- BOARD PANEL -->
+    <div id="dp-board">
+      <div class="filters">
+        <div>
+          <label>From</label>
+          <input type="date" id="sv-from">
+        </div>
+        <div>
+          <label>To</label>
+          <input type="date" id="sv-to">
+        </div>
+        <div>
+          <label>Tech</label>
+          <select id="sv-tech"><option value="">All Techs</option></select>
+        </div>
+        <div>
+          <label>Job Type</label>
+          <select id="sv-jobtype"><option value="">All Types</option></select>
+        </div>
+        <div>
+          <label>Status</label>
+          <select id="sv-status">
+            <option value="">All (except Cancelled)</option>
+            <option value="Scheduled">Scheduled</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Awaiting Parts">Awaiting Parts</option>
+            <option value="Pending Review">Pending Review</option>
+            <option value="Flagged">Flagged</option>
+            <option value="Quoted">Quoted</option>
+            <option value="Approved">Approved</option>
+          </select>
+        </div>
+        <div style="min-width:160px">
+          <label>Account</label>
+          <input type="text" id="sv-account" placeholder="Filter by account..." oninput="loadDispatch()">
+        </div>
+        <div style="align-self:flex-end;display:flex;gap:0.3rem;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="setRange('today')">Today</button>
+          <button class="btn btn-secondary" onclick="setRange('tomorrow')">Tomorrow</button>
+          <button class="btn btn-secondary" onclick="setRange('week')">This Week</button>
+          <button class="btn btn-secondary" onclick="setRange('month')">This Month</button>
+          <button class="btn btn-primary" onclick="loadDispatch()">Load</button>
+        </div>
+      </div>
+      <div id="dispatch-list"><p class="meta">Select a date range and click Load.</p></div>
+    </div>
+
+    <!-- ASSIGN PANEL -->
+    <div id="dp-assign" style="display:none">
+      <div class="card">
+        <h3>Assign Job</h3>
+
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;padding-bottom:0.65rem;border-bottom:1px solid #eef0f6">
+          <span style="font-size:0.8rem;color:#5a6075;white-space:nowrap">From template:</span>
+          <select id="a-template-select" onchange="applyTemplate(this.value)"
+            style="font-size:0.82rem;padding:0.28rem 0.5rem;border:1px solid #c8cdd8;border-radius:4px;flex:1;max-width:260px">
+            <option value="">-- Select to pre-fill --</option>
+          </select>
+        </div>
+
+        <div class="toggle-pair">
+          <button id="a-mode-existing" class="active" onclick="setAssignMode('existing')">Existing Account</button>
+          <button id="a-mode-new" onclick="setAssignMode('new')">New Customer</button>
+        </div>
+
+        <div class="two-col">
+          <div class="form-row">
+            <label>Date <span style="color:#a02020">*</span></label>
+            <input type="date" id="a-date">
+          </div>
+          <div class="form-row">
+            <label>Status</label>
+            <select id="a-status">
+              <option>Scheduled</option>
+              <option>Quoted</option>
+              <option>Awaiting Parts</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="a-existing-account-fields">
+          <div class="two-col">
+            <div class="form-row">
+              <label>Account <span style="color:#a02020">*</span></label>
+              <div class="parts-search-wrap">
+                <input type="text" id="a-account" placeholder="Type to search accounts..." oninput="searchAccountTypeahead()" autocomplete="off">
+                <div class="parts-results" id="a-account-results"></div>
+              </div>
+              <input type="hidden" id="a-account-id">
+            </div>
+            <div class="form-row">
+              <label>Sub-Account</label>
+              <select id="a-subaccount"><option value="">-- None --</option></select>
+            </div>
+          </div>
+          <div id="a-contact-panel" style="display:none">
+            <div class="section-title">Account Contact <span style="font-weight:400;text-transform:none;font-size:0.77rem;color:#888">(from CRM, editable for this job only)</span></div>
+            <div id="a-contact-banner" class="contact-banner"></div>
+            <div id="a-contact-edit" style="display:none">
+              <div class="two-col">
+                <div class="form-row"><label>Contact Name</label><input type="text" id="ac-name"></div>
+                <div class="form-row"><label>Title</label><input type="text" id="ac-title"></div>
+                <div class="form-row"><label>Work Phone</label><input type="text" id="ac-workphone"></div>
+                <div class="form-row"><label>Cell Phone</label><input type="text" id="ac-cellphone"></div>
+                <div class="form-row"><label>Email</label><input type="text" id="ac-email"></div>
+                <div class="form-row"><label>Company</label><input type="text" id="ac-company"></div>
+              </div>
+              <div class="form-row"><label>Contact Notes</label><textarea id="ac-notes" style="height:40px"></textarea></div>
+              <div class="warn-banner" id="a-contact-warn" style="display:none">These changes apply to this job only and will not update the CRM.</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" style="margin-bottom:0.5rem" onclick="toggleContactEdit()">Edit Contact for This Job</button>
+          </div>
+          <div id="a-address-panel" style="display:none;margin-bottom:0.6rem">
+            <div class="section-title">Site Address <span style="font-weight:400;text-transform:none;font-size:0.77rem;color:#888">(from CRM)</span></div>
+            <div id="a-address-display" class="meta" style="padding:0.2rem 0 0.35rem"></div>
+            <div class="form-row">
+              <label>Override Address for This Job <span style="font-weight:400;color:#888">(leave blank to use account address)</span></label>
+              <input type="text" id="a-job-address" placeholder="Enter if different from account address">
+            </div>
+          </div>
+        </div>
+
+        <div id="a-new-customer-fields" style="display:none">
+          <div class="two-col">
+            <div class="form-row"><label>Customer Name <span style="color:#a02020">*</span></label><input type="text" id="a-nc-name"></div>
+            <div class="form-row"><label>Phone</label><input type="text" id="a-nc-phone"></div>
+          </div>
+          <div class="form-row"><label>Address</label><input type="text" id="a-nc-address"></div>
+          <div class="form-row"><label>Notes</label><textarea id="a-nc-notes"></textarea></div>
+        </div>
+
+        <div class="two-col">
+          <div class="form-row">
+            <label>Job Type</label>
+            <select id="a-jobtype"><option value="">-- Select --</option></select>
+          </div>
+          <div class="form-row">
+            <label>Lead Tech</label>
+            <select id="a-leadtech"><option value="">-- Select Lead --</option></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Assign Techs <span style="font-weight:400;color:#888">(hold Ctrl/Cmd for multiple)</span></label>
+          <select id="a-techs" multiple></select>
+        </div>
+        <div class="two-col">
+          <div class="form-row"><label>Work Order No.</label><input type="text" id="a-wo" placeholder="WO number if applicable"></div>
+          <div class="form-row"><label>Purchase Order No.</label><input type="text" id="a-po" placeholder="PO number if applicable"></div>
+        </div>
+        <div class="form-row"><label>Scope of Work</label><textarea id="a-scope"></textarea></div>
+        <div class="form-row"><label>Site Notes <span style="font-weight:400;color:#888">(gate codes, access, parking)</span></label><textarea id="a-sitenotes"></textarea></div>
+
+        <div style="display:flex;gap:1rem;align-items:center;margin-bottom:0.6rem;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:0.35rem">
+            <input type="checkbox" id="a-fixedprice" onchange="toggleFixed()"> Fixed Price Job
+          </label>
+          <div id="a-quotewrap" style="display:none;align-items:center;gap:0.4rem">
+            <label style="font-size:0.82rem;font-weight:600;margin:0">Quote Amount $</label>
+            <input type="number" id="a-quoteamount" style="width:110px;padding:0.38rem 0.55rem;border:1px solid #c8cdd8;border-radius:4px">
+          </div>
+        </div>
+
+        <div class="section-title">Expected Parts <span style="font-weight:400;text-transform:none;color:#888">(optional)</span></div>
+        <div class="parts-search-wrap" style="margin-bottom:0.45rem">
+          <input type="text" id="a-partsearch" placeholder="Search parts to pre-load..." oninput="searchAssignParts()" autocomplete="off">
+          <div class="parts-results" id="a-parts-results"></div>
+        </div>
+        <table id="a-parts-table">
+          <thead><tr><th>Part</th><th>Qty</th><th></th></tr></thead>
+          <tbody><tr><td colspan="3" style="color:#aaa;font-style:italic;font-size:0.82rem">None</td></tr></tbody>
+        </table>
+
+        <div class="section-title" style="margin-top:0.9rem">Expected Labor <span style="font-weight:400;text-transform:none;color:#888">(optional)</span></div>
+        <div style="display:flex;gap:0.4rem;margin-bottom:0.45rem;flex-wrap:wrap">
+          <select id="a-labortype" style="flex:2;padding:0.38rem;border:1px solid #c8cdd8;border-radius:4px"><option value="">Select type...</option></select>
+          <input type="number" id="a-laborhours" placeholder="Hrs" style="width:72px;padding:0.38rem;border:1px solid #c8cdd8;border-radius:4px">
+          <button class="btn btn-secondary" onclick="addAssignLabor()">Add</button>
+        </div>
+        <table id="a-labor-table">
+          <thead><tr><th>Type</th><th>Hours</th><th></th></tr></thead>
+          <tbody><tr><td colspan="3" style="color:#aaa;font-style:italic;font-size:0.82rem">None</td></tr></tbody>
+        </table>
+
+        <div class="section-title" style="margin-top:0.9rem">Additional Charges <span style="font-weight:400;text-transform:none;color:#888">(Service Call, Other)</span></div>
+        <div style="display:flex;gap:0.4rem;margin-bottom:0.45rem;flex-wrap:wrap;align-items:flex-end">
+          <div>
+            <label style="font-size:0.79rem;font-weight:600;display:block;margin-bottom:0.2rem;color:#4a5070">Type</label>
+            <select id="a-chargetype" style="padding:0.38rem;border:1px solid #c8cdd8;border-radius:4px">
+              <option value="Service Call">Service Call</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div style="flex:2">
+            <label style="font-size:0.79rem;font-weight:600;display:block;margin-bottom:0.2rem;color:#4a5070">Description</label>
+            <input type="text" id="a-chargedesc" placeholder="Description..." style="width:100%;padding:0.38rem;border:1px solid #c8cdd8;border-radius:4px">
+          </div>
+          <div>
+            <label style="font-size:0.79rem;font-weight:600;display:block;margin-bottom:0.2rem;color:#4a5070">Amount $</label>
+            <input type="number" id="a-chargeamt" placeholder="0.00" step="0.01" style="width:92px;padding:0.38rem;border:1px solid #c8cdd8;border-radius:4px">
+          </div>
+          <button class="btn btn-secondary" onclick="addAssignCharge()">Add</button>
+        </div>
+        <table id="a-charges-table">
+          <thead><tr><th>Type</th><th>Description</th><th>Amount</th><th></th></tr></thead>
+          <tbody><tr><td colspan="4" style="color:#aaa;font-style:italic;font-size:0.82rem">None</td></tr></tbody>
+        </table>
+
+        <div id="a-msg" style="margin-top:0.65rem"></div>
+        <div style="margin-top:0.55rem">
+          <button class="btn btn-primary" onclick="assignJob()">Assign Job</button>
+          <button class="btn btn-secondary" onclick="duplicateLast()">Duplicate Last Job</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STOCKING PANEL (shown when board loads) -->
+    <div class="card" id="stocking-panel" style="display:none">
+      <h3>Parts and Labor Totals <span style="font-weight:400;font-size:0.82rem;color:#5a6075">for loaded date range</span></h3>
+      <div id="stocking-content"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- STOCK PREP -->
+  <!-- ============================================================ -->
+  <div id="section-stockprep" style="display:none">
+    <p class="meta">Loading...</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- REVIEW QUEUE -->
+  <!-- ============================================================ -->
+  <div id="section-review" style="display:none">
+    <div style="display:flex;gap:0.45rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:1rem">
+      <div>
+        <label style="font-size:0.79rem;font-weight:600;display:block;margin-bottom:0.22rem;color:#4a5070">Status Filter</label>
+        <select id="rv-status" onchange="loadReview()" style="padding:0.38rem 0.55rem;border:1px solid #c8cdd8;border-radius:4px;font-size:0.84rem">
+          <option value="Pending Review" selected>Pending Review</option>
+          <option value="Flagged">Flagged</option>
+          <option value="Approved">Approved</option>
+          <option value="">All</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="loadReview()">Refresh</button>
+      <button class="btn btn-green" id="bulk-approve-btn" style="display:none" onclick="bulkApprove()">Bulk Approve All Pending</button>
+    </div>
+    <div id="review-list"><p class="meta">Click Refresh to load.</p></div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- QUOTES -->
+  <!-- ============================================================ -->
+  <div id="section-quotes" style="display:none">
+    <p class="meta">Loading...</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- ACCOUNTS CRM -->
+  <!-- ============================================================ -->
+  <div id="section-accounts" style="display:none">
+
+    <!-- LIST VIEW -->
+    <div id="acct-section-list">
+      <div class="card">
+        <div class="filters">
+          <div>
+            <label>Search</label>
+            <input type="text" id="f-search" placeholder="Name, address, phone..." oninput="filterAccounts()" style="min-width:180px">
+          </div>
+          <div>
+            <label>Type</label>
+            <select id="f-type" onchange="filterAccounts()">
+              <option value="">All</option>
+              <option value="master">Master</option>
+              <option value="sub">Sub-Account</option>
+            </select>
+          </div>
+          <div>
+            <label>Status</label>
+            <select id="f-active" onchange="filterAccounts()">
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+              <option value="">All</option>
+            </select>
+          </div>
+          <div style="align-self:flex-end;display:flex;gap:0.3rem;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="loadAccounts()">Refresh</button>
+            <button class="btn btn-secondary" onclick="exportAccountsCSV()">Export CSV</button>
+            <button class="btn btn-yellow" id="btn-pending-accounts" onclick="togglePendingPanel()">Pending</button>
+            <button class="btn btn-green" onclick="openAddAccount()">+ Add Account</button>
+          </div>
+        </div>
+
+        <div id="pending-accounts-panel" style="display:none;border:1px solid #e0cc60;background:#fffbe8;border-radius:5px;padding:0.85rem;margin-bottom:0.85rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+            <strong style="color:#6b4800">Pending Account Submissions</strong>
+            <button class="btn btn-secondary btn-sm" onclick="togglePendingPanel()">Close</button>
+          </div>
+          <p style="font-size:0.82rem;color:#7a5800;margin:0 0 0.6rem">Review and edit before approving. Pending accounts are not visible to techs or included in exports until approved.</p>
+          <div id="pending-list">Loading...</div>
+        </div>
+
+        <div id="accounts-summary" style="margin-bottom:0.5rem;font-size:0.82rem;color:#5a6075"></div>
+        <div style="overflow-x:auto">
+          <table id="accounts-table">
+            <thead>
+              <tr>
+                <th style="cursor:pointer" onclick="sortAccounts('account_name')">Account</th>
+                <th>Address</th>
+                <th>Phone</th>
+                <th>Primary Contact</th>
+                <th style="cursor:pointer" onclick="sortAccounts('job_count')">Jobs</th>
+                <th style="cursor:pointer" onclick="sortAccounts('last_service')">Last Service</th>
+                <th>Active</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="accounts-tbody">
+              <tr><td colspan="8" style="color:#888;padding:0.7rem">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD/EDIT FORM -->
+    <div id="acct-section-add" style="display:none">
+      <div class="card">
+        <h3 id="acct-form-title">Add Account</h3>
+        <input type="hidden" id="acct-edit-id">
+        <div class="two-col">
+          <div class="form-row"><label>Account Name *</label><input type="text" id="acct-name"></div>
+          <div class="form-row">
+            <label>Parent Account (if sub-account)</label>
+            <select id="acct-parent"><option value="">-- Master Account --</option></select>
+          </div>
+          <div class="form-row"><label>Address</label><input type="text" id="acct-address"></div>
+          <div class="form-row"><label>Phone</label><input type="text" id="acct-phone"></div>
+        </div>
+        <div class="form-row"><label>Billing Notes</label><textarea id="acct-billing" style="height:50px"></textarea></div>
+        <div class="form-row"><label><input type="checkbox" id="acct-active" checked> Active</label></div>
+        <div id="acct-form-msg"></div>
+        <div style="margin-top:0.45rem">
+          <button class="btn btn-primary" onclick="saveAccount()">Save</button>
+          <button class="btn btn-secondary" onclick="cancelAccountEdit()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DETAIL VIEW -->
+    <div id="acct-section-detail" style="display:none">
+      <div class="card">
+        <button class="btn btn-secondary btn-sm" onclick="showAcctSection('list')" style="margin-bottom:0.85rem">Back to List</button>
+        <div id="acct-detail-header"></div>
+        <div id="acct-detail-stats" style="margin:0.7rem 0"></div>
+        <div id="acct-detail-subs"></div>
+        <div style="display:flex;gap:0.3rem;margin:0.85rem 0;flex-wrap:wrap;border-bottom:1px solid #eef0f6;padding-bottom:0.7rem">
+          <button class="btn btn-primary"   id="dtab-history"      onclick="switchDetailTab('history')">Job History</button>
+          <button class="btn btn-secondary" id="dtab-contacts"     onclick="switchDetailTab('contacts')">Contacts</button>
+          <button class="btn btn-secondary" id="dtab-quotes"       onclick="switchDetailTab('quotes')">Quote Forms</button>
+          <button class="btn btn-secondary" id="dtab-photos"       onclick="switchDetailTab('photos')">Photos</button>
+          <button class="btn btn-secondary" id="dtab-instructions" onclick="switchDetailTab('instructions')">Instructions</button>
+          <button class="btn btn-secondary" onclick="exportAccountDetailCSV()" style="margin-left:auto">Export CSV</button>
+        </div>
+        <div id="dtab-history-panel">
+          <div class="filters" style="margin-top:0.25rem">
+            <div><label>Status</label>
+              <select id="dj-status" onchange="loadAccountJobs()">
+                <option value="">All</option>
+                <option>Scheduled</option><option>Quoted</option><option>Awaiting Parts</option>
+                <option>Pending Review</option><option>Flagged</option><option>Approved</option><option>Cancelled</option>
+              </select>
+            </div>
+            <div><label>From</label><input type="date" id="dj-from" onchange="loadAccountJobs()"></div>
+            <div><label>To</label><input type="date" id="dj-to" onchange="loadAccountJobs()"></div>
+            <div style="align-self:flex-end"><button class="btn btn-primary" onclick="loadAccountJobs()">Filter</button></div>
+          </div>
+          <div id="acct-detail-jobs">Loading...</div>
+        </div>
+        <div id="dtab-contacts-panel" style="display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem;flex-wrap:wrap;gap:0.4rem">
+            <div class="section-title" style="margin:0;border:none">Contacts</div>
+            <button class="btn btn-green btn-sm" onclick="openAddContact()">+ Add Contact</button>
+          </div>
+          <div id="contact-form-wrap" style="display:none;background:#f8f9fc;border:1px solid #dde1ea;border-radius:5px;padding:0.95rem;margin-bottom:0.95rem">
+            <h4 id="contact-form-title" style="margin:0 0 0.65rem;color:#1a2744">Add Contact</h4>
+            <input type="hidden" id="cf-id">
+            <div class="two-col">
+              <div class="form-row"><label>Name *</label><input type="text" id="cf-name"></div>
+              <div class="form-row"><label>Title</label><input type="text" id="cf-title"></div>
+              <div class="form-row"><label>Work Phone</label><input type="text" id="cf-workphone"></div>
+              <div class="form-row"><label>Cell Phone</label><input type="text" id="cf-cellphone"></div>
+              <div class="form-row"><label>Email</label><input type="text" id="cf-email"></div>
+              <div class="form-row"><label>Company</label><input type="text" id="cf-company"></div>
+            </div>
+            <div class="form-row"><label>Notes</label><textarea id="cf-notes" style="height:48px"></textarea></div>
+            <div style="display:flex;gap:1.1rem;margin-bottom:0.55rem;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:0.35rem"><input type="checkbox" id="cf-primary">   Primary</label>
+              <label style="display:flex;align-items:center;gap:0.35rem"><input type="checkbox" id="cf-secondary"> Secondary</label>
+              <label style="display:flex;align-items:center;gap:0.35rem"><input type="checkbox" id="cf-onsite">    On-Site</label>
+            </div>
+            <div id="cf-msg"></div>
+            <button class="btn btn-primary" onclick="saveContact()">Save</button>
+            <button class="btn btn-secondary" onclick="closeContactForm()">Cancel</button>
+          </div>
+          <div id="contacts-list">Loading...</div>
+        </div>
+        <div id="dtab-quotes-panel" style="display:none">
+          <div class="section-title">Quote Forms</div>
+          <div id="acct-detail-quotes">Loading...</div>
+        </div>
+        <div id="dtab-photos-panel" style="display:none">
+          <div class="section-title">Photos</div>
+          <div id="acct-detail-photos">Loading...</div>
+        </div>
+        <div id="dtab-instructions-panel" style="display:none">
+          <div class="section-title">Account Instructions</div>
+          <p style="font-size:0.82rem;color:#5a6075;margin-bottom:0.45rem">Gate codes, key locations, access restrictions, billing quirks. Visible to admin only.</p>
+          <textarea id="instructions-text" style="width:100%;height:180px;padding:0.5rem 0.6rem;border:1px solid #c8cdd8;border-radius:4px;font-size:0.88rem;font-family:inherit;resize:vertical"></textarea>
+          <div style="margin-top:0.45rem">
+            <button class="btn btn-primary" onclick="saveInstructions()">Save Instructions</button>
+            <span id="instructions-msg" style="font-size:0.84rem;margin-left:0.5rem;color:#2a7a4a"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- REFERENCE / SETTINGS -->
+  <!-- ============================================================ -->
+  <div id="section-reference" style="display:none">
+    <div class="card">
+      <div class="ref-tabs">
+        <button class="btn btn-primary"   id="reftab-parts"      onclick="showRefTab('parts')">Parts</button>
+        <button class="btn btn-secondary" id="reftab-jobtypes"   onclick="showRefTab('jobtypes')">Job Types</button>
+        <button class="btn btn-secondary" id="reftab-labortypes" onclick="showRefTab('labortypes')">Labor Types</button>
+        <button class="btn btn-secondary" id="reftab-techs"      onclick="showRefTab('techs')">Techs</button>
+        <button class="btn btn-secondary" id="reftab-users"      onclick="showRefTab('users')">Users</button>
+        <button class="btn btn-secondary" id="reftab-templates"  onclick="showRefTab('templates')" style="font-size:0.78rem;opacity:0.85">Templates</button>
+      </div>
+
+      <!-- Parts -->
+      <div id="ref-parts">
+        <h3>Parts Catalog</h3>
+        <div style="display:flex;gap:0.4rem;margin-bottom:0.65rem;flex-wrap:wrap">
+          <input type="text"   id="rp-name"     placeholder="Part name"  style="flex:2;padding:0.38rem;border:1px solid #c8cdd8;border-radius:4px">
+          <input type="text"   id="rp-category" placeholder="Category"   style="flex:1;padding:0.38rem;border:1px solid #c8cdd8;border-radius:4px">
+          <input type="text"   id="rp-unit"     placeholder="Unit"       style="width:72px;padding:0.38rem;border:1px solid #c8cdd8;border-radius:4px">
+          <input type="number" id="rp-cost"     placeholder="Unit cost"  style="width:95px;padding:0.38rem;border:1px solid #c8cdd8;border-radius:4px">
+          <button class="btn btn-green" onclick="addPart()">Add</button>
+        </div>
+        <div id="parts-ref-msg"></div>
+        <table><thead><tr><th>Name</th><th>Category</th><th>Unit</th><th>Cost</th><th>On Hand</th><th>Active</th><th></th></tr></thead>
+        <tbody id="parts-ref-body"></tbody></table>
+      </div>
+
+      <!-- Templates (subdued -- tucked away for recurring jobs) -->
+      <div id="ref-templates" style="display:none">
+        <h3 style="font-size:0.92rem">Job Templates</h3>
+        <p class="meta" style="margin-bottom:0.75rem">Templates pre-fill the Assign Job form. Useful for recurring jobs like annual rekeying or regular service visits.</p>
+        <button class="btn btn-green" onclick="openAddTemplate()">+ New Template</button>
+        <div id="template-add-form" style="display:none;margin-top:0.75rem;background:#f8f9fc;border:1px solid #dde1ea;border-radius:5px;padding:0.9rem">
+          <div class="two-col">
+            <div class="form-row"><label>Template Name *</label><input type="text" id="tmpl-name" placeholder="e.g. Annual Rekey - Schools"></div>
+            <div class="form-row"><label>Job Type</label><select id="tmpl-jobtype"><option value="">-- Any --</option></select></div>
+          </div>
+          <div class="form-row">
+            <label>Account (optional)</label>
+            <div class="parts-search-wrap">
+              <input type="text" id="tmpl-account" placeholder="Type to search accounts..." oninput="searchTemplateAccount()" autocomplete="off">
+              <div class="parts-results" id="tmpl-account-results"></div>
+            </div>
+            <input type="hidden" id="tmpl-account-id">
+          </div>
+          <div class="two-col">
+            <div class="form-row"><label>Sub-Account</label><select id="tmpl-subaccount"><option value="">-- None --</option></select></div>
+            <div class="form-row"><label>Lead Tech</label><select id="tmpl-leadtech"><option value="">-- Any --</option></select></div>
+          </div>
+          <div class="form-row"><label>Scope</label><textarea id="tmpl-scope" style="height:52px"></textarea></div>
+          <div class="form-row"><label>Site Notes</label><textarea id="tmpl-sitenotes" style="height:40px"></textarea></div>
+          <div id="tmpl-msg"></div>
+          <div style="margin-top:0.45rem">
+            <button class="btn btn-primary" onclick="saveTemplate()">Save Template</button>
+            <button class="btn btn-secondary" onclick="closeAddTemplate()">Cancel</button>
+          </div>
+        </div>
+        <div id="templates-list" style="margin-top:0.85rem"><p class="meta">Loading...</p></div>
+      </div>
+
+      <!-- Job Types -->
+      <div id="ref-jobtypes" style="display:none">
+        <h3>Job Types</h3>
+        <div style="display:flex;gap:0.4rem;margin-bottom:0.65rem;flex-wrap:wrap">
+          <input type="text"   id="rjt-name"     placeholder="Job type name" style="flex:2;padding:0.38rem;border:1px solid #c8cdd8;border-radius:4px">
+          <input type="text"   id="rjt-category" placeholder="Category"      style="flex:1;padding:0.38rem;border:1px solid #c8cdd8;border-radius:4px">
+          <input type="number" id="rjt-rate"     placeholder="Flat rate"     style="width:100px;padding:0.38rem;border:1px solid #c8cdd8;border-radius:4px">
+          <button class="btn btn-green" onclick="addJobType()">Add</button>
+        </div>
+        <table><thead><tr><th>Name</th><th>Category</th><th>Flat Rate</th><th>Active</th><th></th></tr></thead>
+        <tbody id="jobtypes-ref-body"></tbody></table>
+      </div>
+
+      <!-- Labor Types -->
+      <div id="ref-labortypes" style="display:none">
+        <h3>Labor Types</h3>
+        <div style="display:flex;gap:0.4rem;margin-bottom:0.65rem">
+          <input type="text"   id="rlt-name" placeholder="Labor type name" style="flex:2;padding:0.38rem;border:1px solid #c8cdd8;border-radius:4px">
+          <input type="number" id="rlt-rate" placeholder="Hourly rate"     style="width:115px;padding:0.38rem;border:1px solid #c8cdd8;border-radius:4px">
+          <button class="btn btn-green" onclick="addLaborType()">Add</button>
+        </div>
+        <table><thead><tr><th>Name</th><th>Hourly Rate</th><th></th></tr></thead>
+        <tbody id="labortypes-ref-body"></tbody></table>
+      </div>
+
+      <!-- Techs -->
+      <div id="ref-techs" style="display:none">
+        <h3>Techs</h3>
+        <div style="display:flex;gap:0.4rem;margin-bottom:0.65rem">
+          <input type="text" id="rt-name" placeholder="Tech name" style="flex:1;padding:0.38rem;border:1px solid #c8cdd8;border-radius:4px">
+          <button class="btn btn-green" onclick="addTech()">Add</button>
+        </div>
+        <table><thead><tr><th>Name</th><th>Linked User</th><th>Active</th><th></th></tr></thead>
+        <tbody id="techs-ref-body"></tbody></table>
+      </div>
+
+      <!-- Users -->
+      <div id="ref-users" style="display:none">
+        <h3>Users</h3>
+        <div class="info-banner" style="margin-bottom:0.9rem">
+          To add a new user: (1) Create the auth account in the Supabase dashboard under Authentication, (2) copy the User ID, then (3) enter it below to set their role and display name. This is a one-time process per user -- no code changes needed.
+        </div>
+        <div style="background:#f8f9fc;border:1px solid #dde1ea;border-radius:5px;padding:0.95rem;margin-bottom:1rem">
+          <h4 style="margin:0 0 0.65rem;color:#1a2744;font-size:0.95rem">Add User Profile</h4>
+          <div class="two-col">
+            <div class="form-row"><label>User ID (UUID from Supabase dashboard) *</label><input type="text" id="nu-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></div>
+            <div class="form-row"><label>Display Name *</label><input type="text" id="nu-name" placeholder="Rich Thurman"></div>
+            <div class="form-row">
+              <label>Role *</label>
+              <select id="nu-role">
+                <option value="admin">Admin</option>
+                <option value="tech">Tech</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Link to Tech Record (optional)</label>
+              <select id="nu-tech"><option value="">-- None --</option></select>
+            </div>
+          </div>
+          <div id="nu-msg"></div>
+          <button class="btn btn-primary" onclick="addUserProfile()">Create Profile</button>
+        </div>
+        <div id="users-list">Loading...</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- EXPORT -->
+  <!-- ============================================================ -->
+  <div id="section-export" style="display:none">
+    <div class="card">
+      <h3>Export to CSV (QuickBooks Desktop)</h3>
+      <p style="font-size:0.83rem;color:#5a6075;margin-bottom:0.85rem">One row per line item. Export field order is defined in <code>export-config.js</code>.</p>
+      <div class="filters">
+        <div><label>From Date</label><input type="date" id="ex-from"></div>
+        <div><label>To Date</label><input type="date" id="ex-to"></div>
+        <div>
+          <label>Status</label>
+          <select id="ex-status">
+            <option value="Approved">Approved Only (default)</option>
+            <option value="">All Statuses</option>
+          </select>
+        </div>
+        <div style="align-self:flex-end">
+          <button class="btn btn-primary" onclick="runExport()">Generate CSV</button>
+        </div>
+      </div>
+      <div id="export-msg"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MY JOBS (Milton / admin with techs row) -->
+  <!-- ============================================================ -->
+  <div id="section-myjobs" style="display:none">
+    <p class="meta">Loading...</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- ACTIVITY LOG -->
+  <!-- ============================================================ -->
+  <div id="section-activitylog" style="display:none">
+    <p class="meta">Loading...</p>
+  </div>
+
+</div><!-- end .container -->
+
+<!-- ============================================================ -->
+<!-- REOPEN / EDIT MODAL (shared across dispatch and review) -->
+<!-- ============================================================ -->
+<div id="reopen-modal">
+  <div>
+    <button class="close-btn" onclick="closeReopenModal()">X</button>
+    <div id="reopen-content"></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODULE SCRIPTS -->
+<!-- ============================================================ -->
+<script src="app-dashboard.js"></script>
+<script src="app-myjobs.js"></script>
+<script src="app-dispatch.js"></script>
+<script src="app-review.js"></script>
+<script src="app-accounts.js"></script>
+<script src="app-reference.js"></script>
+<script src="app-stockprep.js"></script>
+<script src="app-quotes.js"></script>
+<script src="app-export.js"></script>
+<script src="app-activitylog.js"></script>
+
+<script>
+// ============================================================
+// GLOBAL STATE -- shared by all modules
+// ============================================================
+let currentUser    = null;
+let currentProfile = null;
+let currentTechRow = null; // non-null when admin also has a techs row (Milton)
+
+// Reference data loaded once at startup, used by all modules
+let allAccounts   = [];
+let allTechs      = [];
+let allJobTypes   = [];
+let allParts      = [];
+let allLaborTypes = [];
+
+
+// ============================================================
+// ROUTER
+// ============================================================
+const ALL_SECTIONS = ['dashboard','dispatch','stockprep','review','quotes','accounts','reference','export','activitylog','myjobs'];
+
+function nav(name) {
+  if (!ALL_SECTIONS.includes(name)) name = 'dispatch';
+  ALL_SECTIONS.forEach(s => {
+    const el = document.getElementById(`section-${s}`);
+    if (el) el.style.display = s === name ? '' : 'none';
+  });
+  document.querySelectorAll('[data-section]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.section === name);
+  });
+  window.location.hash = name;
+  onSectionActivate(name);
+}
+
+function onSectionActivate(name) {
+  if (name === 'dashboard') { loadDashboard(); }
+  if (name === 'dispatch')  { setRange('week'); }
+  if (name === 'review')    { loadReview(); refreshBadges(); }
+  if (name === 'accounts')  { loadAccounts(); }
+  if (name === 'reference') { showRefTab('parts'); }
+  if (name === 'stockprep') { loadStockPrep(); }
+  if (name === 'quotes')    { loadQuotes(); }
+  if (name === 'export')      { initExport(); }
+  if (name === 'activitylog') { loadActivityLog(); }
+  if (name === 'myjobs')      { loadMyJobs(); }
+}
+
+
+// ============================================================
+// BADGES
+// ============================================================
+async function refreshBadges() {
+  const [rv, qt, pa] = await Promise.all([
+    db.from('jobs').select('id', { count: 'exact', head: true }).eq('status', 'Pending Review'),
+    db.from('jobs').select('id', { count: 'exact', head: true }).eq('status', 'Quoted'),
+    db.from('accounts').select('id', { count: 'exact', head: true }).eq('status', 'pending')
+  ]);
+  setBadge('badge-review',   rv.count);
+  setBadge('badge-quotes',   qt.count);
+  setBadge('badge-accounts', pa.count);
+}
+
+function setBadge(id, count) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (count > 0) {
+    el.textContent = count;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+
+// ============================================================
+// INIT & AUTH
+// ============================================================
+async function init() {
+  try {
+    const { data: { session }, error: sessErr } = await db.auth.getSession();
+    if (sessErr) throw sessErr;
+    if (!session) {
+      await db.auth.signOut(); // clear any stale token so index.html doesn't loop
+      window.location.href = 'index.html';
+      return;
+    }
+    currentUser = session.user;
+
+    const { data: profile, error: profErr } = await db.from('user_profiles')
+      .select('role, display_name, active').eq('id', currentUser.id).single();
+    if (profErr) throw profErr;
+    if (!profile || profile.role !== 'admin') {
+      window.location.href = 'tech.html';
+      return;
+    }
+    currentProfile = profile;
+
+    // Check if this admin also has a techs row (Milton pattern)
+    const { data: techRow } = await db.from('techs')
+      .select('id, tech_name').eq('user_id', currentUser.id).maybeSingle();
+    currentTechRow = techRow || null;
+    if (currentTechRow) {
+      document.getElementById('nav-myjobs').style.display = '';
+    }
+
+    await loadRefData();
+    refreshBadges();
+
+    // Route to hash or default to dispatch
+    const hash = window.location.hash.slice(1);
+    nav(ALL_SECTIONS.includes(hash) ? hash : 'dashboard');
+
+  } catch (err) {
+    document.getElementById('main-container').innerHTML =
+      `<div class="msg error" style="margin-top:1rem"><strong>Load error:</strong> ${err.message || JSON.stringify(err)}<br>
+       <span style="font-size:0.81rem">Try signing out and back in.</span></div>`;
+    console.error('app init error:', err);
+  }
+}
+
+
+// ============================================================
+// REFERENCE DATA (shared)
+// ============================================================
+async function loadRefData() {
+  const [a, tc, jt, p, lt] = await Promise.all([
+    db.from('accounts').select('id,account_name,parent_account_id,address,phone,billing_notes,instructions,active,status').order('account_name'),
+    db.from('techs').select('id,tech_name,active,user_id').eq('active', true).order('tech_name'),
+    db.from('job_types').select('id,job_type_name,category,flat_rate,active').eq('active', true).order('job_type_name'),
+    db.from('parts').select('id,part_name,category,unit,unit_cost,stock_qty,active').eq('active', true).order('part_name'),
+    db.from('labor_types').select('id,labor_type_name,hourly_rate').order('labor_type_name')
+  ]);
+  allAccounts   = a.data  || [];
+  allTechs      = tc.data || [];
+  allJobTypes   = jt.data || [];
+  allParts      = p.data  || [];
+  allLaborTypes = lt.data || [];
+
+  // Populate selects used by assign form
+  populateSelect('a-leadtech', allTechs, 'id', 'tech_name', '-- Select Lead --');
+  populateMultiSelect('a-techs', allTechs, 'id', 'tech_name');
+  populateSelect('a-jobtype', allJobTypes, 'id', 'job_type_name', '-- Select --');
+  populateSelect('a-labortype', allLaborTypes, 'id', 'labor_type_name', 'Select type...');
+
+  // Tech filter on board
+  const techSel = document.getElementById('sv-tech');
+  if (techSel) {
+    techSel.innerHTML = '<option value="">All Techs</option>' +
+      allTechs.map(t => `<option value="${t.id}">${t.tech_name}</option>`).join('');
+  }
+
+  // Job type filter on board
+  const jtSel = document.getElementById('sv-jobtype');
+  if (jtSel) {
+    jtSel.innerHTML = '<option value="">All Types</option>' +
+      allJobTypes.map(jt => `<option value="${jt.id}">${jt.job_type_name}</option>`).join('');
+  }
+
+  // Populate template selects inside the template form
+  populateSelect('tmpl-jobtype',  allJobTypes, 'id', 'job_type_name', '-- Any --');
+  populateSelect('tmpl-leadtech', allTechs,    'id', 'tech_name',     '-- Any --');
+
+  // Load templates for the assign form selector
+  if (typeof loadTemplatesForSelect === 'function') loadTemplatesForSelect();
+
+  // User Management: tech dropdown for linking
+  const nuTech = document.getElementById('nu-tech');
+  if (nuTech) {
+    const allTechsAll = (await db.from('techs').select('id,tech_name').order('tech_name')).data || [];
+    nuTech.innerHTML = '<option value="">-- None --</option>' +
+      allTechsAll.map(t => `<option value="${t.id}">${t.tech_name}</option>`).join('');
+  }
+}
+
+
+// ============================================================
+// CLOSE AUTOCOMPLETE ON OUTSIDE CLICK
+// ============================================================
+document.addEventListener('click', e => {
+  if (!e.target.closest('.parts-search-wrap'))
+    document.querySelectorAll('.parts-results').forEach(el => el.style.display = 'none');
+});
+
+window.addEventListener('hashchange', () => {
+  const hash = window.location.hash.slice(1);
+  if (ALL_SECTIONS.includes(hash)) nav(hash);
+});
+
+init();
+</script>
+</body>
+</html>

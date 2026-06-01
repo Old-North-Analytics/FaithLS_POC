@@ -3,66 +3,155 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Faith Lock & Safe - Login</title>
+<title>Faith Lock &amp; Safe | Sign In</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="shared.js"></script>
 <style>
-body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f0f0f0; }
-.box { background: white; padding: 2rem; border: 1px solid #ccc; width: 320px; }
-h2 { margin-top: 0; font-size: 1.2rem; }
-label { font-size: 0.85rem; font-weight: bold; }
-input { width: 100%; padding: 0.5rem; margin: 0.3rem 0 1rem; box-sizing: border-box; border: 1px solid #ccc; }
-button { width: 100%; padding: 0.6rem; background: #1a1a1a; color: white; border: none; cursor: pointer; font-size: 1rem; }
-button:hover { background: #333; }
-.err { color: red; font-size: 0.85rem; margin-top: 0.5rem; }
+* { box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  display: flex; justify-content: center; align-items: center;
+  min-height: 100vh; margin: 0;
+  background: #1a2744;
+}
+.card {
+  background: white;
+  border-radius: 8px;
+  padding: 2.4rem 2rem;
+  width: 340px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.28);
+}
+.brand {
+  text-align: center;
+  margin-bottom: 1.8rem;
+}
+.brand h1 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1a2744;
+  margin: 0 0 0.25rem;
+}
+.brand p {
+  font-size: 0.82rem;
+  color: #6b6fa8;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4a5070;
+  margin-bottom: 0.25rem;
+}
+input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  margin-bottom: 1rem;
+  border: 1px solid #c8cdd8;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+input:focus {
+  outline: none;
+  border-color: #6b6fa8;
+  box-shadow: 0 0 0 2px rgba(107,111,168,0.14);
+}
+button {
+  width: 100%;
+  padding: 0.65rem;
+  background: #1a2744;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: background 0.15s;
+}
+button:hover { background: #243560; }
+button:disabled { background: #8a9ab8; cursor: not-allowed; }
+.err {
+  color: #a02020;
+  font-size: 0.83rem;
+  margin-top: 0.7rem;
+  min-height: 1.1em;
+  text-align: center;
+}
 </style>
 </head>
 <body>
-<div class="box">
-  <h2>Faith Lock &amp; Safe Co.</h2>
-  <p style="font-size:0.85rem;color:#555;margin-top:0;">Job Management System</p>
-  <label>Email</label>
-  <input type="email" id="email" placeholder="email@example.com">
-  <label>Password</label>
-  <input type="password" id="password" placeholder="Password">
-  <button onclick="login()">Sign In</button>
+<div class="card">
+  <div class="brand">
+    <h1>Faith Lock &amp; Safe Co.</h1>
+    <p>Job Management System</p>
+  </div>
+  <label for="email">Email</label>
+  <input type="email" id="email" placeholder="you@example.com" autocomplete="username">
+  <label for="password">Password</label>
+  <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+  <button id="signin-btn" onclick="login()">Sign In</button>
   <div class="err" id="err"></div>
 </div>
+
 <script>
-// ---- INIT ----
-// If the user already has an active session (e.g. they bookmarked the page
-// while logged in), skip the login form and redirect them immediately.
-db.auth.getSession().then(({ data }) => {
-  if (data.session) redirectByRole(data.session.user.id);
-});
-// ---- LOGIN ----
+// Do NOT auto-redirect on load -- stale sessions cause infinite loops.
+// The user always starts on the login form and signs in explicitly.
+
 async function login() {
   const email    = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
-  const err      = document.getElementById('err');
-  err.textContent = '';
+  const errEl    = document.getElementById('err');
+  const btn      = document.getElementById('signin-btn');
+  errEl.textContent = '';
+
+  if (!email || !password) {
+    errEl.textContent = 'Email and password are required.';
+    return;
+  }
+
+  btn.disabled    = true;
+  btn.textContent = 'Signing in...';
+
   const { data, error } = await db.auth.signInWithPassword({ email, password });
-  if (error) { err.textContent = error.message; return; }
-  // Fire-and-forget: log the login event without blocking redirect
-  logLoginEvent(data.user.id, data.user.email);
+  if (error) {
+    errEl.textContent = error.message;
+    btn.disabled    = false;
+    btn.textContent = 'Sign In';
+    return;
+  }
+
+  // Fire-and-forget login event -- no-op on failure.
+  db.from('login_events').insert({ user_id: data.user.id, email: data.user.email }).then(() => {});
+
   redirectByRole(data.user.id);
 }
-// ---- LOGIN EVENT LOGGING ----
-// Writes a row to login_events for visibility into who is accessing the app.
-// Non-blocking -- failures are silent and do not affect the user flow.
-function logLoginEvent(userId, email) {
-  db.from('login_events').insert({ user_id: userId, email: email }).then(() => {});
-}
-// redirectByRole: looks up the user's role in user_profiles and sends them
-// to the correct page. Admins go to the full management dashboard;
-// technicians go to the simplified field view.
+
 async function redirectByRole(uid) {
-  const { data } = await db.from('user_profiles').select('role').eq('id', uid).single();
-  if (!data) { document.getElementById('err').textContent = 'Profile not found. Contact admin.'; return; }
-  if (data.role === 'admin') window.location.href = 'admin.html';
-  else window.location.href = 'tech.html';
+  const { data, error } = await db.from('user_profiles')
+    .select('role').eq('id', uid).single();
+
+  if (error || !data) {
+    document.getElementById('err').textContent = 'Profile not found. Contact your administrator.';
+    const btn = document.getElementById('signin-btn');
+    btn.disabled    = false;
+    btn.textContent = 'Sign In';
+    return;
+  }
+
+  if (data.role === 'admin') {
+    window.location.href = 'app.html';
+  } else {
+    window.location.href = 'tech.html';
+  }
 }
-// Allow Enter key to submit the form (common user expectation on login screens)
+
 document.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
 </script>
 </body>

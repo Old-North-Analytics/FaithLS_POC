@@ -1,24 +1,28 @@
-// ============================================================
-// shared.js — Faith Lock & Safe Job Management System
+// shared.js -- Faith Lock & Safe Job Management System
 //
-// Utilities shared by admin.html, tech.html, accounts.html, and index.html.
-// Load order in every HTML file:
+// Shared utilities for app.html, tech.html, and index.html.
+// Load order in every file:
 //   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 //   <script src="shared.js"></script>
-//   <script> /* page-specific code here */ </script>
-// ============================================================
-
+//   <script src="export-config.js"></script>  (app.html only)
+//   <script> /* page-specific code */ </script>
 
 // ---- SUPABASE CONNECTION ----
 const SUPABASE_URL      = 'https://jmsrlhqbzstuczxilxua.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptc3JsaHFienN0dWN6eGlseHVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MzA5NDcsImV4cCI6MjA5MjQwNjk0N30.jpHtuhezvfRXJ2uVhwglqS_rImZl8JqqBX85WUv2Z5g';
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Use sessionStorage so auth tokens persist across page redirects in the same tab,
+// including when serving via file:// protocol or in private browsing mode.
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage:          window.sessionStorage,
+    persistSession:   true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false
+  }
+});
 
 
 // ---- BRAND COLORS ----
-// Derived from Faith Lock & Safe logo.
-// Navy (#1a2744) = primary dark. Purple (#6b6fa8) = accent. White = surface.
-// Use these constants anywhere inline color is needed outside CSS.
 const BRAND = {
   navy:   '#1a2744',
   purple: '#6b6fa8',
@@ -29,37 +33,84 @@ const BRAND = {
 };
 
 
+// ---- AUTH ----
+async function logout() {
+  await db.auth.signOut();
+  window.location.href = 'index.html';
+}
+
+
 // ---- DATE HELPERS ----
 
-// formatDate: converts a Postgres date string (YYYY-MM-DD) to MM/DD/YYYY.
-// Splits on '-' to avoid UTC-midnight timezone shift bugs from new Date().
+// formatDate: YYYY-MM-DD -> MM/DD/YYYY. Splits on '-' to avoid UTC shift bugs.
 function formatDate(str) {
   if (!str) return '';
   const [y, m, d] = str.split('-');
   return `${m}/${d}/${y}`;
 }
 
+// _localDateStr: formats a Date object as YYYY-MM-DD using LOCAL time.
+// Critical: never use .toISOString() for date-only values -- it returns
+// UTC which is 5-6 hours behind US Central and will give yesterday's date
+// for any call made after ~6-7 pm local time.
+function _localDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function today() {
-  return new Date().toISOString().split('T')[0];
+  return _localDateStr(new Date());
 }
 
 function tomorrow() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
+  return _localDateStr(d);
 }
 
-// weekStart: returns most recent Monday as YYYY-MM-DD.
+// weekStart: returns most recent Monday as YYYY-MM-DD (local).
 function weekStart() {
   const d = new Date();
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return d.toISOString().split('T')[0];
+  return _localDateStr(d);
 }
 
-// nowLocal: returns current local datetime as YYYY-MM-DDTHH:MM for datetime-local inputs.
+// weekEnd: returns Sunday of the current week as YYYY-MM-DD (local).
+function weekEnd() {
+  const d = new Date();
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 6);
+  return _localDateStr(d);
+}
+
+// monthStart/monthEnd for current calendar month.
+function monthStart() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+function monthEnd() {
+  const d = new Date();
+  return _localDateStr(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+}
+
+// nowLocal: current local datetime as YYYY-MM-DDTHH:MM for datetime-local inputs.
 function nowLocal() {
   const d = new Date();
   return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
+// fmtDateTime: ISO timestamp to readable local string (MM/DD/YYYY h:mm AM/PM).
+function fmtDateTime(iso) {
+  if (!iso) return '--';
+  return new Date(iso).toLocaleString('en-US', {
+    month: '2-digit', day: '2-digit', year: 'numeric',
+    hour: 'numeric', minute: '2-digit'
+  });
+}
+
+// fmtTime: ISO timestamp to time only (h:mm AM/PM).
+function fmtTime(iso) {
+  if (!iso) return '--';
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
 
@@ -80,7 +131,6 @@ function populateMultiSelect(id, items, valueKey, labelKey) {
 
 
 // ---- REVENUE CALCULATION ----
-
 function calcRevenue(lineItems) {
   return (lineItems || []).reduce(
     (sum, i) => sum + ((i.override_cost ?? i.unit_cost) * i.quantity), 0
@@ -89,7 +139,6 @@ function calcRevenue(lineItems) {
 
 
 // ---- IMAGE RESIZE ----
-
 function resizeImage(file, maxW) {
   return new Promise(resolve => {
     const img = new Image();
@@ -109,9 +158,8 @@ function resizeImage(file, maxW) {
 
 
 // ---- CSV EXPORT ----
-
 function downloadCSV(rows, filename) {
-  const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const csv  = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
@@ -128,8 +176,7 @@ async function fetchPhotoUrls(photos) {
       .from('job-photos')
       .createSignedUrl(p.storage_path, 7200);
     if (signed?.signedUrl) return { ...p, url: signed.signedUrl };
-    // Log the error so it is visible in the browser console for debugging.
-    if (error) console.warn('fetchPhotoUrls: signed URL failed for', p.storage_path, error.message);
+    if (error) console.warn('fetchPhotoUrls:', p.storage_path, error.message);
     return { ...p, url: null };
   }));
 }
@@ -160,19 +207,17 @@ function renderPhotoGrid(gridEl, withUrls, showDate = true) {
           </div>
           ${dateHtml}
         </div>`;
-      } else {
-        return `<div style="text-align:center">
-          <div style="width:110px;height:88px;background:#eee;border:1px solid #ccc;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;padding:4px">${label}</div>
-          <div style="font-size:0.72rem;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px">${label}</div>
-          ${dateHtml}
-        </div>`;
       }
+      return `<div style="text-align:center">
+        <div style="width:110px;height:88px;background:#eee;border:1px solid #ccc;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;padding:4px">${label}</div>
+        <div style="font-size:0.72rem;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px">${label}</div>
+        ${dateHtml}
+      </div>`;
     }).join('') + '</div>';
 }
 
 
 // ---- MAPS LINK ----
-
 function mapsLink(address) {
   if (!address) return '';
   return `<a href="https://maps.google.com/?q=${encodeURIComponent(address)}" target="_blank"
@@ -180,74 +225,28 @@ function mapsLink(address) {
 }
 
 
-// ---- ADMIN NAV ----
-// renderAdminNav(activePage, extraHtml)
-// activePage: 'admin' | 'schedule' | 'accounts'
-// extraHtml: page-specific buttons shown after a divider (optional)
-//
-// On admin.html: global nav buttons call showSection() directly -- no page reload.
-// On schedule/accounts: buttons link back to admin.html or the other pages.
-function renderAdminNav(activePage, extraHtml = '') {
-  const btnStyle = (active) =>
-    `style="background:${active ? '#6b6fa8' : 'transparent'};border:1px solid ${active ? '#6b6fa8' : 'rgba(255,255,255,0.35)'};color:${active ? 'white' : 'rgba(255,255,255,0.75)'};padding:0.3rem 0.75rem;cursor:pointer;font-size:0.82rem;border-radius:3px;font-family:inherit"`;
+// ---- HTML ESCAPE ----
+function escHtml(str) {
+  return (str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
-  let navHtml = '';
 
-  if (activePage === 'admin') {
-    // All sections live on this page -- use showSection, no anchors needed
-    navHtml = `
-      <button onclick="showSection('assign')"    ${btnStyle(false)}>Assign</button>
-      <button onclick="showSection('review')"    ${btnStyle(false)}>Review</button>
-      <a href="schedule.html" style="text-decoration:none"><button ${btnStyle(false)}>Schedule</button></a>
-      <button onclick="showSection('calendar')"  ${btnStyle(false)}>Calendar</button>
-      <a href="accounts.html" style="text-decoration:none"><button ${btnStyle(false)}>Accounts</button></a>
-      <button onclick="showSection('reference')" ${btnStyle(false)}>Reference</button>
-      <button onclick="showSection('search')"    ${btnStyle(false)}>Search</button>
-      <button onclick="showSection('export')"    ${btnStyle(false)}>Export</button>
-    `;
-  } else if (activePage === 'schedule') {
-    navHtml = `
-      <a href="admin.html" style="text-decoration:none"><button ${btnStyle(false)}>Assign</button></a>
-      <a href="admin.html" style="text-decoration:none"><button ${btnStyle(false)}>Review</button></a>
-      <button ${btnStyle(true)}>Schedule</button>
-      <a href="admin.html" style="text-decoration:none"><button ${btnStyle(false)}>Calendar</button></a>
-      <a href="accounts.html" style="text-decoration:none"><button ${btnStyle(false)}>Accounts</button></a>
-      <a href="admin.html" style="text-decoration:none"><button ${btnStyle(false)}>Reference</button></a>
-      <a href="admin.html" style="text-decoration:none"><button ${btnStyle(false)}>Search</button></a>
-      <a href="admin.html" style="text-decoration:none"><button ${btnStyle(false)}>Export</button></a>
-    `;
-  } else if (activePage === 'accounts') {
-    navHtml = `
-      <a href="admin.html" style="text-decoration:none"><button ${btnStyle(false)}>Assign</button></a>
-      <a href="admin.html" style="text-decoration:none"><button ${btnStyle(false)}>Review</button></a>
-      <a href="schedule.html" style="text-decoration:none"><button ${btnStyle(false)}>Schedule</button></a>
-      <a href="admin.html" style="text-decoration:none"><button ${btnStyle(false)}>Calendar</button></a>
-      <button ${btnStyle(true)}>Accounts</button>
-      <a href="admin.html" style="text-decoration:none"><button ${btnStyle(false)}>Reference</button></a>
-      <a href="admin.html" style="text-decoration:none"><button ${btnStyle(false)}>Search</button></a>
-      <a href="admin.html" style="text-decoration:none"><button ${btnStyle(false)}>Export</button></a>
-    `;
-  }
-
-  const divider = extraHtml
-    ? `<span style="width:1px;height:1rem;background:rgba(255,255,255,0.2);margin:0 0.4rem;display:inline-block"></span>${extraHtml}`
-    : '';
-
-  const pageTitle = activePage === 'schedule' ? 'Schedule' : activePage === 'accounts' ? 'Accounts' : 'Admin';
-
-  document.querySelector('header').innerHTML = `
-    <h1 style="margin:0;font-size:0.95rem;font-weight:600;letter-spacing:0.02em">Faith Lock &amp; Safe &nbsp;|&nbsp; ${pageTitle}</h1>
-    <nav style="display:flex;gap:0.3rem;flex-wrap:wrap;align-items:center;flex:1;margin-left:1rem">
-      ${navHtml}${divider}
-    </nav>
-    <button class="logout" onclick="logout()">Sign Out</button>
-  `;
+// ---- HUMAN-READABLE JOB REFERENCE ----
+// jobRef(job, visitNumber): builds the display ID in ACCOUNT-SUB-JOB-VISIT format.
+// job object must include account_number (from accounts join), job_number,
+// and optionally sub_account_number and visit_number.
+// Any missing segment is omitted from the string.
+function jobRef(acctNum, subNum, jobNum, visitNum) {
+  const parts = [];
+  if (acctNum) parts.push(acctNum);
+  if (subNum)  parts.push(subNum);
+  if (jobNum)  parts.push(jobNum);
+  if (visitNum != null && visitNum !== undefined) parts.push(String(visitNum));
+  return parts.join('-');
 }
 
 
 // ---- PRINT JOB ----
-// printJob(jobId): fetches full job record and opens a formatted print window.
-// Shows actuals if job is Approved or Pending Review; otherwise shows expected items.
 async function printJob(jobId) {
   const { data: job, error } = await db
     .from('jobs')
@@ -265,9 +264,8 @@ async function printJob(jobId) {
     .eq('id', jobId)
     .single();
 
-  if (error || !job) { alert('Could not load job data: ' + (error?.message || 'unknown error')); return; }
+  if (error || !job) { alert('Could not load job data: ' + (error?.message || 'unknown')); return; }
 
-  // Resolve tech names from assigned_tech_ids array
   let techNames = '';
   if (job.assigned_tech_ids?.length) {
     const { data: techRows } = await db.from('techs')
@@ -276,18 +274,16 @@ async function printJob(jobId) {
   }
   if (!techNames) techNames = job.lead_tech?.tech_name || '';
 
-  // Resolve part and labor names for line items
   const lineItems = job.job_line_items || [];
-  const partIds  = lineItems.filter(i => i.item_type === 'Part').map(i => i.item_id);
-  const laborIds = lineItems.filter(i => i.item_type === 'Labor').map(i => i.item_id);
+  const partIds   = lineItems.filter(i => i.item_type === 'Part').map(i => i.item_id);
+  const laborIds  = lineItems.filter(i => i.item_type === 'Labor').map(i => i.item_id);
   const [partsRes, laborRes] = await Promise.all([
-    partIds.length  ? db.from('parts').select('id, part_name').in('id', partIds)         : { data: [] },
+    partIds.length  ? db.from('parts').select('id, part_name').in('id', partIds)              : { data: [] },
     laborIds.length ? db.from('labor_types').select('id, labor_type_name').in('id', laborIds) : { data: [] }
   ]);
   const partsMap = Object.fromEntries((partsRes.data || []).map(p => [p.id, p.part_name]));
   const laborMap = Object.fromEntries((laborRes.data || []).map(l => [l.id, l.labor_type_name]));
 
-  // Fetch contacts -- column is 'notes' not 'contact_notes'
   const { data: contacts } = await db
     .from('account_contacts')
     .select('contact_name, title, cell_phone, work_phone, notes, is_primary, is_secondary')
@@ -297,7 +293,6 @@ async function printJob(jobId) {
 
   const primary   = (contacts || []).find(c => c.is_primary);
   const secondary = (contacts || []).find(c => c.is_secondary && !c.is_primary);
-
   const useActuals = ['Approved', 'Pending Review'].includes(job.status);
 
   function itemRows(items) {
@@ -306,13 +301,13 @@ async function printJob(jobId) {
       const desc = i.item_type === 'Part'         ? (partsMap[i.item_id] || '')
                  : i.item_type === 'Labor'        ? (laborMap[i.item_id] || '')
                  : i.item_type === 'Service Call' ? 'Service Call Fee'
-                 : 'Other';
-      const badge = { Part: '#dbeafe|#1e40af|Part', Labor: '#dcfce7|#166534|Labor',
-                      'Service Call': '#fef3c7|#92400e|Svc Call', Other: '#f3e8ff|#6b21a8|Other' }[i.item_type] || '|#333|';
-      const [bg, fg, label] = badge.split('|');
+                 : (i.notes || 'Other');
+      const badges = { Part: '#dbeafe|#1e40af|Part', Labor: '#dcfce7|#166534|Labor',
+                       'Service Call': '#fef3c7|#92400e|Svc Call', Other: '#f3e8ff|#6b21a8|Other' };
+      const [bg, fg, lbl] = (badges[i.item_type] || '|#333|').split('|');
       const qty = i.item_type === 'Labor' ? `${i.quantity} hr${i.quantity !== 1 ? 's' : ''}` : i.quantity;
-      return `<tr style="background:inherit">
-        <td><span style="font-size:0.6rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;padding:1px 4px;border-radius:2px;background:${bg};color:${fg}">${label}</span></td>
+      return `<tr>
+        <td><span style="font-size:0.6rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;padding:1px 4px;border-radius:2px;background:${bg};color:${fg}">${lbl}</span></td>
         <td>${desc}</td><td style="text-align:center">${qty}</td><td>${i.notes || ''}</td>
       </tr>`;
     }).join('');
@@ -320,54 +315,35 @@ async function printJob(jobId) {
 
   function contactBlock(c, type) {
     if (!c) return '';
-    const badgeColor = type === 'Primary' ? '#dbeafe|#1e40af' : '#f3e8ff|#6b21a8';
-    const [bg, fg] = badgeColor.split('|');
+    const [bg, fg] = type === 'Primary' ? ['#dbeafe', '#1e40af'] : ['#f3e8ff', '#6b21a8'];
     const phone = c.cell_phone || c.work_phone || '';
-    return `
-      <div style="display:grid;grid-template-columns:80px 1fr 1fr 1fr;gap:5px 12px;padding:5px 0;border-bottom:1px solid #f0ebe4;align-items:start">
-        <div><span style="font-size:0.6rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;padding:2px 5px;border-radius:2px;background:${bg};color:${fg};display:inline-block;margin-top:1px">${type}</span></div>
-        <div><div style="font-size:0.6rem;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:#aaa;margin-bottom:1px">Name</div><div style="font-size:0.76rem">${c.contact_name || ''}</div></div>
-        <div><div style="font-size:0.6rem;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:#aaa;margin-bottom:1px">Title</div><div style="font-size:0.76rem">${c.title || ''}</div></div>
-        <div><div style="font-size:0.6rem;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:#aaa;margin-bottom:1px">Phone</div><div style="font-size:0.76rem">${phone}</div></div>
-        ${c.notes ? `<div style="grid-column:1/-1;font-size:0.68rem;color:#666;font-style:italic;padding-top:2px">Notes: ${c.notes}</div>` : ''}
-      </div>`;
+    return `<div style="display:grid;grid-template-columns:80px 1fr 1fr 1fr;gap:5px 12px;padding:5px 0;border-bottom:1px solid #f0ebe4;align-items:start">
+      <div><span style="font-size:0.6rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;padding:2px 5px;border-radius:2px;background:${bg};color:${fg};display:inline-block;margin-top:1px">${type}</span></div>
+      <div><div style="font-size:0.6rem;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:#aaa;margin-bottom:1px">Name</div><div style="font-size:0.76rem">${c.contact_name || ''}</div></div>
+      <div><div style="font-size:0.6rem;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:#aaa;margin-bottom:1px">Title</div><div style="font-size:0.76rem">${c.title || ''}</div></div>
+      <div><div style="font-size:0.6rem;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:#aaa;margin-bottom:1px">Phone</div><div style="font-size:0.76rem">${phone}</div></div>
+      ${c.notes ? `<div style="grid-column:1/-1;font-size:0.68rem;color:#666;font-style:italic;padding-top:2px">Notes: ${c.notes}</div>` : ''}
+    </div>`;
   }
 
-  // Visits show date and clock times. Line items are job-level (not per-visit).
-  // If multi-visit, show each visit as a block; line items shown once after all visits.
   const sortedVisits = (job.job_visits || []).sort((a, b) => a.visit_number - b.visit_number);
-
   const visitBlocks = sortedVisits.length
     ? sortedVisits.map(v => `
         <div style="border:1px solid #e4dfd8;border-radius:3px;margin-bottom:6px;overflow:hidden">
           <div style="background:#f4f1ec;padding:4px 10px;font-size:0.65rem;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:0.07em;display:flex;gap:16px">
             Visit ${v.visit_number}
             <span style="font-weight:400;color:#666;text-transform:none;letter-spacing:0">${formatDate(v.visit_date)}</span>
-            ${v.clocked_in_at ? `<span style="font-weight:400;color:#888;text-transform:none;letter-spacing:0">In: ${new Date(v.clocked_in_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</span>` : ''}
-            ${v.clocked_out_at ? `<span style="font-weight:400;color:#888;text-transform:none;letter-spacing:0">Out: ${new Date(v.clocked_out_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</span>` : ''}
+            ${v.clocked_in_at  ? `<span style="font-weight:400;color:#888;text-transform:none;letter-spacing:0">In: ${fmtTime(v.clocked_in_at)}</span>`  : ''}
+            ${v.clocked_out_at ? `<span style="font-weight:400;color:#888;text-transform:none;letter-spacing:0">Out: ${fmtTime(v.clocked_out_at)}</span>` : ''}
           </div>
           ${v.tech_notes ? `<div style="padding:5px 10px;font-size:0.72rem;color:#444;font-style:italic">${v.tech_notes}</div>` : ''}
         </div>`).join('')
     : `<div style="font-size:0.76rem;color:#aaa;font-style:italic">No visit records.</div>`;
 
-  const lineItemBlock = `
-    <div style="border:1px solid #e4dfd8;border-radius:3px;overflow:hidden;margin-top:8px">
-      <div style="background:#f4f1ec;padding:4px 10px;font-size:0.65rem;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:0.07em">
-        Line Items ${useActuals ? '(Actuals)' : '(Expected)'}
-      </div>
-      <table style="width:100%;border-collapse:collapse;font-size:0.72rem">
-        <thead><tr style="background:#1a2744;color:white">
-          <th style="padding:5px 7px;text-align:left;font-weight:500;font-size:0.62rem;letter-spacing:0.05em;text-transform:uppercase">Type</th>
-          <th style="padding:5px 7px;text-align:left;font-weight:500;font-size:0.62rem;letter-spacing:0.05em;text-transform:uppercase">Description</th>
-          <th style="padding:5px 7px;text-align:center;font-weight:500;font-size:0.62rem;letter-spacing:0.05em;text-transform:uppercase">Qty</th>
-          <th style="padding:5px 7px;text-align:left;font-weight:500;font-size:0.62rem;letter-spacing:0.05em;text-transform:uppercase">Notes</th>
-        </tr></thead>
-        <tbody>${itemRows(job.job_line_items)}</tbody>
-      </table>
-    </div>`;
+  const serviceAddr = job.job_address || job.accounts?.address || '';
 
   const html = `<!DOCTYPE html><html><head>
-    <title>Job Summary - ${job.id}</title>
+    <title>Job Summary</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
       * { box-sizing:border-box; margin:0; padding:0; }
@@ -391,14 +367,13 @@ async function printJob(jobId) {
     <div class="header">
       <div>
         <div class="co-name">Faith Lock &amp; Safe Co.</div>
-        <div class="co-sub">Pegram, TN &nbsp;|&nbsp; (615) 555-0192</div>
+        <div class="co-sub">Pegram, TN</div>
       </div>
       <div style="text-align:right">
         <div class="job-id">JOB-${job.id.slice(0,8).toUpperCase()}</div>
         <div style="font-size:0.63rem;color:#999;text-transform:uppercase;letter-spacing:0.06em;margin-top:3px">Job Summary${useActuals ? ' - Actuals' : ' - Expected'}</div>
       </div>
     </div>
-
     <div class="section">
       <div class="section-title">Job Information</div>
       <div class="grid-4">
@@ -412,32 +387,36 @@ async function printJob(jobId) {
         <div class="field"><label>Sub-Account</label><span>${job.sub_accounts?.account_name || ''}</span></div>
       </div>
     </div>
-
-    <div class="section">
-      <div class="section-title">Site Address</div>
-      <span>${job.job_address || job.accounts?.address || ''}</span>
-    </div>
-
+    ${serviceAddr ? `<div class="section"><div class="section-title">Site Address</div><span>${serviceAddr}</span></div>` : ''}
     <div class="section">
       <div class="section-title">Contacts</div>
       ${contactBlock(primary, 'Primary')}
       ${contactBlock(secondary, 'Secondary')}
     </div>
-
-    ${job.scope ? `<div class="section"><div class="section-title">Scope of Work</div><div class="scope-box">${job.scope}</div></div>` : ''}
+    ${job.scope      ? `<div class="section"><div class="section-title">Scope of Work</div><div class="scope-box">${job.scope}</div></div>` : ''}
     ${job.site_notes ? `<div class="section"><div class="section-title">Site Notes</div><div class="notes-box">${job.site_notes}</div></div>` : ''}
-
     <div class="section">
       <div class="section-title">Visits</div>
       ${visitBlocks}
-      ${lineItemBlock}
+      <div style="border:1px solid #e4dfd8;border-radius:3px;overflow:hidden;margin-top:8px">
+        <div style="background:#f4f1ec;padding:4px 10px;font-size:0.65rem;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:0.07em">
+          Line Items ${useActuals ? '(Actuals)' : '(Expected)'}
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:0.72rem">
+          <thead><tr style="background:#1a2744;color:white">
+            <th style="padding:5px 7px;text-align:left;font-weight:500;font-size:0.62rem;letter-spacing:0.05em;text-transform:uppercase">Type</th>
+            <th style="padding:5px 7px;text-align:left;font-weight:500;font-size:0.62rem;letter-spacing:0.05em;text-transform:uppercase">Description</th>
+            <th style="padding:5px 7px;text-align:center;font-weight:500;font-size:0.62rem;letter-spacing:0.05em;text-transform:uppercase">Qty</th>
+            <th style="padding:5px 7px;text-align:left;font-weight:500;font-size:0.62rem;letter-spacing:0.05em;text-transform:uppercase">Notes</th>
+          </tr></thead>
+          <tbody>${itemRows(job.job_line_items)}</tbody>
+        </table>
+      </div>
     </div>
-
     <div class="footer">
       <span>Faith Lock &amp; Safe Co. | Internal Use</span>
       <span>Printed ${new Date().toLocaleDateString('en-US')}</span>
     </div>
-
     <script>window.onload = () => window.print();<\/script>
   </body></html>`;
 

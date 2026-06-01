@@ -1,0 +1,19 @@
+# Windows
+desktop.ini
+Thumbs.db
+
+# macOS
+.DS_Store
+
+# Temporary/lock files
+~$*
+
+# Internal dev context — not part of the public repo
+CONTEXT.md
+BUILD_SPEC.md
+
+# Word documents (not served by GitHub Pages)
+*.docx
+
+# Docs folder — selectively tracked; exclude binary files
+docs/*.docx
