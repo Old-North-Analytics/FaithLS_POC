@@ -962,7 +962,7 @@ async function openReopen(jobId) {
       </div>`;
 
     renderReopenParts(); renderReopenLabor(); renderReopenCharges();
-    document.getElementById('reopen-modal').style.display = '';
+    document.getElementById('reopen-modal').style.display = 'block';
   } catch (err) {
     alert('Error loading job: ' + (err.message || JSON.stringify(err)));
     console.error('openReopen error:', err);
